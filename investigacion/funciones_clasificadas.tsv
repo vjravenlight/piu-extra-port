@@ -1,0 +1,1665 @@
+﻿0x0200D0	285	juego	
+0x0201F0	2212	juego	
+0x020AE8	59	juego	
+0x020B24	35	juego	
+0x020B48	84	juego	
+0x020C58	6	juego	
+0x020C60	11	juego	
+0x020C6C	6	juego	
+0x020C74	6	juego	
+0x020C7C	301	juego	
+0x020DCC	284	juego	PUMP3
+0x021130	139	juego	
+0x0213E0	11	juego	
+0x0214D8	475	juego	.\cap\p3_%03d.TGA
+0x021738	1168	juego	idle...
+0x021BC8	372	juego	
+0x021DE0	143	juego	
+0x021E70	457	juego	%d %s %s | pump 5.0
+0x0220F8	714	juego	STEP\%s | %d %s %s
+0x022430	185	juego	
+0x0224E0	213	juego	
+0x0225B8	115	juego	
+0x02262C	158	juego	
+0x0226CC	188	juego	
+0x0227C4	128	juego	
+0x022854	1903	juego	
+0x022FC3	3	juego	
+0x0237D8	128	juego	
+0x0238B8	193	juego	
+0x0239FC	188	juego	bga\00.dat | font.tga | event.tga | arrow541.sp2
+0x023B50	610	juego	
+0x023DB4	491	juego	
+0x024010	614	juego	
+0x024298	506	juego	
+0x0244B8	490	juego	
+0x0246C8	559	juego	
+0x02491C	560	juego	
+0x024B70	576	juego	
+0x024DB0	8693	juego	
+0x027058	256	juego	
+0x027158	2173	juego	333?
+0x027CC4	987	juego	
+0x0280B4	2319	juego	
+0x028A70	993	juego	
+0x028E8C	250	juego	
+0x028F88	4851	juego	
+0x02A27C	1596	juego	run step_name -d(ouble) | %-12s - file not found | -demo | -demo2
+0x02A90C	53	juego	
+0x02C04C	4200	juego	%02d:%02d:%02d %6d
+0x02D898	114	juego	bga\grade.dat | grade.sp2
+0x02D90C	722	juego	
+0x02DBE0	2616	juego	
+0x02E618	115	juego	BGA\84.dat
+0x02E6A0	118	juego	
+0x02E758	82	juego	
+0x02E7AC	93	juego	
+0x02E860	143	juego	%d %d %d
+0x02E8F0	443	juego	
+0x02EBD4	788	juego	
+0x02EEE8	493	juego	
+0x02F1C0	249	juego	NORMAL | HARD | DOUBLE | REMIX
+0x02F2BC	440	juego	%d %s %s | MODENAME | SONG
+0x02F680	210	juego	
+0x02F9F4	687	juego	
+0x02FCF4	690	juego	
+0x02FFE4	642	juego	
+0x030268	752	juego	bga\select.dat | select.sp2 | select1.sp2 | game.cfg
+0x030558	397	juego	
+0x0306E8	348	juego	
+0x030844	603	juego	
+0x030AA0	1632	juego	
+0x031154	1353	juego	
+0x031740	1502	juego	
+0x031D20	1358	juego	UVWXYZ0123456789
+0x032270	678	juego	
+0x032530	2654	juego	%02d_n | %02d_h | %02d_x | %02d_xd
+0x032F90	180	juego	
+0x03311C	332	juego	
+0x033268	1	juego	
+0x03326C	165	juego	
+0x033330	261	juego	%1d.sp2 | bga\next.dat
+0x033438	82	juego	run %02d_h2.not -demo %02d.dat
+0x033490	100	juego	
+0x0334F4	108	juego	
+0x033560	205	juego	
+0x033630	147	juego	
+0x0337FC	49	png	
+0x033830	79	png	
+0x033880	6	png	
+0x0338BC	1489	png	.PNG | 1.0.6 | .PTX
+0x033EDC	93	png	
+0x033F3C	27	png	
+0x034618	134	png	
+0x0346A0	36	png	
+0x0346C4	170	png	
+0x034794	783	png	
+0x034CB0	339	png	
+0x034E04	179	png	TILE | PATTERN
+0x035320	1384	png	TYPE | TYPE
+0x035890	92	juego	font.tga
+0x0358EC	1	juego	
+0x0359DC	316	juego	
+0x035B18	322	juego	
+0x035C5C	123	juego	
+0x035CD8	8	juego	
+0x035CE0	6	juego	
+0x035E28	398	juego	
+0x035FB8	43	juego	
+0x035FE4	741	juego	
+0x0362CC	1321	juego	
+0x036854	72	juego	
+0x03689C	33	juego	
+0x03690C	39	juego	
+0x036934	58	juego	
+0x036970	610	juego	%d %s %s | Memory insufficient | error %s
+0x036BD4	203	juego	
+0x036CA0	61	juego	
+0x036CE0	186	juego	
+0x036D9C	156	juego	
+0x036E38	80	juego	
+0x036E88	76	juego	
+0x036ED4	1	juego	
+0x036ED8	40	juego	
+0x036F00	218	juego	stage.cap | fa!^`;_}<= ~..~
+0x036FDC	160	juego	
+0x03707C	92	juego	
+0x0370D8	22	juego	
+0x0370F0	64	juego	
+0x037130	50	juego	
+0x037488	21	juego	
+0x0374A0	687	juego	%d %s %s | BGA\70.dat | 506.dat | BGA\10.dat
+0x037750	45	juego	
+0x03779C	811	juego	
+0x03788C	270	juego	
+0x0379DC	415	juego	
+0x037B7C	238	juego	
+0x037E50	380	juego	Warning - ident mismatch | Warning - EEPROM chksum err
+0x037FCC	49	juego	GAME SETTING
+0x038028	214	juego	Lock OK:%d Err:%d | I/O TEST
+0x0380D4	558	juego	I/O TEST | 1.TEST  BUTTON | 2.SERVICE BUTTON | 3.CLEAR BUTTON
+0x038304	329	juego	EEPROM TEST | ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 | WRITE  ... | READ   ...
+0x038574	753	juego	GAME OPTION
+0x038878	374	juego	COIN OPTION | FREE | 1 CREDIT / %2d COINS
+0x038A58	393	juego	SOUND TEST | #%02d | #%02d
+0x038BF4	54	juego	
+0x038C5C	451	juego	SCREEN TEST | PUMP IT UP (R4/v%d.%02d) | Mar 08 2001 | EXIT   - SERVICE BUTTON
+0x038E30	3357	juego	
+0x039F74	125	juego	
+0x039FF4	38	juego	
+0x03A01C	49	juego	
+0x03A050	49	juego	
+0x03A084	49	juego	
+0x03A0B8	178	juego	
+0x03A16C	1719	juego	
+0x03A824	186	juego	piu.bin
+0x03A8E0	99	juego	
+0x03A950	138	juego	
+0x03A9DC	98	juego	3333332@
+0x03AA40	79	juego	
+0x03AAB8	21	f2sgl	
+0x03AB88	86	f2sgl	
+0x03ABE0	47	f2sgl	
+0x03AC10	286	f2sgl	
+0x03AD30	225	f2sgl	BGA\open.dat | Load( opening.dat ) Error | main.vsl | Load( main.vsl ) Error
+0x03AEBC	424	juego	bga\title.dat | title.sp2
+0x03B064	119	juego	bga\81.dat
+0x03B0F4	108	juego	
+0x03B160	145	juego	bga\title.dat | title.sp2
+0x03B264	1830	juego	bga\03.dat
+0x03B98C	94	png	bga\03.dat | ing IHDR before PLTE
+0x03B9EC	150	png	
+0x03BB44	401	png	%d %s %s | [%s] file not found | %s %08x %08x %d
+0x03BD68	306	png	
+0x03BFE0	972	png	
+0x03C3AC	969	juego	
+0x03CD0C	101	juego	
+0x03CD74	251	juego	AUDIO\r%02d.AUD | AUDIO\%02d.AUD
+0x03CE70	196	juego	AUDIO\D%02d.AUD
+0x03CFDC	486	juego	
+0x03D1C2	10	juego	
+0x03D1CC	19	juego	
+0x03D1E0	21	juego	
+0x03D324	895	juego	
+0x03D6A4	257	f2sgl	
+0x03D7A8	218	f2sgl	
+0x03D890	249	f2sgl	
+0x03D98C	198	f2sgl	
+0x03DA54	89	f2sgl	
+0x03DABC	952	f2sgl	.ifl | .ifl
+0x03DF0C	50	png	
+0x03DF40	82	png	
+0x03DF94	1188	png	.bmp | .png
+0x03E670	175	png	
+0x03E808	745	png	
+0x03EB30	859	png	1.0.6
+0x03EF5C	54	png	
+0x03EF94	16	png	
+0x03EFC8	645	png	
+0x03F250	71	png	
+0x03F298	181	png	
+0x03F350	44	png	
+0x03F37C	79	png	
+0x03F724	740	png	
+0x03FB0C	33	png	
+0x03FB30	33	png	
+0x03FBD4	581	png	
+0x03FE1C	55	png	
+0x03FE54	468	png	
+0x040168	74	png	
+0x0401B4	96	png	
+0x040364	43	png	
+0x040390	100	png	
+0x0403F4	127	png	
+0x040490	149	png	
+0x040528	286	png	
+0x040648	216	png	
+0x040720	47	png	
+0x040750	318	png	
+0x0408F4	220	png	
+0x0409D0	114	png	
+0x040A44	100	libc	
+0x040AA8	211	libc	
+0x040B7C	60	libc	
+0x040BB8	1	libc	
+0x040BBC	6	libc	
+0x040C30	247	libc	
+0x040D28	316	libc	
+0x040E64	60	libc	
+0x040EA0	34	libc	
+0x040EC2	20	libc	
+0x040ED6	22	libc	
+0x040EEC	18	libc	
+0x040EFE	26	libc	
+0x040F18	20	libc	
+0x040F2C	20	libc	
+0x040F40	20	libc	
+0x040F54	20	libc	
+0x040F68	85	libc	
+0x040FBD	60	libc	
+0x040FF9	18	libc	
+0x041029	39	libc	
+0x041032	82	libc	
+0x041084	7	libc	
+0x04108B	37	libc	
+0x0410B0	30	libc	
+0x0410CE	23	libc	
+0x0410E5	24	libc	
+0x041153	54	libc	
+0x041189	48	libc	
+0x0411B9	76	libc	
+0x041205	61	libc	
+0x041242	35	libc	
+0x041265	38	libc	
+0x04128B	13	libc	
+0x0412D9	159	libc	
+0x041378	97	libc	
+0x0413D9	114	libc	
+0x041539	130	libc	
+0x0415BB	45	libc	
+0x0415E8	161	libc	
+0x041BDB	109	libc	
+0x041C48	150	libc	
+0x042169	965	libc	
+0x04271B	109	libc	
+0x042810	109	libc	
+0x042880	239	libc	
+0x042970	279	libc	
+0x042A90	161	libc	
+0x042B34	214	libc	
+0x042C0C	251	libc	
+0x042D10	48	libc	
+0x042D40	1	libc	
+0x042D44	167	libc	
+0x042DEC	163	libc	
+0x0434AC	690	libc	NULL == lpvSrc
+0x043910	98	libc	
+0x043980	107	libc	
+0x0439EC	153	libc	
+0x043A88	183	libc	
+0x043B40	22	libc	
+0x043B58	189	libc	
+0x043C20	1346	libc	
+0x044814	114	libc	
+0x0448D0	129	libc	
+0x044954	83	libc	
+0x0449B0	123	libc	
+0x044A2C	270	libc	
+0x044B3C	251	libc	
+0x044C38	22	libc	
+0x044C50	123	libc	
+0x044CD0	718	libc	
+0x044FA0	156	libc	CRTL ERROR: 
+0x04503C	95	libc	ERROR: 
+0x045374	306	libc	GE BREAK
+0x047C64	474	libc	
+0x049928	131	mesa	
+0x0499B4	408	mesa	
+0x04AF40	41	mesa	
+0x04AF6C	141	mesa	
+0x04BC08	156	mesa	
+0x04C668	156	mesa	
+0x04CE1C	159	mesa	
+0x04CEC0	205	mesa	
+0x04CF90	423	mesa	
+0x04D440	141	mesa	
+0x04D4D0	503	mesa	
+0x04D6C8	413	mesa	
+0x04F8EC	242	mesa	
+0x04F9E0	72	mesa	
+0x04FA28	297	mesa	TMU0 | TMU1 | %s configuration:
+0x04FB54	45	mesa	
+0x04FB84	64	mesa	
+0x04FBC4	54	mesa	
+0x04FBFC	95	mesa	
+0x04FC5C	253	mesa	
+0x04FD5C	578	mesa	
+0x04FFA0	318	mesa	
+0x0500E0	403	mesa	
+0x050274	35	mesa	
+0x050298	143	mesa	
+0x050328	81	mesa	
+0x05037C	130	mesa	
+0x050400	49	mesa	
+0x050434	31	mesa	
+0x050454	31	mesa	
+0x050474	152	mesa	
+0x050510	232	mesa	
+0x0505F8	417	mesa	
+0x05079C	461	mesa	
+0x05096C	130	mesa	
+0x0509F0	406	mesa	
+0x050B88	646	mesa	
+0x050E10	610	mesa	
+0x051074	122	mesa	
+0x0510F0	152	mesa	
+0x051188	377	mesa	
+0x051324	102	mesa	
+0x0513AC	104	mesa	
+0x051414	387	mesa	
+0x051598	110	mesa	
+0x051608	91	mesa	
+0x0584BC	174	mesa	
+0x058598	210	mesa	
+0x058C14	49	mesa	
+0x058C8C	899	mesa	
+0x059044	414	mesa	
+0x0591E4	175	mesa	
+0x059294	1778	mesa	
+0x059988	329	mesa	
+0x059AD4	1009	mesa	
+0x05A718	114	mesa	
+0x05A8DC	391	mesa	
+0x05AA64	310	mesa	
+0x05AB9C	277	mesa	
+0x05AD78	210	mesa	
+0x05AFF4	924	mesa	MESA_FX_INFO | FX_GLIDE_SWAPINTERVAL | MESA_FX_SWAP_PENDING
+0x05B3B0	543	mesa	
+0x05B5D0	157	mesa	
+0x05B670	70	mesa	
+0x05B6B8	435	mesa	MESA_FX_INFO
+0x05B86C	212	mesa	MESA_FX_INFO
+0x05B940	976	mesa	zoom.c | m <= MAX_WIDTH
+0x05BD10	1072	mesa	zoom.c | m <= MAX_WIDTH
+0x05C140	945	mesa	zoom.c | m <= MAX_WIDTH
+0x05C4F4	804	mesa	zoom.c | m <= MAX_WIDTH
+0x05C820	782	mesa	
+0x05CB30	567	mesa	
+0x05CD68	1593	mesa	
+0x05D3A4	177	mesa	
+0x05DE9C	453	mesa	
+0x05E364	1331	mesa	invalid matrix type in transform_points4()
+0x05E8B4	957	mesa	invalid matrix type in transform_texcoords()
+0x05EC84	960	mesa	
+0x05F38C	217	mesa	
+0x05F468	551	mesa	
+0x05F690	913	mesa	
+0x05FA24	1478	mesa	
+0x05FFEC	190	mesa	
+0x0600AC	781	mesa	
+0x0603BC	193	mesa	
+0x060480	17	mesa	
+0x060494	14	mesa	
+0x0604B0	1129	mesa	
+0x06091C	282	mesa	
+0x060A38	415	mesa	
+0x060BD8	153	mesa	
+0x060C74	601	mesa	
+0x060ED0	1154	mesa	
+0x061354	530	mesa	
+0x061568	590	mesa	
+0x0617B8	631	mesa	
+0x061A58	1988	mesa	
+0x062A34	1181	mesa	Bad primitive type in gl_reset_vb()
+0x063A38	148	mesa	
+0x063AF8	243	mesa	
+0x064BA8	446	mesa	
+0x064D68	197	mesa	
+0x064E30	370	mesa	
+0x064FCC	527	mesa	glBegin
+0x0651DC	137	mesa	glEnd
+0x065270	236	mesa	
+0x065360	24	mesa	
+0x0653A4	217	mesa	glVertexPointer(size) | glVertexPointer(stride) | glVertexPointer(type)
+0x0654AC	259	mesa	glNormalPointer(stride) | glNormalPointer(type)
+0x0655DC	318	mesa	glColorPointer(size) | glColorPointer(stride) | glColorPointer(type)
+0x065840	277	mesa	glTexCoordPointer(size) | glTexCoordPointer(stride) | glTexCoordPointer(type)
+0x065C20	2066	mesa	Bad normal type in gl_ArrayElement | Bad color type in gl_ArrayElement | Bad index type in gl_ArrayElement | Bad texcoord type in gl_ArrayElement
+0x066704	1428	mesa	Bad normal type in gl_save_ArrayElement | Bad color type in gl_save_ArrayElement | Bad index type in gl_save_ArrayElement | Bad texcoord type in gl_save_ArrayElement
+0x0673F4	283	mesa	glDrawElements | glDrawElements(count) | glDrawArrays(mode) | glDrawElements(type)
+0x067510	212	mesa	glDrawElements(type)
+0x079358	7659	mesa	
+0x07B144	131	mesa	
+0x07B1C8	6568	mesa	
+0x07CB70	8146	mesa	
+0x07EB44	8407	mesa	
+0x080CEC	753	mesa	
+0x080FE0	1781	mesa	Bad S texgen | Bad T texgen | Bad R texgen | Bad Q texgen
+0x0816D8	221	mesa	Bad palette format in palette_sample
+0x0817B8	212	mesa	Bad format in get_1d_texel
+0x08188C	475	mesa	Bad format in sample_1d_nearest
+0x081A68	729	mesa	
+0x081D44	132	mesa	
+0x081DC8	132	mesa	
+0x081E4C	349	mesa	
+0x081FAC	349	mesa	
+0x0822D8	268	mesa	Bad format in get_2d_texel
+0x0823E4	714	mesa	Bad format in sample_2d_nearest
+0x0826B0	1541	mesa	
+0x082CB8	136	mesa	
+0x082D40	136	mesa	
+0x082DC8	411	mesa	
+0x082F64	411	mesa	
+0x0834A0	305	mesa	Bad format in get_3d_texel
+0x0835D4	925	mesa	Bad format in sample_3d_nearest
+0x083974	3274	mesa	
+0x084640	140	mesa	
+0x0846CC	140	mesa	
+0x084758	423	mesa	
+0x084900	423	mesa	
+0x084D08	409	mesa	invalid dimensions in gl_set_texture_sampler
+0x084EA4	2916	mesa	Bad format in apply_texture | Bad format (2) in apply_texture | Bad format (3) in apply_texture | Bad format (4) in apply_texture
+0x085A08	366	mesa	
+0x085B80	77	mesa	texstate.c | maxCoordSets >= 1 && maxCoordSets <= MAX_TEX_COORD_SETS
+0x085BD0	633	mesa	glTexEnv | glTexEnv(target) | glTexEnv(param) | glTexEnv(pname)
+0x085FA0	1051	mesa	glTexParameter(target) | glTexParameter(param) | glTexParameter(pname)
+0x0863D8	896	mesa	glGetTexLevelParameter[if]v | glGetTexLevelParameter[if]v(pname) | glGetTexLevelParameter[if]v(pname) | glGetTexLevelParameter[if]v(pname)
+0x086B0C	894	mesa	glTexGenfv | glTexGenfv(param) | glTexGenfv(pname) | glTexGenfv(coord)
+0x0875C8	67	mesa	glSelectTextureSGIS(target)
+0x08760C	61	mesa	glSelectTexture(target)
+0x08764C	106	mesa	glSelectTextureCoordSet(target)
+0x0876B8	61	mesa	glSelectTextureTransform(target)
+0x0876F8	197	mesa	
+0x0877C0	216	mesa	texobj.c | dimensions <= 3
+0x087898	145	mesa	texobj.c
+0x08792C	960	mesa	
+0x087EE4	587	mesa	glBindTexture | Bad target in gl_BindTexture | texobj.c | oldTexObj->RefCount >= 0
+0x088130	202	mesa	glPrioritizeTextures
+0x0883F0	49	mesa	
+0x088424	246	mesa	
+0x08851C	233	mesa	
+0x088608	18	mesa	
+0x08861C	28	mesa	
+0x088690	5199	mesa	teximage.c | image | image->Width>0 | image->Height>0
+0x089AFC	529	mesa	
+0x089D2C	371	mesa	glTexImage1D | glTexImage1D(level) | glTexImage1D(internalFormat) | glTexImage1D(border)
+0x089EBC	458	mesa	glTexImage2D(target) | glTexImage2D(level) | glTexImage2D(internalFormat) | glTexImage2D(border)
+0x08A0A4	547	mesa	glTexImage3DEXT(target) | glTexImage3DEXT(level) | glTexImage3DEXT(internalFormat) | glTexImage3DEXT(border)
+0x08A2C8	581	mesa	glTexImage1D | glTexImage1D(target)
+0x08A510	592	mesa	glTexImage2D | glTexImage2D(target)
+0x08A760	626	mesa	glTexImage3DEXT | glTexImage3DEXT(target)
+0x08AE4C	97	mesa	
+0x08AEB0	96	mesa	
+0x08AF10	825	mesa	glTexSubImage1D(target) | glTexSubImage1D(level) | glTexSubImage1D | glTexSubImage1D(xoffset)
+0x08B24C	1128	mesa	glTexSubImage2D(target) | glTexSubImage2D(level) | glTexSubImage2D | glTexSubImage2D(xoffset)
+0x08B6B4	1340	mesa	glTexSubImage3DEXT(target) | glTexSubImage3DEXT(level) | glTexSubImage3DEXT | glTexSubImage3DEXT(xoffset)
+0x08BBF0	616	mesa	Bad format in read_color_image
+0x08BE58	352	mesa	glCopyTexImage1D | glCopyTexImage1D(target) | glCopyTexImage1D(level) | glCopyTexImage1D(border)
+0x08BFB8	406	mesa	glCopyTexImage2D | glCopyTexImage2D(target) | glCopyTexImage2D(level) | glCopyTexImage2D(border)
+0x08C150	575	mesa	
+0x08C390	435	mesa	glCopyTexSubImage1D(target) | glCopyTexSubImage1D(level) | glCopyTexSubImage1D(width) | glCopyTexSubImage1D(xoffset)
+0x08C544	552	mesa	glCopyTexSubImage2D(target) | glCopyTexSubImage2D(level) | glCopyTexSubImage2D(width) | glCopyTexSubImage2D(height)
+0x08C76C	561	mesa	glCopyTexSubImage3DEXT(target) | glCopyTexSubImage3DEXT(level) | glCopyTexSubImage3DEXT(width) | glCopyTexSubImage3DEXT(height)
+0x08C9A0	38	mesa	glClearStencil
+0x08C9E8	107	mesa	glStencilFunc
+0x08CA54	38	mesa	glStencilMask
+0x08CA7C	201	mesa	glStencilOp
+0x08CB48	597	mesa	Bad stencilop in apply_stencil_op_to_span
+0x08CDC0	616	mesa	
+0x08D044	269	mesa	
+0x08D154	1053	mesa	Bad stencilop in apply_stencil_op_to_pixels
+0x08D594	1280	mesa	Bad stencil func in gl_stencil_pixels
+0x08DA94	269	mesa	
+0x08DBA4	51	mesa	
+0x08DBD8	51	mesa	
+0x08DC0C	103	mesa	gl_alloc_stencil_buffer
+0x08DC74	130	mesa	
+0x08DD00	93	mesa	
+0x08DD60	121	mesa	
+0x08DDDC	947	mesa	span.c | index == indexBackup
+0x08E190	1166	mesa	
+0x08E620	1394	mesa	span.c | rgba == rgbaBackup
+0x08EB94	1399	mesa	
+0x08F10C	148	mesa	
+0x08F1A0	1444	mesa	
+0x08F744	1497	mesa	
+0x08FD20	173	mesa	
+0x08FDD0	136	mesa	
+0x08FE60	59	mesa	
+0x08FE9C	2000	mesa	
+0x09066C	2486	mesa	
+0x091024	917	mesa	
+0x0913BC	1265	mesa	
+0x0918B0	138	mesa	glScissor | glBegin
+0x09193C	108	mesa	
+0x091A40	121	mesa	glRect
+0x091ADC	696	mesa	glReadPixels | glReadPixels(type)
+0x091DB0	719	mesa	glReadPixels
+0x092268	732	mesa	glReadPixels | glReadPixels(type)
+0x092544	390	mesa	
+0x0926CC	14394	mesa	glReadPixels(format) | glReadPixels(type)
+0x093817	1605	mesa	
+0x094157	208	mesa	
+0x095795	202	libc	
+0x095929	239	libc	
+0x096960	1204	libc	
+0x096E14	713	libc	
+0x097118	52	libc	
+0x097150	86	libc	glCullFace
+0x0971A8	71	libc	glFrontFace
+0x0971F0	203	libc	glPolygonMode | glPolygonMode(face) | glPolygonMode(mode)
+0x0972BC	87	libc	glPolygonStipple
+0x097348	59	libc	glPolygonOffset
+0x097390	54	libc	Missing pointer in pointers.c
+0x0973C8	1814	libc	
+0x097AE0	1814	libc	
+0x0981F8	47	libc	
+0x098230	93	libc	glPointSize
+0x098290	206	libc	glPointParameterfvEXT
+0x099840	61	libc	
+0x09AD24	343	libc	
+0x09AE80	59	libc	glPixelZoom
+0x09B11C	1466	libc	glPixelMapfv | glPixelMapfv(mapsize) | glPixelMapfv(map)
+0x09BF34	250	mesa	glPixelTransfer
+0x09C0EC	361	mesa	
+0x09C258	353	mesa	
+0x09C3BC	381	mesa	
+0x09C53C	276	mesa	
+0x09C650	118	mesa	
+0x09C6C8	46	mesa	
+0x09C6F8	173	mesa	
+0x09C7A8	196	mesa	
+0x09C86C	212	mesa	
+0x09C940	121	mesa	
+0x09C9BC	47	mesa	
+0x09C9F0	57	mesa	
+0x09CA2C	2905	mesa	
+0x09D5A0	17	mesa	
+0x09D5C0	92	mesa	glClearIndex
+0x09D61C	422	mesa	glClearColor
+0x09D7C4	637	mesa	
+0x09DA44	212	mesa	
+0x09DB18	319	mesa	glClear
+0x09DDEC	158	mesa	glHint | glHint(mode) | glHint(target)
+0x09DE8C	305	mesa	glDrawBuffer
+0x09DFF4	263	mesa	glReadBuffer
+0x09E100	202	mesa	
+0x09E1CC	1996	mesa	
+0x09E998	176	mesa	
+0x09EA48	400	mesa	
+0x09EBD8	284	mesa	
+0x09ECF4	237	mesa	
+0x09EDE4	419	mesa	glFrustum(near or far)
+0x09EF88	316	mesa	
+0x09F0C4	66	mesa	glMatrixMode
+0x09F108	447	mesa	glPushMatrix | Bad matrix mode in gl_PushMatrix
+0x09F2C8	503	mesa	glPopMatrix | Bad matrix mode in gl_PopMatrix
+0x09F4C0	318	mesa	glLoadIdentity | Bad matrix mode in gl_LoadIdentity
+0x09F600	397	mesa	glLoadMatrix | Bad matrix mode in gl_LoadMatrixf
+0x09F790	185	mesa	glMultMatrix | Bad matrix mode in gl_MultMatrixf
+0x09F84C	385	mesa	
+0x09FA04	252	mesa	glScale | Bad matrix mode in gl_Scalef
+0x09FB00	257	mesa	glTranslate | Bad matrix mode in gl_Translatef
+0x09FC04	318	mesa	glViewport
+0x09FD44	334	mesa	glDepthRange
+0x09FEA0	45	mesa	glIndexMask
+0x09FED0	119	mesa	glColorMask
+0x09FF48	84	mesa	
+0x09FF9C	120	mesa	
+0x0A0014	101	mesa	
+0x0A007C	114	mesa	
+0x0A0130	76	mesa	glLogicOp
+0x0A01BC	776	mesa	gl_logic error
+0x0A04C4	60	mesa	
+0x0A0500	72	mesa	
+0x0A0588	762	mesa	Bad function in rgba_logicop
+0x0A0884	59	mesa	
+0x0A08C0	121	mesa	
+0x0A0940	93	mesa	glLineWidth
+0x0A09A0	81	mesa	glLineStipple
+0x0ABDB4	504	mesa	
+0x0ABFB0	81	mesa	glShadeModel
+0x0AC02C	1016	mesa	glLight
+0x0AC808	254	mesa	glLightModel(param) | glLightModel
+0x0AC908	160	mesa	Bad param in gl_material_bitmask
+0x0AC9A8	680	mesa	
+0x0ACC50	158	f2sgl	glColorMaterial | glColorMaterial(face) | glColorMaterial(mode)
+0x0ACCF0	136	f2sgl	glMaterial(face) | glMaterial(pname)
+0x0AD1E0	167	f2sgl	
+0x0AD288	35	f2sgl	
+0x0AD2AC	1296	f2sgl	
+0x0AD7C0	108	mesa	
+0x0AD82C	52	mesa	
+0x0AD860	76	mesa	
+0x0AD8AC	81	mesa	
+0x0AD900	216	mesa	
+0x0AD9D8	152	mesa	
+0x0ADA70	384	mesa	
+0x0ADBF0	18	mesa	
+0x0ADC3C	28	mesa	
+0x0ADC58	81	mesa	image.c | image
+0x0ADCC8	1095	mesa	image.c | image->Type == GL_FLOAT | image->Type == GL_UNSIGNED_SHORT | image->Type == GL_UNSIGNED_INT
+0x0AE1E4	813	mesa	unpack_stencil_image type
+0x0AE514	440	mesa	image.c | format == GL_COLOR_INDEX || format == GL_STENCIL_INDEX
+0x0AE6CC	147	mesa	
+0x0AE760	144	mesa	
+0x0AE7F0	549	mesa	
+0x0AEA18	3807	mesa	image.c | type != GL_BITMAP | unpack_float_image type
+0x0AFA04	22	mesa	
+0x0AFA1C	28	mesa	
+0x0AFA38	229	mesa	
+0x0AFE5C	13855	mesa	image.c | n < MAX_WIDTH
+0x0B28C1	167	mesa	
+0x0B2A0F	197	mesa	
+0x0B35F0	18	mesa	
+0x0B3604	77	mesa	hash.c | table
+0x0B3654	102	mesa	hash.c | table
+0x0B36BC	150	mesa	hash.c | table
+0x0B3754	126	mesa	hash.c | table
+0x0B37D4	65	mesa	hash.c | table
+0x0B3870	84	mesa	
+0x0B38D0	77	mesa	get.c | maxSets >= 1 && maxSets <= MAX_TEX_SETS
+0x0BC158	219	mesa	glFog
+0x0BC234	956	mesa	Bad fog mode in gl_fog_rgba_vertices
+0x0BC5F0	674	mesa	Bad fog mode in gl_fog_ci_vertices
+0x0BC894	1085	mesa	Bad fog mode in gl_fog_rgba_pixels
+0x0BCCD4	801	mesa	Bad fog mode in gl_fog_ci_pixels
+0x0BD164	129	libc	glPassThrough
+0x0BD1E8	546	libc	
+0x0BD484	64	libc	
+0x0BD4C4	332	libc	feedback.c | ctx != NULL
+0x0BD610	101	libc	glInitNames
+0x0BD678	126	libc	glLoadName
+0x0BD6F8	116	libc	glPushName
+0x0BD76C	103	libc	glPopName
+0x0BD910	11	libc	
+0x0BD91C	348	libc	
+0x0BDA78	702	libc	
+0x0BDD38	6433	libc	
+0x0BF65C	172	mesa	
+0x0BF708	117	mesa	
+0x0BF780	117	mesa	
+0x0BF7F8	262	mesa	
+0x0BF900	252	mesa	
+0x0BF9FC	449	mesa	gl_free_control_points
+0x0BFBE4	992	mesa	glMap1f | glMap1 | glMap1(u1,u2) | glMap1(order)
+0x0BFFE8	1299	mesa	glMap2 | glMap2(u1,u2) | glMap2(v1,v2) | glMap2(uorder)
+0x0C2B9C	830	mesa	
+0x0C2EDC	1779	mesa	
+0x0C35D0	86	mesa	glMapGrid1f
+0x0C3628	145	mesa	glMapGrid2f | glMapGrid2f(un) | glMapGrid2f(vn)
+0x0C36BC	112	mesa	
+0x0C372C	184	mesa	
+0x0C37E4	229	mesa	glEvalMesh1 | glEvalMesh1(mode)
+0x0C38CC	1050	mesa	glEvalMesh2 | glEvalMesh2(mode)
+0x0C3CF0	3050	mesa	glEnable | glDisable | glEnable(GL_DEPTH_TEST) but no depth buffer | glEnable(GL_STENCIL_TEST) but no stencil buffer
+0x0C44BF	13	mesa	
+0x0C450D	13	mesa	
+0x0C4534	13	mesa	
+0x0C4886	64	mesa	
+0x0C48E0	13	mesa	
+0x0C4950	13	mesa	
+0x0C4960	10	mesa	
+0x0C4FD0	75	mesa	glEnable/DisableClientState
+0x0C5024	13	mesa	
+0x0C5034	10	mesa	
+0x0C5040	3467	mesa	glDrawPixels | drawpix.c | drawWidth < MAX_WIDTH
+0x0C5DCC	1081	mesa	drawpix.c | image | image->Format == GL_COLOR_INDEX | draw_index_pixels type
+0x0C6208	675	mesa	drawpix.c | image | image->Format == GL_STENCIL_INDEX | image->Type == GL_UNSIGNED_BYTE || image->Type == GL_BITMAP
+0x0C64AC	1424	mesa	drawpix.c | image | image->Format == GL_DEPTH_COMPONENT | Bad type in draw_depth_pixels
+0x0C6A5C	1995	mesa	drawpix.c | image | draw_rgba_pixels type | Bad type in draw_rgba_pixels
+0x0C7254	578	mesa	glDrawPixels
+0x0C74A0	178	mesa	dlist.c | (GLint) count == argcount+1 | Building display list
+0x0C7554	17	mesa	
+0x0C7568	380	mesa	
+0x0C770C	224	mesa	
+0x0C77EC	928	mesa	
+0x0C7C10	52	mesa	
+0x0C8840	38	mesa	
+0x0C90C0	70	mesa	
+0x0CA374	3346	mesa	Error in execute_list: opcode=%d
+0x0CB3D8	38	mesa	glListBase
+0x0CB400	283	mesa	0x%X | GL_POINTS | GL_LINES | GL_LINE_STRIP
+0x0CB51C	2394	mesa	Color3f %g %g %gn
+0x0CBEA0	140	mesa	glClearDepth
+0x0CBF4C	76	mesa	glDepthFunc | glDepth.Func
+0x0CBF98	45	mesa	glDepthMask
+0x0CCD58	318	mesa	
+0x0CCEA0	725	mesa	
+0x0CD178	544	mesa	
+0x0CD398	724	mesa	glCopyPixels
+0x0CD66C	418	mesa	glCopyPixels
+0x0CD810	607	mesa	glCopyPixels
+0x0CDA70	285	mesa	
+0x0CDB90	77	mesa	
+0x0CDBE0	245	mesa	
+0x0CDD04	144	mesa	
+0x0CDD94	440	mesa	
+0x0CDF4C	77	mesa	
+0x0CDF9C	98	mesa	
+0x0CE000	3710	mesa	MESA_NO_RASTER | MESA_NO_DITHER | MESA_DEBUG
+0x0CEE80	255	png	stereo not supported
+0x0CEF80	5	png	
+0x0CEF88	403	png	
+0x0CF11C	345	png	
+0x0CF278	454	png	context.c | ctx->Shared->RefCount>=0
+0x0CF440	28	png	
+0x0CF45C	96	png	
+0x0CF4BC	66	png	
+0x0CF500	6	png	
+0x0CF88C	38	mesa	
+0x0CF8B4	39	mesa	MESA_DEBUG
+0x0CF8DC	265	mesa	MESA_DEBUG | GL_NO_ERROR | GL_INVALID_VALUE | GL_INVALID_ENUM
+0x0CFA24	204	mesa	
+0x0CFAF0	155	mesa	
+0x0CFB8C	263	mesa	
+0x0CFC94	120	png	
+0x0CFD0C	327	png	
+0x0CFE54	218	png	
+0x0CFF30	1075	png	context.c | ctx->Driver.UpdateState
+0x0D0370	39	png	
+0x0D047C	1295	png	glColorTable | glColorTable(internalFormat) | glColorTableEXT(target) | glColorTableEXT(width)
+0x0D098C	10	mesa	glColorSubTableEXT not implemented
+0x0D0A34	241	mesa	glGetColorTableParameter | glGetColorTableParameter(target)
+0x0D1334	86	mesa	glClipPlane
+0x0D13F0	95	mesa	
+0x0D1450	2749	mesa	
+0x0D1F10	5476	mesa	
+0x0D3474	94	mesa	
+0x0D34D4	1154	mesa	
+0x0D3958	1886	mesa	
+0x0D40C0	169	mesa	glBlendFunc | glBlendFunc(sfactor) | glBlendFunc(dfactor)
+0x0D416C	155	mesa	glBlendEquation
+0x0D4208	352	mesa	
+0x0D4FC8	218	mesa	
+0x0D50A4	99	mesa	
+0x0D5108	194	mesa	
+0x0D51D0	768	mesa	
+0x0D54D0	199	mesa	
+0x0D5598	602	mesa	glBitmap | bitmap.c | bitmap->Type == GL_BITMAP | bitmap->Format == GL_COLOR_INDEX
+0x0D581C	2502	mesa	glPushAttrib
+0x0D61E4	2190	mesa	glPopAttrib | Bad attrib flag in PopAttrib
+0x0D7154	75	mesa	MESA_DEBUG
+0x0D75B0	36	mesa	
+0x0D75F8	30	mesa	
+0x0D7648	36	mesa	
+0x0D769C	36	mesa	
+0x0D76F4	43	mesa	
+0x0D7748	31	mesa	
+0x0D77A4	43	mesa	
+0x0D780C	43	mesa	
+0x0D7874	50	mesa	
+0x0D78D0	32	mesa	
+0x0D7938	50	mesa	
+0x0D79B4	50	mesa	
+0x0D7A28	54	mesa	
+0x0D7A88	30	mesa	
+0x0D7AF4	54	mesa	
+0x0D7B78	54	mesa	
+0x0D83B0	127	mesa	MESA_DEBUG
+0x0D86B4	64	mesa	MESA_DEBUG
+0x0D8850	67	mesa	MESA_DEBUG
+0x0D890C	55	mesa	MESA_DEBUG
+0x0D897C	55	mesa	MESA_DEBUG
+0x0D8A30	55	mesa	MESA_DEBUG
+0x0D9300	83	mesa	MESA_DEBUG
+0x0D96C4	62	mesa	MESA_DEBUG
+0x0D9828	75	mesa	MESA_DEBUG
+0x0D9910	71	mesa	MESA_DEBUG
+0x0D9958	62	mesa	MESA_DEBUG
+0x0D9B30	27	mesa	
+0x0DA238	71	mesa	MESA_DEBUG
+0x0DA280	98	mesa	MESA_DEBUG
+0x0DA3B8	144	mesa	MESA_DEBUG
+0x0DA448	148	mesa	MESA_DEBUG
+0x0DA4DC	153	mesa	MESA_DEBUG
+0x0DA578	71	mesa	MESA_DEBUG
+0x0DA5C0	98	mesa	MESA_DEBUG
+0x0DA848	162	mesa	MESA_DEBUG
+0x0DA8EC	89	mesa	MESA_DEBUG
+0x0DA948	71	mesa	MESA_DEBUG
+0x0DA990	39	mesa	
+0x0DA9B8	27	mesa	
+0x0DA9D4	47	mesa	
+0x0DAA34	49	mesa	
+0x0DAA68	31	mesa	
+0x0DAC00	34	mesa	
+0x0DAC24	22	mesa	
+0x0DAC3C	34	mesa	
+0x0DAC60	34	mesa	
+0x0DAC84	43	mesa	
+0x0DACB0	21	mesa	
+0x0DACC8	43	mesa	
+0x0DACF4	43	mesa	
+0x0DAD20	52	mesa	
+0x0DAD54	28	mesa	
+0x0DAD70	52	mesa	
+0x0DADA4	52	mesa	
+0x0DADF0	24	mesa	
+0x0DAE98	65	mesa	MESA_DEBUG
+0x0DAF18	59	mesa	MESA_DEBUG
+0x0DAF54	61	mesa	MESA_DEBUG
+0x0DAF94	187	mesa	MESA_DEBUG
+0x0DB050	61	mesa	MESA_DEBUG
+0x0DB0CC	63	mesa	MESA_DEBUG
+0x0DB10C	59	mesa	MESA_DEBUG
+0x0DB1CC	72	mesa	MESA_DEBUG
+0x0DB394	28	mesa	
+0x0DB620	32	mesa	
+0x0DB838	116	mesa	
+0x0DB8AC	40	mesa	
+0x0DB8D4	18	mesa	
+0x0DB8E8	78	mesa	
+0x0DB938	78	mesa	
+0x0DB988	39	mesa	
+0x0DB9B0	100	mesa	
+0x0DBA14	93	mesa	
+0x0DBA74	143	mesa	
+0x0DBB04	49	mesa	
+0x0DBB38	25	mesa	
+0x0DBB54	95	mesa	
+0x0DBBB4	95	mesa	
+0x0DBC14	18	mesa	
+0x0DBC28	123	mesa	
+0x0DBCA4	115	mesa	
+0x0DC070	93	mesa	MESA_DEBUG
+0x0DC0D0	62	mesa	MESA_DEBUG
+0x0DC110	62	mesa	MESA_DEBUG
+0x0DC228	64	mesa	MESA_DEBUG
+0x0DC268	62	mesa	MESA_DEBUG
+0x0DC4AC	62	mesa	MESA_DEBUG
+0x0DC52C	55	mesa	MESA_DEBUG
+0x0DC564	55	mesa	MESA_DEBUG
+0x0DC6F0	67	mesa	MESA_DEBUG
+0x0DC7F8	64	mesa	MESA_DEBUG
+0x0DC838	66	mesa	MESA_DEBUG
+0x0DC8BC	64	mesa	MESA_DEBUG
+0x0DC93C	74	mesa	MESA_DEBUG
+0x0DC9CC	55	mesa	MESA_DEBUG
+0x0DCBDC	62	mesa	MESA_DEBUG
+0x0DCC1C	127	mesa	MESA_DEBUG
+0x0DCCDC	64	mesa	MESA_DEBUG
+0x0DCDDC	66	mesa	MESA_DEBUG
+0x0DCE38	64	mesa	MESA_DEBUG
+0x0DCE94	64	mesa	MESA_DEBUG
+0x0DCED4	64	mesa	MESA_DEBUG
+0x0DD5D8	25	mesa	
+0x0DD5F4	19	mesa	
+0x0DD608	21	mesa	
+0x0DD620	22	mesa	
+0x0DD728	64	mesa	MESA_DEBUG
+0x0DDB30	63	mesa	MESA_DEBUG
+0x0DDBB4	62	mesa	MESA_DEBUG
+0x0DDBF4	55	mesa	MESA_DEBUG
+0x0DDC88	62	mesa	MESA_DEBUG
+0x0DDDD0	122	mesa	MESA_DEBUG
+0x0DDF00	152	mesa	MESA_DEBUG
+0x0DDFF0	74	mesa	MESA_DEBUG
+0x0DE0AC	86	mesa	MESA_DEBUG
+0x0DE104	71	mesa	MESA_DEBUG
+0x0DE1A0	66	mesa	MESA_DEBUG
+0x0DE2DC	62	mesa	MESA_DEBUG
+0x0DE31C	91	mesa	MESA_DEBUG
+0x0DE378	62	mesa	MESA_DEBUG
+0x0DE3B8	64	mesa	MESA_DEBUG
+0x0DE568	86	mesa	
+0x0DE688	119	mesa	
+0x0DE700	231	mesa	
+0x0DE7E8	70	mesa	
+0x0DE830	81	mesa	
+0x0DE884	81	mesa	
+0x0DE920	222	mesa	Couldn't allocate front alpha buffer | Couldn't allocate back alpha buffer
+0x0DEA00	287	mesa	
+0x0DEB20	96	mesa	
+0x0DEB80	82	mesa	
+0x0DEBD4	170	mesa	
+0x0DEC80	140	mesa	
+0x0DED0C	57	mesa	
+0x0DED48	96	mesa	
+0x0DEDD0	175	mesa	glAlphaFunc | glAlphaFunc(func)
+0x0DEEA0	360	mesa	Invalid alpha test in gl_alpha_test
+0x0DF010	101	mesa	glAccum
+0x0DF078	420	mesa	glAccum
+0x0DF230	2050	mesa	glAccum | Calling glAccum() without an accumulation buffer
+0x0DFA34	585	mesa	
+0x0DFC7D	41	mesa	
+0x0DFCA6	53	mesa	
+0x0DFCDB	53	mesa	
+0x0DFD10	76	mesa	
+0x0DFD5C	76	mesa	
+0x0DFDA8	454	mesa	
+0x0DFF6E	186	mesa	
+0x0E012A	125	mesa	
+0x0E01A7	112	mesa	
+0x0E0217	103	mesa	
+0x0E027E	94	mesa	
+0x0E02DC	102	mesa	
+0x0E0342	102	mesa	
+0x0E03A8	85	mesa	
+0x0E03FD	114	mesa	
+0x0E046F	41	mesa	
+0x0E0498	163	mesa	
+0x0E053B	45	mesa	
+0x0E0741	40	mesa	
+0x0E0888	122	mesa	
+0x0E0902	73	mesa	MESA_DEBUG
+0x0E094B	59	mesa	
+0x0E0999	65	mesa	qluQuadricDrawStyle
+0x0E0A27	40	mesa	
+0x0E0A61	104	mesa	
+0x0E0AC9	1296	mesa	
+0x0E12A4	2402	mesa	
+0x0E2902	137	mesa	
+0x0E298B	207	mesa	
+0x0E2A5A	2725	mesa	
+0x0E34FF	250	mesa	
+0x0E370F	323	mesa	
+0x0E3852	493	mesa	
+0x0E3A46	73	mesa	
+0x0E3A8F	225	mesa	
+0x0E3B70	60	mesa	
+0x0E3BAC	313	mesa	
+0x0E3CDE	122	mesa	
+0x0E3D58	792	mesa	
+0x0E4070	149	mesa	
+0x0E4161	362	mesa	
+0x0E42CB	106	mesa	
+0x0E4335	251	mesa	
+0x0E4430	104	mesa	
+0x0E4498	37	mesa	
+0x0E44BD	48	mesa	
+0x0E44ED	165	mesa	
+0x0E4592	92	mesa	
+0x0E45EE	43	mesa	
+0x0E4619	107	mesa	
+0x0E4684	112	mesa	
+0x0E46F4	540	mesa	
+0x0E4910	344	mesa	
+0x0E4A68	120	mesa	
+0x0E4B30	244	mesa	
+0x0E4C24	540	mesa	
+0x0E4E40	834	mesa	
+0x0E51A3	71	mesa	
+0x0E51EA	347	mesa	
+0x0E5345	548	mesa	
+0x0E5569	289	mesa	
+0x0E568A	1142	mesa	
+0x0E5B00	2	mesa	
+0x0E5B02	6	mesa	
+0x0E5B08	262	mesa	
+0x0E5C0E	2537	mesa	
+0x0E619E	1245	mesa	
+0x0E6AD4	649	mesa	
+0x0E6D5D	637	mesa	
+0x0E6FDA	143	mesa	
+0x0E7069	185	mesa	
+0x0E7122	51	mesa	
+0x0E7155	115	mesa	
+0x0E71C8	210	mesa	
+0x0E729A	115	mesa	
+0x0E730D	65	mesa	
+0x0E734E	84	mesa	
+0x0E73A2	152	mesa	
+0x0E743A	136	mesa	
+0x0E74C2	471	mesa	
+0x0E7699	189	mesa	
+0x0E7756	131	mesa	
+0x0E77FD	67	mesa	
+0x0E7840	228	mesa	
+0x0E7924	130	mesa	
+0x0E79A6	1158	mesa	
+0x0E7E2C	1809	mesa	
+0x0E853D	134	mesa	
+0x0E85C3	907	mesa	
+0x0E894E	299	mesa	
+0x0E8A7F	259	mesa	
+0x0E8B7C	74	mesa	
+0x0E8BCC	238	mesa	
+0x0E8CBA	273	mesa	
+0x0E8DCB	86	mesa	
+0x0E8E1B	147	mesa	
+0x0E8EAE	194	mesa	
+0x0E8F70	227	mesa	
+0x0E9053	276	mesa	
+0x0E9167	1244	mesa	
+0x0E9643	581	mesa	
+0x0E9888	63	mesa	
+0x0E98C7	696	mesa	
+0x0E9B7F	298	mesa	
+0x0E9CCD	67	mesa	
+0x0E9D10	155	mesa	
+0x0E9DAB	130	mesa	
+0x0E9E2D	920	mesa	
+0x0EA1C5	162	mesa	
+0x0EA267	663	mesa	
+0x0EA4FE	800	mesa	
+0x0EA81E	62	mesa	
+0x0EB302	3182	mesa	
+0x0EBF70	34	mesa	
+0x0EBF92	61	mesa	
+0x0EBFFE	155	mesa	
+0x0EC443	1022	mesa	
+0x0EC895	154	mesa	
+0x0EC9F4	181	mesa	no error | invalid value | invalid enum | invalid operation
+0x0EDEA8	47	libc	
+0x0EDED7	78	libc	
+0x0EDF25	470	libc	
+0x0EE0FB	62	libc	
+0x0EE139	234	libc	
+0x0EE223	186	libc	
+0x0EE6A0	15	libc	
+0x0EE6AF	15	libc	
+0x0EEC87	21	libc	
+0x0EEC9C	34	libc	
+0x0EECBE	15	libc	
+0x0EECCD	27	libc	
+0x0EECE8	300	libc	
+0x0EEE50	26	libc	Call to NULL write function
+0x0EEE98	20	libc	
+0x0EEEB8	83	libc	Attempted to set both read_data_fn and write_data_fn in | the same structure.  Resetting read_data_fn to NULL.
+0x0EEF10	26	libc	Call to NULL read function
+0x0EEF58	71	libc	It's an error to set both read_data_fn and write_data_fn in the  | same structure.  Resetting write_data_fn to NULL.
+0x0EEFA0	280	libc	
+0x0EF228	669	libc	
+0x0EF4C8	285	libc	
+0x0EF5E8	295	libc	
+0x0EF870	5	libc	
+0x0EF878	5	libc	
+0x0F01A8	5	png	
+0x0F0208	168	png	ignoring out of range rgb_to_gray coefficients
+0x0F02C0	2965	png	
+0x0F0E58	351	png	
+0x0F0FB8	961	png	NULL row buffer for row %ld, pass %d | png_do_rgb_to_gray found nongray pixel | png_do_rgb_to_gray found nongray pixel | png_do_dither returned rowbytes=0
+0x0F137C	349	png	
+0x0F14DC	491	png	
+0x0F16C8	72	png	
+0x0F1710	287	png	
+0x0F1830	205	png	
+0x0F1900	649	png	
+0x0F1B8C	346	png	
+0x0F1CE8	2910	png	
+0x0F28F4	2624	png	ge3DEXT
+0x0F4234	1590	png	
+0x0F486C	674	png	
+0x0F4B10	1061	png	
+0x0F4F38	394	png	
+0x0F50C4	1993	png	
+0x0F5890	381	png	
+0x0F5A10	645	png	
+0x0F5C98	308	png	No IDATs written into file
+0x0F5FA8	80	zlib	
+0x0F6014	509	zlib	
+0x0F6224	211	zlib	zlib error
+0x0F6384	280	zlib	
+0x0F6648	615	zlib	Unknown filter heuristic method
+0x0F6A50	29	zlib	
+0x0F6A70	21	zlib	
+0x0F6A88	192	zlib	
+0x0F6B48	51	zlib	
+0x0F6B7C	49	zlib	
+0x0F6BB0	34	zlib	
+0x0F6BD4	20	zlib	
+0x0F6BE8	10	zlib	
+0x0F6C1C	261	zlib	1.0.6 | Incompatible libpng version in application and library | 1.1.3 | zlib memory error
+0x0F6E28	1509	png	Not a PNG file | PNG file corrupted by ASCII conversion | Missing IHDR before IDAT | Missing PLTE before IDAT
+0x0F7410	25	png	
+0x0F7454	1226	png	Invalid attempt to read row data | Not enough image data | Extra compressed data | Decompression error
+0x0F79A0	98	png	
+0x0F7A04	1615	png	Too many IDAT's found
+0x0F8054	169	png	
+0x0F8100	576	png	
+0x0F853C	81	png	
+0x0F8590	170	png	Not a PNG file | PNG file corrupted by ASCII conversion
+0x0F863C	2054	png	Too many IDAT's found
+0x0F8E58	259	png	
+0x0F8F5C	202	png	
+0x0F9028	277	png	
+0x0F9168	510	png	Not enough compressed data | save_size overflowed in pngpread | save_size overflowed in pngpread
+0x0F9368	169	png	Extra compression data | Extra compressed data | Decompression Error
+0x0F9430	1201	png	
+0x0F98E4	254	png	
+0x0F99E4	91	png	Out of place tEXt
+0x0F9A40	233	png	
+0x0F9B2C	91	png	Out of place zTXt
+0x0F9B88	887	png	
+0x0F9F00	91	png	Out of place iTXt
+0x0F9F5C	331	png	
+0x0FA0A8	281	png	unknown critical chunk
+0x0FA260	57	png	
+0x0FA29C	9	png	
+0x0FA2A8	47	png	Out of Memory
+0x0FA2D8	20	png	
+0x0FA2EC	45	png	Overflow in png_memcpy_check.
+0x0FA31C	34	png	Overflow in png_memset_check.
+0x0FA348	47	png	
+0x0FA378	47	png	
+0x0FA3BC	79	png	
+0x0FA40C	73	zlib	
+0x0FA458	37	zlib	
+0x0FA480	42	zlib	
+0x0FA4AC	60	zlib	
+0x0FA4E8	706	zlib	Unknown compression type %d | zlib error
+0x0FA7AC	265	mesa	
+0x0FA8D4	780	mesa	Invalid bit depth for grayscale image | Invalid bit depth for RGB image | Invalid bit depth for paletted image | Invalid bit depth for grayscale+alpha image
+0x0FABE0	229	png	Invalid number of colors in palette | Invalid number of colors in palette
+0x0FACC8	45	png	
+0x0FACF8	43	png	
+0x0FAD24	93	png	
+0x0FADC0	71	png	Invalid sRGB rendering intent specified
+0x0FAE08	234	png	Empty keyword in iCCP chunk | Unknown compression type in iCCP chunk
+0x0FAEF4	188	png	Empty keyword in sPLT chunk
+0x0FB0C8	235	mesa	Invalid sBIT depth specified
+0x0FB1B4	751	mesa	Invalid cHRM white point specified | Invalid cHRM red point specified | Invalid cHRM green point specified | Invalid cHRM blue point specified
+0x0FB60C	307	png	Invalid number of transparent colors specified | Can't write tRNS with an alpha channel
+0x0FB740	275	png	Invalid background palette index
+0x0FB854	171	png	Invalid number of histogram entries specified
+0x0FB900	387	png	zero length keyword | invalid keyword character 0x%02X | trailing spaces removed from keyword | leading spaces removed from keyword
+0x0FBA84	217	png	Empty keyword in tEXt chunk
+0x0FBB60	303	png	Empty keyword in zTXt chunk
+0x0FBC90	460	png	Empty keyword in iTXt chunk | Empty language field in iTXt chunk
+0x0FBE5C	92	png	Unrecognized unit type for oFFs chunk
+0x0FBEB8	527	png	Unrecognized equation type for pCAL chunk
+0x0FC0C8	293	png	%12.12e
+0x0FC1F0	92	png	Unrecognized unit type for pHYs chunk
+0x0FC24C	160	png	Invalid time specified for tIME chunk
+0x0FC2EC	357	png	
+0x0FC454	470	zlib	zlib error
+0x0FC62C	760	zlib	
+0x0FC924	4653	zlib	
+0x0FDB54	197	zlib	zlib error
+0x0FDC20	5	zlib	
+0x0FDC28	17	zlib	
+0x0FDC3C	28	zlib	
+0x0FDC58	14	zlib	
+0x0FDC68	26	zlib	
+0x0FDC84	25	zlib	
+0x0FDCA0	81	zlib	
+0x0FDCF4	5	zlib	
+0x0FDCFC	5	zlib	
+0x0FDD04	5	zlib	
+0x0FDD0C	43	zlib	
+0x0FDD38	51	zlib	
+0x0FDD6C	73	zlib	
+0x0FDDB8	474	zlib	
+0x0FDF94	220	png	
+0x0FE080	42	png	
+0x0FE0D8	17	png	
+0x0FE0EC	29	png	
+0x0FE10C	181	png	CRC error
+0x0FE1C4	132	png	
+0x0FE248	730	png	Error decoding compressed text | Unknown zTXt compression type %d
+0x0FE540	607	png	Out of place IHDR | Invalid IHDR chunk | Invalid image size in IHDR | Invalid bit depth in IHDR
+0x0FE7A0	380	png	Missing IHDR before PLTE | Invalid PLTE after IDAT | Duplicate PLTE chunk | Invalid palette chunk
+0x0FE91C	66	png	No image in file | Incorrect IEND chunk length
+0x0FE960	365	png	Missing IHDR before gAMA | Invalid gAMA after IDAT | Out of place gAMA chunk | Duplicate gAMA chunk
+0x0FEAD0	326	png	Missing IHDR before sBIT | Invalid sBIT after IDAT | Out of place sBIT chunk | Duplicate sBIT chunk
+0x0FEC18	1559	png	Missing IHDR before cHRM | Invalid cHRM after IDAT | Missing PLTE before cHRM | Duplicate cHRM chunk
+0x0FF230	511	png	Missing IHDR before sRGB | Invalid sRGB after IDAT | Out of place sRGB chunk | Duplicate sRGB chunk
+0x0FF430	342	png	Missing IHDR before iCCP | Invalid iCCP after IDAT | Out of place iCCP chunk | Duplicate iCCP chunk
+0x0FF588	571	png	Missing IHDR before sPLT | Invalid sPLT after IDAT | malformed sPLT chunk | sPLT chunk has bad length
+0x0FF7C4	599	png	Missing IHDR before tRNS | Invalid tRNS after IDAT | Duplicate tRNS chunk | Missing PLTE before tRNS
+0x0FFA1C	569	png	Missing IHDR before bKGD | Invalid bKGD after IDAT | Missing PLTE before bKGD | Duplicate bKGD chunk
+0x0FFC58	310	png	Missing IHDR before hIST | Invalid hIST after IDAT | Missing PLTE before hIST | Duplicate hIST chunk
+0x0FFD90	267	png	Missing IHDR before pHYS | Invalid pHYS after IDAT | Duplicate pHYS chunk | Incorrect pHYs chunk length
+0x0FFE9C	267	png	Missing IHDR before oFFs | Invalid oFFs after IDAT | Duplicate oFFs chunk | Incorrect oFFs chunk length
+0x0FFFA8	623	png	Missing IHDR before pCAL | Invalid pCAL after IDAT | Duplicate pCAL chunk | Invalid pCAL data
+0x100218	374	png	Missing IHDR before sCAL | Invalid sCAL after IDAT | Duplicate sCAL chunk | malformed width string in sCAL chunk
+0x100390	230	png	Out of place tIME chunk | Duplicate tIME chunk | Incorrect tIME chunk length
+0x100478	254	png	Missing IHDR before tEXt
+0x100578	320	png	Missing IHDR before zTXt | Zero length zTXt chunk
+0x1006B8	409	png	Missing IHDR before iTXt | Zero length iTXt chunk
+0x100854	352	png	unknown critical chunk
+0x1009B4	112	png	invalid chunk type
+0x100A24	909	png	
+0x100DB4	1209	png	
+0x101284	510	mesa	Ignoring bad adaptive filter type
+0x101484	757	mesa	Not enough image data | Extra compressed data | Decompression Error | Extra compression data
+0x10177C	632	png	Rowbytes overflow in png_read_start_row
+0x101A00	17	png	
+0x101A14	15	png	
+0x101E60	221	png	Width too large for libpng to process image data.
+0x1020E0	32	png	
+0x1021E0	45	png	
+0x102210	360	png	
+0x102378	244	png	
+0x10246C	51	png	
+0x1024A0	48	png	
+0x1024D0	21	png	
+0x1024E8	177	png	Width too large to process image data; rowbytes will overflow.
+0x10259C	33	png	
+0x1025C0	339	png	
+0x102714	66	png	
+0x102758	33	png	
+0x10277C	25	png	
+0x102798	45	png	
+0x1027E0	247	png	
+0x1028D8	201	png	
+0x1029A4	717	png	
+0x102C74	51	zlib	
+0x102CA8	82	zlib	
+0x102CFC	350	zlib	
+0x102E5C	335	zlib	
+0x1031D0	92	zlib	
+0x103244	66	zlib	
+0x103288	5	zlib	
+0x103290	26	zlib	
+0x1032AC	69	zlib	
+0x1032F4	41	zlib	
+0x103390	17	zlib	
+0x1033A4	800	zlib	
+0x1036C4	74	zlib	
+0x103818	98	zlib	
+0x103880	1095	zlib	invalid distance code | invalid literal/length code
+0x103CD0	397	zlib	
+0x103E60	72	zlib	
+0x103ED0	813	zlib	invalid literal/length code
+0x10481C	17	zlib	
+0x104A48	1580	zlib	
+0x105007	90	zlib	
+0x1050D0	144	zlib	oversubscribed dynamic bit lengths tree | incomplete dynamic bit lengths tree
+0x105160	330	zlib	oversubscribed literal/length tree | incomplete literal/length tree | oversubscribed distance tree | incomplete distance tree
+0x1052AC	34	zlib	
+0x10531C	102	zlib	
+0x105384	143	zlib	
+0x10544C	3655	zlib	invalid block type | invalid stored block lengths | too many length or distance symbols | invalid bit length repeat
+0x1062D4	46	zlib	
+0x106304	45	zlib	
+0x106334	12	zlib	
+0x106344	90	zlib	
+0x1063A0	71	zlib	
+0x1063E8	288	zlib	1.1.3
+0x106508	17	zlib	
+0x106554	1000	zlib	unknown compression method | invalid window size | incorrect header check | need dictionary
+0x107524	103	zlib	
+0x10758C	124	zlib	
+0x107608	274	zlib	
+0x10771C	630	zlib	
+0x107994	105	zlib	
+0x107A00	642	zlib	
+0x107C84	250	zlib	
+0x107D80	1900	zlib	
+0x1084EC	109	zlib	
+0x10855C	858	zlib	
+0x1088B8	194	zlib	
+0x10897C	855	zlib	
+0x108CD4	585	zlib	
+0x108FC0	1486	zlib	
+0x109590	112	zlib	
+0x109600	27	zlib	
+0x10961C	151	zlib	
+0x1096B4	115	zlib	
+0x109728	167	zlib	
+0x109880	22	zlib	
+0x109898	547	zlib	
+0x109BD4	146	libc	
+0x109C68	238	libc	
+0x109D84	112	libc	
+0x109DF4	849	libc	
+0x10A148	176	libc	
+0x10A3D0	115	libc	
+0x10A444	212	libc	
+0x10A518	429	libc	
+0x10A6C8	423	libc	
+0x10B230	728	libc	1.1.3 | %c%c%c%c%c%c%c%c%c%c
+0x10B5B0	128	libc	
+0x10B630	290	libc	
+0x10B754	173	libc	
+0x10B804	511	libc	
+0x10BA84	137	libc	
+0x10BBC4	208	libc	
+0x10BCB8	330	libc	
+0x10BE04	109	libc	
+0x10BEC0	67	libc	
+0x10C498	261	libc	
+0x10C5A0	144	libc	1.1.3
+0x10C640	294	libc	
+0x10C770	133	libc	Fatal error: unable to initialize DLL loader. | Fatal error: unable to load DLL. | Fatal error: unable to find entry point in DLL.
+0x10C7FC	118	libc	
+0x10CA04	169	libc	
+0x10CBA8	458	libc	LINEXE_LOADER
+0x10CD74	1032	libc	DLL modules not supported | dll\msc | .dll | DOS/4G
+0x10D17C	46	zlib	
+0x10D1AC	294	zlib	
+0x10D2D4	89	zlib	
+0x10D330	207	zlib	
+0x10D490	534	zlib	.ovl | PATH | C:\WINDOWS\SYSTEM\ | COMSPEC
+0x10D6A8	66	zlib	
+0x10D6EA	29	zlib	
+0x10D742	60	zlib	
+0x10D791	48	zlib	
+0x10D7C2	5	zlib	
+0x10D7D0	24	zlib	
+0x10D7E8	33	zlib	
+0x10D80A	60	zlib	
+0x10D8E7	136	zlib	
+0x10D96F	47	zlib	
+0x10D99E	6	zlib	
+0x10D9A4	36	zlib	
+0x10D9C8	16	zlib	
+0x10D9D8	45	zlib	
+0x10DA05	24	zlib	
+0x10DA1D	209	zlib	
+0x10DAEE	196	zlib	
+0x10DBB2	57	zlib	
+0x10DBEB	10	zlib	
+0x10DBF5	104	zlib	
+0x10DC9F	448	zlib	
+0x10DE5F	45	zlib	
+0x10DE8C	21	zlib	
+0x10DEA1	12	zlib	
+0x10DEAD	101	zlib	
+0x10DF12	144	zlib	
+0x10DFA2	130	zlib	
+0x10E024	537	zlib	
+0x10E2B3	26	zlib	
+0x10E2B5	35	zlib	
+0x10E2F0	9	zlib	
+0x10E2FC	475	zlib	
+0x10E4E0	161	zlib	
+0x10E582	29	zlib	
+0x10E5A0	24	zlib	
+0x10E5B8	22	zlib	
+0x10E5CE	71	zlib	
+0x10E628	21	zlib	
+0x10E63D	34	zlib	
+0x10E65F	37	zlib	
+0x10E684	277	zlib	
+0x10E799	30	zlib	
+0x10E7B7	13	zlib	
+0x10E7C4	149	zlib	
+0x10E859	109	zlib	
+0x10E8C6	105	zlib	
+0x10E930	53	zlib	
+0x10E965	97	zlib	
+0x10E9C6	227	zlib	
+0x10EAA9	37	zlib	
+0x10EACE	66	zlib	
+0x10EB10	252	zlib	
+0x10EC0C	66	zlib	
+0x10EC4E	50	zlib	
+0x10EC80	45	zlib	
+0x10ECB0	5	zlib	
+0x10ECB8	5	zlib	
+0x10ECC0	23	zlib	
+0x10ECD7	17	zlib	stack data has been corrupted!
+0x10ECE8	156	zlib	
+0x10ED84	39	zlib	
+0x10EDAB	22	zlib	violation of function exception specification!
+0x10EDC1	38	zlib	
+0x10EDE7	14	zlib	
+0x10EDF5	126	zlib	
+0x10EE98	318	zlib	
+0x10EFD6	61	zlib	
+0x10F034	37	zlib	
+0x10F059	86	zlib	
+0x10F0AF	229	zlib	
+0x10F1B0	132	zlib	throw while "terminate" function active! | throw during destructor while unwinding stack to catch exception! | throw while "terminate" function active! | throw during construction of exception!
+0x10F234	57	zlib	
+0x10F26D	89	zlib	re-throw when no exception handler active! | no handler active to catch thrown object!
+0x10F2C6	108	zlib	
+0x10F344	177	zlib	re-throw when no exception handler active! | no handler active to catch thrown object! | system exception! code = 0x00000000
+0x10F3F5	71	zlib	
+0x10F45E	75	zlib	
+0x10F554	72	zlib	
+0x10F5AE	10	zlib	
+0x10F5B8	10	zlib	
+0x10F5C2	43	zlib	
+0x10F605	21	zlib	
+0x10F62E	16	zlib	
+0x10F641	45	zlib	
+0x10F66E	9	zlib	
+0x10F677	11	zlib	
+0x10F682	7	zlib	
+0x10F689	61	zlib	
+0x10F6C6	137	zlib	
+0x10F74F	47	zlib	
+0x10F77E	172	zlib	
+0x10F82C	37	zlib	
+0x10F851	33	zlib	
+0x10F872	6	zlib	
+0x10F878	6	zlib	
+0x10F87E	23	zlib	unknown error
+0x10F895	5	zlib	
+0x10F89A	31	zlib	
+0x10F8B9	97	zlib	
+0x10F91A	60	zlib	
+0x10F956	307	zlib	
+0x10FA89	35	zlib	
+0x10FAC0	49	zlib	
+0x10FAF7	108	zlib	
+0x10FB94	55	zlib	
+0x10FBCB	6	zlib	
+0x10FBD1	18	zlib	
+0x10FBE3	38	zlib	
+0x10FC09	88	zlib	
+0x10FC61	1081	zlib	
+0x11009A	74	zlib	
+0x1100E4	25	zlib	
+0x1100FD	23	zlib	
+0x110114	16	zlib	
+0x110124	499	zlib	
+0x110317	69	zlib	
+0x11035C	180	zlib	
+0x110410	78	zlib	
+0x11045E	23	zlib	
+0x110475	164	zlib	
+0x110519	29	zlib	
+0x110537	25	zlib	
+0x110550	59	zlib	
+0x11058B	26	zlib	
+0x1105A5	244	zlib	
+0x110699	927	zlib	
+0x110A38	318	zlib	
+0x110B76	95	zlib	
+0x110BD5	31	zlib	
+0x110BF9	40	zlib	
+0x110C1C	94	zlib	
+0x110C7A	245	zlib	
+0x110D6F	7	zlib	
+0x110D76	1257	zlib	
+0x11125F	24	zlib	
+0x1112A9	54	zlib	
+0x1112DF	11	zlib	
+0x1112EA	113	zlib	
+0x11135B	5	zlib	
+0x111360	12	zlib	
+0x11136C	7	zlib	
+0x111383	12	zlib	
+0x11138F	195	zlib	
+0x111452	340	zlib	
+0x1115A6	123	zlib	
+0x111621	14	zlib	
+0x111653	489	zlib	
+0x1118A1	166	zlib	
+0x111947	57	zlib	
+0x11199E	49	zlib	
+0x1119D0	119	zlib	
+0x111A47	116	zlib	
+0x111ABB	217	zlib	
+0x111B94	6	zlib	
+0x111B9A	67	zlib	
+0x111BDD	53	zlib	
+0x111C12	5	zlib	
+0x111C18	163	zlib	
+0x111CC0	272	zlib	
+0x111DCB	79	zlib	
+0x111E1A	75	zlib	
+0x111E65	79	zlib	
+0x111ED8	49	zlib	
+0x11201E	271	zlib	
+0x11212D	31	zlib	
+0x11215D	127	zlib	
+0x1121DC	59	zlib	
+0x112217	229	zlib	
+0x1122FC	52	zlib	
+0x112330	707	zlib	
+0x1125F3	48	zlib	
+0x112623	62	zlib	
+0x112662	81	zlib	
+0x1126B3	98	zlib	
+0x11280E	116	zlib	
+0x112882	80	zlib	
+0x1128D2	203	zlib	
+0x1129A3	176	zlib	
+0x112A53	332	zlib	
+0x112B9F	125	zlib	
+0x112C1C	3	zlib	
+0x112C1F	17	zlib	
+0x112C30	9	zlib	
+0x112C3C	75	zlib	
+0x112C88	5	zlib	
+0x112C90	9	zlib	
+0x112C99	81	zlib	
+0x112CEC	5	zlib	
+0x112CF4	46	zlib	
+0x112D22	33	zlib	
+0x112D43	5	zlib	
+0x112D48	123	zlib	
+0x112DCD	156	zlib	
+0x112E84	315	zlib	no memory left to handle thrown exception!
+0x112FBF	45	zlib	
+0x112FEC	15	zlib	
+0x112FFB	13	zlib	
+0x113008	74	zlib	
+0x113052	26	zlib	
+0x11309C	304	zlib	
+0x1131CC	10	zlib	
+0x1131FC	29	zlib	
+0x11323E	74	zlib	
+0x113288	27	zlib	
+0x1132D1	48	zlib	
+0x113304	177	zlib	
+0x1133B5	5	zlib	
+0x1133BA	29	zlib	
+0x1133D7	5	zlib	
+0x1133DC	47	zlib	
+0x11340B	29	zlib	
+0x113428	83	zlib	
+0x11347C	25	zlib	
+0x113495	137	zlib	
+0x113526	2	zlib	
+0x113528	96	zlib	
+0x113594	279	zlib	
+0x1136AB	10	zlib	
+0x113B47	19	zlib	
+0x113B5A	19	zlib	
+0x113BCC	76	zlib	
+0x113CB0	123	zlib	ointers.c
+0x113DBC	75	zlib	
+0x113E07	81	zlib	
+0x113E58	65	zlib	
+0x113E99	285	zlib	
+0x113FB6	85	zlib	
+0x11400B	21	zlib	
+0x114020	40	zlib	
+0x114048	56	zlib	
+0x114080	37	zlib	
+0x1140F2	52	zlib	
+0x114426	31	zlib	
+0x114445	51	zlib	
+0x11449D	74	zlib	
+0x1144E7	27	zlib	
+0x114514	14	zlib	
+0x11458E	299	zlib	
+0x1145D3	36	zlib	
+0x1145F7	297	zlib	
+0x114720	260	zlib	
+0x1148F2	39	zlib	
+0x1149A1	88	zlib	
+0x1149F9	33	zlib	
+0x114A1A	9	zlib	
+0x114A23	105	zlib	
+0x114B76	95	zlib	
+0x114BE4	39	zlib	
+0x114CE3	203	zlib	
+0x114DB0	73	zlib	return from "terminate" function!
+0x114DFC	49	zlib	return from "unexpected" function!
+0x114E30	30	zlib	
+0x114E74	65	zlib	
+0x114EB8	45	zlib	
+0x114EE5	21	zlib	
+0x114F0C	25	zlib	
+0x11505B	10	zlib	
+0x115065	219	zlib	
+0x115140	58	zlib	
+0x11517A	107	zlib	
+0x1151E5	106	zlib	
+0x11524F	175	zlib	
+0x115304	2	zlib	
+0x115413	148	zlib	
+0x1154A7	243	zlib	
+0x11565D	246	zlib	
+0x115695	283	zlib	
+0x1157B0	283	zlib	
+0x1158D1	161	zlib	
+0x115974	101	zlib	
+0x1159D7	113	zlib	
+0x115A48	570	zlib	
+0x115C88	72	zlib	 in 
+0x115CD0	47	zlib	
+0x115D09	53	zlib	
+0x115DF3	194	zlib	
+0x115EB6	25	zlib	
+0x115ECF	146	zlib	
+0x115F62	2	zlib	
+0x115FA5	4	zlib	
+0x115FA9	69	zlib	
+0x115FD1	477	zlib	
+0x1161B3	31	zlib	
+0x1161D2	54	zlib	
+0x1161D7	60	zlib	
+0x116213	111	zlib	
+0x1162B6	93	zlib	
+0x116370	21	zlib	
+0x116498	141	zlib	
+0x116525	82	zlib	
+0x116577	38	zlib	
+0x11659D	37	zlib	
+0x1165C2	14	zlib	
+0x1165D0	195	zlib	
+0x116693	45	zlib	
+0x1166C0	45	zlib	
+0x1166ED	25	zlib	
+0x116706	62	zlib	
+0x116744	25	zlib	
+0x11675E	88	zlib	
+0x1167B6	1	zlib	
+0x117228	5	zlib	
+0x11722D	15	zlib	
+0x11723C	5	zlib	
+0x117241	5	zlib	
+0x117246	10	zlib	
+0x117250	5	zlib	
+0x117255	5	zlib	
+0x11725A	5	zlib	
+0x11725F	5	zlib	
+0x117264	20	zlib	
+0x117278	5	zlib	
+0x11727D	5	zlib	
+0x117282	10	zlib	
+0x11728C	5	zlib	
+0x117291	10	zlib	
+0x11729B	5	zlib	
+0x1172A0	5	zlib	
+0x1172A5	10	zlib	
+0x1172AF	5	zlib	
+0x1172B4	15	zlib	
+0x1172C3	15	zlib	
+0x1172D2	10	zlib	
+0x1172DC	5	zlib	
+0x1172E1	5	zlib	
+0x1172E6	10	zlib	
+0x1172F0	5	zlib	
+0x1172F5	5	zlib	
+0x1172FA	5	zlib	
+0x1172FF	10	zlib	
+0x117309	5	zlib	
+0x11730E	15	zlib	
+0x11731D	5	zlib	
+0x117322	5	zlib	
+0x117327	5	zlib	
+0x11732C	5	zlib	
+0x117331	10	zlib	
+0x11733B	25	zlib	
+0x117354	15	zlib	
+0x117363	10	zlib	
+0x11736D	10	zlib	
+0x117377	5	zlib	
+0x11737C	5	zlib	
+0x117381	30	zlib	
+0x11739F	10	zlib	
+0x1173A9	5	zlib	
+0x1173AE	20	zlib	
+0x1173C2	5	zlib	
+0x1173C7	5	zlib	
+0x1173CC	10	zlib	
+0x1173D6	5	zlib	
+0x1173DB	5	zlib	
+0x1173E0	5	zlib	
+0x1173E5	5	zlib	
+0x1173EA	20	zlib	
+0x1173FE	5	zlib	
+0x117403	60	zlib	
+0x11743F	5	zlib	
+0x117444	5	zlib	
+0x117449	156	zlib	

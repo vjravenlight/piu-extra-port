@@ -1,0 +1,1202 @@
+{
+  "0xD83B0": {
+    "nombre": "glOrtho",
+    "args": [
+      "GLdouble left (pila+0)",
+      "GLdouble right (pila+8)",
+      "GLdouble bottom (pila+16)",
+      "GLdouble top (pila+24)",
+      "GLdouble near (pila+32)",
+      "GLdouble far (pila+40)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 48,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x20DCC"
+    ],
+    "uso": "(0, 640, 0, 480, 0, 1) una sola vez en 0x20DCC: proyección 2D de 640x480, origen abajo a la izquierda, Y hacia arriba",
+    "estado": "confirmado"
+  },
+  "0xD86B4": {
+    "nombre": "glPixelStorei",
+    "args": [
+      "GLenum pname (EAX)",
+      "GLint param (EDX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 9,
+    "llamadores": [
+      "0x214D8",
+      "0x338BC",
+      "0x3DF94",
+      "0x3E758",
+      "0x3F3F0",
+      "0x3F66C"
+    ],
+    "uso": "GL_UNPACK_ALIGNMENT=1 antes de cada glTexImage2D; en la captura 0x214D8: GL_PACK_ALIGNMENT=4 y GL_PACK_ROW_LENGTH/SKIP_ROWS/SKIP_PIXELS=0",
+    "estado": "confirmado"
+  },
+  "0xD897C": {
+    "nombre": "glPopMatrix",
+    "args": [],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 80,
+    "llamadores": [
+      "0x201F0",
+      "0x21738",
+      "0x22854",
+      "0x23AB8",
+      "0x23B50",
+      "0x23DB4",
+      "0x24DB0",
+      "0x26FA8",
+      "0x26FD0",
+      "0x27000",
+      "0x27028",
+      "0x27158",
+      "0x279D8",
+      "0x27A5C",
+      "0x27AEC",
+      "0x27CC4",
+      "0x28A70",
+      "0x2A944",
+      "0x2C04C",
+      "0x2E8F0",
+      "0x33490",
+      "0x334F4",
+      "0x33560",
+      "0x33630",
+      "0x34794",
+      "0x3779C",
+      "0x377D0",
+      "0x3788C",
+      "0x379DC",
+      "0x37B7C",
+      "0x38450",
+      "0x38C5C",
+      "0x408F4",
+      "0x40D28"
+    ],
+    "uso": "cierra cada glPushMatrix (pila MODELVIEW; en 0x40D28 también PROJECTION)",
+    "estado": "confirmado"
+  },
+  "0xD8A30": {
+    "nombre": "glPushMatrix",
+    "args": [],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 80,
+    "llamadores": [
+      "0x201F0",
+      "0x21738",
+      "0x22854",
+      "0x23AB8",
+      "0x23B50",
+      "0x23DB4",
+      "0x24DB0",
+      "0x26FA8",
+      "0x26FD0",
+      "0x27000",
+      "0x27028",
+      "0x27158",
+      "0x279D8",
+      "0x27A5C",
+      "0x27AEC",
+      "0x27CC4",
+      "0x28A70",
+      "0x2A944",
+      "0x2C04C",
+      "0x2E8F0",
+      "0x33490",
+      "0x334F4",
+      "0x33560",
+      "0x33630",
+      "0x34794",
+      "0x3779C",
+      "0x377D0",
+      "0x3788C",
+      "0x379DC",
+      "0x37B7C",
+      "0x38450",
+      "0x38C5C",
+      "0x408F4",
+      "0x40D28"
+    ],
+    "uso": "antes de mover cada sprite u objeto",
+    "estado": "confirmado"
+  },
+  "0xD9300": {
+    "nombre": "glReadPixels",
+    "args": [
+      "GLint x (EAX)",
+      "GLint y (EDX)",
+      "GLsizei width (EBX)",
+      "GLsizei height (ECX)",
+      "GLenum format (pila+0)",
+      "GLenum type (pila+4)",
+      "GLvoid* pixels (pila+8)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 12,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x214D8"
+    ],
+    "uso": "(0, 0, ancho, alto del viewport, GL_RGB, GL_UNSIGNED_BYTE, buf): captura a .\\cap\\p3_%03d.TGA (0x214D8)",
+    "estado": "confirmado"
+  },
+  "0xD9828": {
+    "nombre": "glRotatef",
+    "args": [
+      "GLfloat angle (pila+0)",
+      "GLfloat x (pila+4)",
+      "GLfloat y (pila+8)",
+      "GLfloat z (pila+12)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 16,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 3,
+    "llamadores": [
+      "0x33560",
+      "0x3779C"
+    ],
+    "uso": "(ángulo, 0, 0, 1): giro en el plano de la pantalla",
+    "estado": "confirmado"
+  },
+  "0xD9910": {
+    "nombre": "glScalef",
+    "args": [
+      "GLfloat x (pila+0)",
+      "GLfloat y (pila+4)",
+      "GLfloat z (pila+8)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 12,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 13,
+    "llamadores": [
+      "0x23B50",
+      "0x27CC4",
+      "0x31154",
+      "0x334F4",
+      "0x33560",
+      "0x3779C"
+    ],
+    "uso": "(sx, sy, 1): escala 2D; también (1, 1, 1)",
+    "estado": "confirmado"
+  },
+  "0xD9958": {
+    "nombre": "glShadeModel",
+    "args": [
+      "GLenum mode (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 9,
+    "llamadores": [
+      "0x20DCC",
+      "0x377D0",
+      "0x3788C",
+      "0x38450",
+      "0x38C5C"
+    ],
+    "uso": "GL_FLAT al iniciar; GL_SMOOTH solo mientras dibuja degradés con glColor3fv por vértice (0x377D0, 0x3788C, 0x38450, 0x38C5C), y vuelve a GL_FLAT",
+    "estado": "confirmado"
+  },
+  "0xD9B30": {
+    "nombre": "glTexCoord2f",
+    "args": [
+      "GLfloat s (pila+0)",
+      "GLfloat t (pila+4)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 8,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 121,
+    "llamadores": [
+      "0x20000",
+      "0x200D0",
+      "0x201F0",
+      "0x22FC8",
+      "0x230A0",
+      "0x231DC",
+      "0x232B4",
+      "0x237D8",
+      "0x27CC4",
+      "0x28A70",
+      "0x2A944",
+      "0x2C04C",
+      "0x34618",
+      "0x346C4",
+      "0x358F0",
+      "0x359DC",
+      "0x35B18",
+      "0x362CC",
+      "0x408F4"
+    ],
+    "uso": "una por vértice, antes de cada glVertex2i/glVertex3f",
+    "estado": "confirmado (por lo que hace y por la tabla)"
+  },
+  "0xDA238": {
+    "nombre": "glTexEnvf",
+    "args": [
+      "GLenum target (EAX)",
+      "GLenum pname (EDX)",
+      "GLfloat param (pila+0)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 4,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 3,
+    "llamadores": [
+      "0x3DA54",
+      "0x3E4A8",
+      "0x3F620"
+    ],
+    "uso": "(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, 8448.0 = GL_MODULATE)",
+    "estado": "confirmado"
+  },
+  "0xDA280": {
+    "nombre": "glTexEnvi",
+    "args": [
+      "GLenum target (EAX)",
+      "GLenum pname (EDX)",
+      "GLint param (EBX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x20DCC"
+    ],
+    "uso": "(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE) en 0x20DCC",
+    "estado": "confirmado"
+  },
+  "0xDA448": {
+    "nombre": "glTexImage2D",
+    "args": [
+      "GLenum target (EAX)",
+      "GLint level (EDX)",
+      "GLint internalFormat (EBX)",
+      "GLsizei width (ECX)",
+      "GLsizei height (pila+0)",
+      "GLint border (pila+4)",
+      "GLenum format (pila+8)",
+      "GLenum type (pila+12)",
+      "const GLvoid* pixels (pila+16)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 20,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 5,
+    "llamadores": [
+      "0x338BC",
+      "0x3DF94",
+      "0x3E758",
+      "0x3F3F0",
+      "0x3F66C"
+    ],
+    "uso": "siempre GL_TEXTURE_2D, nivel 0, borde 0, GL_UNSIGNED_BYTE. 0x338BC: interno = formato = GL_RGBA, GL_RGB o GL_LUMINANCE según 32/24/8 bits. 0x3DF94 y 0x3E758: interno GL_RGBA4 (0x8056) o GL_RGB5_A1 (0x8057), o el valor de [0x59204C]; formato GL_RGBA. 0x3F3F0 y 0x3F66C: interno GL_RGBA8; formato GL_RGBA",
+    "estado": "confirmado"
+  },
+  "0xDA578": {
+    "nombre": "glTexParameterf",
+    "args": [
+      "GLenum target (EAX)",
+      "GLenum pname (EDX)",
+      "GLfloat param (pila+0)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 4,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 2,
+    "llamadores": [
+      "0x338BC"
+    ],
+    "uso": "GL_TEXTURE_WRAP_S y _T = 10496.0 (GL_CLAMP) en 0x338BC",
+    "estado": "confirmado"
+  },
+  "0xDA5C0": {
+    "nombre": "glTexParameteri",
+    "args": [
+      "GLenum target (EAX)",
+      "GLenum pname (EDX)",
+      "GLint param (EBX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 16,
+    "llamadores": [
+      "0x338BC",
+      "0x3DF94",
+      "0x3E758",
+      "0x3F3F0",
+      "0x3F66C",
+      "0x3FE54"
+    ],
+    "uso": "MAG/MIN_FILTER = GL_LINEAR siempre; WRAP_S/T = GL_REPEAT (0x3F3F0, 0x3F66C) o GL_CLAMP/GL_REPEAT según el material (0x3FE54)",
+    "estado": "confirmado"
+  },
+  "0xDA948": {
+    "nombre": "glTranslatef",
+    "args": [
+      "GLfloat x (pila+0)",
+      "GLfloat y (pila+4)",
+      "GLfloat z (pila+8)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 12,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 198,
+    "llamadores": [
+      "0x201F0",
+      "0x227C4",
+      "0x22854",
+      "0x230A0",
+      "0x232B4",
+      "0x2397C",
+      "0x23AB8",
+      "0x23B50",
+      "0x23DB4",
+      "0x24DB0",
+      "0x26FA8",
+      "0x26FD0",
+      "0x27000",
+      "0x27028",
+      "0x27158",
+      "0x279D8",
+      "0x27A5C",
+      "0x27AEC",
+      "0x27CC4",
+      "0x28A70",
+      "0x2A944",
+      "0x2C04C",
+      "0x33490",
+      "0x334F4",
+      "0x33560",
+      "0x33630",
+      "0x34794",
+      "0x3779C",
+      "0x377D0",
+      "0x3788C",
+      "0x379DC",
+      "0x37B7C",
+      "0x38450",
+      "0x38C5C"
+    ],
+    "uso": "(x, y, 0) en píxeles de la pantalla 640x480; (x, y, z) en el 3D",
+    "estado": "confirmado"
+  },
+  "0xDA9D4": {
+    "nombre": "glVertex2i",
+    "args": [
+      "GLint x (EAX)",
+      "GLint y (EDX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 194,
+    "llamadores": [
+      "0x20000",
+      "0x200D0",
+      "0x201F0",
+      "0x20C7C",
+      "0x22788",
+      "0x22FC8",
+      "0x230A0",
+      "0x231DC",
+      "0x232B4",
+      "0x237D8",
+      "0x27CC4",
+      "0x28A70",
+      "0x2A944",
+      "0x2C04C",
+      "0x2F680",
+      "0x34618",
+      "0x346C4",
+      "0x358F0",
+      "0x359DC",
+      "0x35B18",
+      "0x362CC",
+      "0x377D0",
+      "0x3788C",
+      "0x3799C",
+      "0x379DC",
+      "0x37B7C",
+      "0x38450",
+      "0x38C5C"
+    ],
+    "uso": "vértices 2D en píxeles enteros (0..640, 0..480)",
+    "estado": "confirmado (por lo que hace y por la tabla)"
+  },
+  "0xDAA68": {
+    "nombre": "glVertex3f",
+    "args": [
+      "GLfloat x (pila+0)",
+      "GLfloat y (pila+4)",
+      "GLfloat z (pila+8)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 12,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x408F4"
+    ],
+    "uso": "vértices de las mallas 3D (0x408F4)",
+    "estado": "confirmado (por lo que hace y por la tabla)"
+  },
+  "0xDADF0": {
+    "nombre": "glViewport",
+    "args": [
+      "GLint x (EAX)",
+      "GLint y (EDX)",
+      "GLsizei width (EBX)",
+      "GLsizei height (ECX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x20DCC"
+    ],
+    "uso": "(0, 0, 640, 480) en 0x20DCC",
+    "estado": "confirmado"
+  },
+  "0xDAE98": {
+    "nombre": "glAreTexturesResident",
+    "args": [
+      "GLsizei n (EAX)",
+      "const GLuint* textures (EDX)",
+      "GLboolean* residences (EBX)"
+    ],
+    "retorno": "GLboolean (AL)",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x3371C"
+    ],
+    "uso": "solo depuración: cuenta texturas 1..1000 y escribe \"Texture Count ( %s ) = %d\" (0x3371C)",
+    "estado": "confirmado"
+  },
+  "0xDAF18": {
+    "nombre": "glBegin",
+    "args": [
+      "GLenum mode (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 47,
+    "llamadores": [
+      "0x20000",
+      "0x200D0",
+      "0x201F0",
+      "0x20C7C",
+      "0x22788",
+      "0x22FC8",
+      "0x230A0",
+      "0x231DC",
+      "0x232B4",
+      "0x237D8",
+      "0x27CC4",
+      "0x28A70",
+      "0x2A944",
+      "0x2C04C",
+      "0x2F680",
+      "0x34618",
+      "0x346C4",
+      "0x358F0",
+      "0x359DC",
+      "0x35B18",
+      "0x362CC",
+      "0x377D0",
+      "0x3788C",
+      "0x3799C",
+      "0x379DC",
+      "0x37B7C",
+      "0x38450",
+      "0x38C5C",
+      "0x408F4"
+    ],
+    "uso": "GL_QUADS ×41, GL_LINES ×1 (0x20C7C), GL_POINTS ×1 (0x2F680), GL_TRIANGLES ×1 (0x408F4), GL_TRIANGLE_STRIP ×1 (0x362CC), GL_TRIANGLE_FAN ×1 (0x3788C) y 0x1B01 = GL_LINE ×1 (0x22788, valor inválido)",
+    "estado": "confirmado"
+  },
+  "0xDAF54": {
+    "nombre": "glBindTexture",
+    "args": [
+      "GLenum target (EAX)",
+      "GLuint texture (EDX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 15,
+    "llamadores": [
+      "0x338BC",
+      "0x33F3C",
+      "0x346A0",
+      "0x34770",
+      "0x34794",
+      "0x3DA54",
+      "0x3DF94",
+      "0x3E4A8",
+      "0x3E758",
+      "0x3F3F0",
+      "0x3F620",
+      "0x3F66C"
+    ],
+    "uso": "siempre GL_TEXTURE_2D",
+    "estado": "confirmado"
+  },
+  "0xDB050": {
+    "nombre": "glBlendFunc",
+    "args": [
+      "GLenum sfactor (EAX)",
+      "GLenum dfactor (EDX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 8,
+    "llamadores": [
+      "0x20DCC",
+      "0x33630",
+      "0x3FE54",
+      "0x40D28"
+    ],
+    "uso": "(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA) ×5, (GL_ONE, GL_ONE) aditivo ×2, (GL_ONE, GL_ZERO) ×1",
+    "estado": "confirmado"
+  },
+  "0xDB10C": {
+    "nombre": "glClear",
+    "args": [
+      "GLbitfield mask (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 5,
+    "llamadores": [
+      "0x20DAC",
+      "0x21024",
+      "0x21738",
+      "0x2F680"
+    ],
+    "uso": "solo GL_COLOR_BUFFER_BIT (no hay buffer de profundidad)",
+    "estado": "confirmado"
+  },
+  "0xDB1CC": {
+    "nombre": "glClearColor",
+    "args": [
+      "GLclampf red (pila+0)",
+      "GLclampf green (pila+4)",
+      "GLclampf blue (pila+8)",
+      "GLclampf alpha (pila+12)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 16,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x20DCC"
+    ],
+    "uso": "(0, 0, 0, 1) en 0x20DCC",
+    "estado": "confirmado"
+  },
+  "0xDB394": {
+    "nombre": "glColor3f",
+    "args": [
+      "GLfloat red (pila+0)",
+      "GLfloat green (pila+4)",
+      "GLfloat blue (pila+8)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 12,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 27,
+    "llamadores": [
+      "0x201F0",
+      "0x21024",
+      "0x21738",
+      "0x22854",
+      "0x24DB0",
+      "0x27CC4",
+      "0x28A70",
+      "0x2A944",
+      "0x2C04C",
+      "0x2E8F0",
+      "0x32270",
+      "0x3311C",
+      "0x37B7C"
+    ],
+    "uso": "casi siempre (1, 1, 1); también (1, 0, 0), (0.2, 1, 0.2), (1, 1, 0.2), (1, 0.2, 0.2), (1, 1, 0) y (0.4, 0.4, 0.5)",
+    "estado": "confirmado (por lo que hace y por la tabla)"
+  },
+  "0xDB620": {
+    "nombre": "glColor4f",
+    "args": [
+      "GLfloat red (pila+0)",
+      "GLfloat green (pila+4)",
+      "GLfloat blue (pila+8)",
+      "GLfloat alpha (pila+12)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 16,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 84,
+    "llamadores": [
+      "0x201F0",
+      "0x20C7C",
+      "0x20EE8",
+      "0x22854",
+      "0x23858",
+      "0x238B8",
+      "0x23B50",
+      "0x24DB0",
+      "0x27158",
+      "0x2B97C",
+      "0x2BB10",
+      "0x2BCA4",
+      "0x2D0AA",
+      "0x2D23F",
+      "0x2D3D5",
+      "0x2DBE0",
+      "0x2F680",
+      "0x30558",
+      "0x306E8",
+      "0x31154",
+      "0x31740",
+      "0x362CC",
+      "0x3B264"
+    ],
+    "uso": "casi siempre (1, 1, 1, alfa) para fundidos; también (0, 0, 0, 0.5), (0.1, 0.1, 0.2, 0.9), (0.8, 0.8, 1, 1)",
+    "estado": "confirmado (por lo que hace y por la tabla)"
+  },
+  "0xDB8D4": {
+    "nombre": "glColor3fv",
+    "args": [
+      "const GLfloat* v (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 42,
+    "llamadores": [
+      "0x377D0",
+      "0x3788C",
+      "0x379DC",
+      "0x37CB0",
+      "0x37FCC",
+      "0x38028",
+      "0x380D4",
+      "0x38304",
+      "0x38450",
+      "0x38574",
+      "0x38878",
+      "0x38A58",
+      "0x38C5C"
+    ],
+    "uso": "tablas de colores en 0x13BE8C..0x13BEE0 (degradés y figuras de color)",
+    "estado": "confirmado (por lo que hace y por la tabla)"
+  },
+  "0xDBB38": {
+    "nombre": "glColor4fv",
+    "args": [
+      "const GLfloat* v (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 4,
+    "llamadores": [
+      "0x3779C",
+      "0x3FE54",
+      "0x408F4"
+    ],
+    "uso": "color difuso del material 3D (0x3FE54) y colores de 0x3779C/0x408F4",
+    "estado": "confirmado (por lo que hace y por la tabla)"
+  },
+  "0xDC0D0": {
+    "nombre": "glCullFace",
+    "args": [
+      "GLenum mode (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x40D28"
+    ],
+    "uso": "GL_BACK, solo en el 3D (0x40D28)",
+    "estado": "confirmado"
+  },
+  "0xDC110": {
+    "nombre": "glDepthFunc",
+    "args": [
+      "GLenum func (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x20DCC"
+    ],
+    "uso": "GL_LEQUAL en 0x20DCC (sin efecto: no hay buffer de profundidad y GL_DEPTH_TEST está apagado)",
+    "estado": "confirmado"
+  },
+  "0xDC228": {
+    "nombre": "glDeleteTextures",
+    "args": [
+      "GLsizei n (EAX)",
+      "const GLuint* textures (EDX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 35,
+    "llamadores": [
+      "0x24010",
+      "0x2B97C",
+      "0x2BB10",
+      "0x2BCA4",
+      "0x2BEE0",
+      "0x2D0AA",
+      "0x2D23F",
+      "0x2D3D5",
+      "0x2D611",
+      "0x2D90C",
+      "0x32530",
+      "0x330C4",
+      "0x3311C",
+      "0x33830",
+      "0x33E90",
+      "0x33EDC",
+      "0x3B1F4",
+      "0x3B264",
+      "0x3D98C",
+      "0x3DF40",
+      "0x3E438",
+      "0x3F600"
+    ],
+    "uso": "(1, &nombre)",
+    "estado": "confirmado"
+  },
+  "0xDC268": {
+    "nombre": "glDisable",
+    "args": [
+      "GLenum cap (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 16,
+    "llamadores": [
+      "0x20C7C",
+      "0x20DCC",
+      "0x2A944",
+      "0x2C04C",
+      "0x362CC",
+      "0x377D0",
+      "0x3788C",
+      "0x37C6C",
+      "0x380D4",
+      "0x38450",
+      "0x38C5C",
+      "0x3FE54",
+      "0x40D28"
+    ],
+    "uso": "GL_TEXTURE_2D ×10, GL_DEPTH_TEST ×3, GL_CULL_FACE ×2, GL_BLEND ×1",
+    "estado": "confirmado"
+  },
+  "0xDC4AC": {
+    "nombre": "glEnable",
+    "args": [
+      "GLenum cap (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 24,
+    "llamadores": [
+      "0x20C7C",
+      "0x20DCC",
+      "0x2A944",
+      "0x2C04C",
+      "0x33630",
+      "0x362CC",
+      "0x377D0",
+      "0x3788C",
+      "0x37C6C",
+      "0x380D4",
+      "0x38450",
+      "0x38C5C",
+      "0x3DA54",
+      "0x3E4A8",
+      "0x3F620",
+      "0x3FE54",
+      "0x40D28"
+    ],
+    "uso": "GL_TEXTURE_2D ×14, GL_BLEND ×7, GL_CULL_FACE ×1 (3D), GL_COLOR_MATERIAL ×1, GL_DITHER ×1",
+    "estado": "confirmado"
+  },
+  "0xDC52C": {
+    "nombre": "glEnd",
+    "args": [],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 46,
+    "llamadores": [
+      "0x20000",
+      "0x200D0",
+      "0x201F0",
+      "0x20C7C",
+      "0x22788",
+      "0x22FC8",
+      "0x230A0",
+      "0x231DC",
+      "0x232B4",
+      "0x237D8",
+      "0x27CC4",
+      "0x28A70",
+      "0x2A944",
+      "0x2C04C",
+      "0x2F680",
+      "0x34618",
+      "0x346C4",
+      "0x358F0",
+      "0x359DC",
+      "0x35B18",
+      "0x362CC",
+      "0x377D0",
+      "0x3788C",
+      "0x3799C",
+      "0x379DC",
+      "0x37B7C",
+      "0x38450",
+      "0x38C5C",
+      "0x408F4"
+    ],
+    "uso": "cierra cada glBegin",
+    "estado": "confirmado"
+  },
+  "0xDC9CC": {
+    "nombre": "glFinish",
+    "args": [],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x214D8"
+    ],
+    "uso": "antes de glReadPixels en la captura",
+    "estado": "confirmado"
+  },
+  "0xDCCDC": {
+    "nombre": "glGenTextures",
+    "args": [
+      "GLsizei n (EAX)",
+      "GLuint* textures (EDX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 5,
+    "llamadores": [
+      "0x338BC",
+      "0x3DF94",
+      "0x3E758",
+      "0x3F3F0",
+      "0x3F66C"
+    ],
+    "uso": "(1, &nombre)",
+    "estado": "confirmado"
+  },
+  "0xDCED4": {
+    "nombre": "glGetIntegerv",
+    "args": [
+      "GLenum pname (EAX)",
+      "GLint* params (EDX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x214D8"
+    ],
+    "uso": "GL_VIEWPORT, para el tamaño de la captura",
+    "estado": "confirmado"
+  },
+  "0xDDB30": {
+    "nombre": "glLineWidth",
+    "args": [
+      "GLfloat width (pila+0)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 4,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x3FE54"
+    ],
+    "uso": "ancho de línea del material 3D cuando tiene el bit 4 (0x3FE54)",
+    "estado": "confirmado"
+  },
+  "0xDDBF4": {
+    "nombre": "glLoadIdentity",
+    "args": [],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 4,
+    "llamadores": [
+      "0x20DCC",
+      "0x40D28"
+    ],
+    "uso": "después de cada glMatrixMode en 0x20DCC y 0x40D28",
+    "estado": "confirmado"
+  },
+  "0xDE104": {
+    "nombre": "glMaterialf",
+    "args": [
+      "GLenum face (EAX)",
+      "GLenum pname (EDX)",
+      "GLfloat param (pila+0)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 4,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x3FE54"
+    ],
+    "uso": "(GL_FRONT, GL_SHININESS, brillo) — sin efecto visible: GL_LIGHTING nunca se enciende",
+    "estado": "confirmado"
+  },
+  "0xDE1A0": {
+    "nombre": "glMaterialfv",
+    "args": [
+      "GLenum face (EAX)",
+      "GLenum pname (EDX)",
+      "const GLfloat* params (EBX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 4,
+    "llamadores": [
+      "0x3FE54"
+    ],
+    "uso": "(GL_FRONT, GL_AMBIENT/GL_DIFFUSE/GL_SPECULAR/GL_EMISSION, color) — sin efecto visible: GL_LIGHTING nunca se enciende",
+    "estado": "confirmado"
+  },
+  "0xDE2DC": {
+    "nombre": "glMatrixMode",
+    "args": [
+      "GLenum mode (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 11,
+    "llamadores": [
+      "0x20DCC",
+      "0x2A944",
+      "0x2C04C",
+      "0x3AEBC",
+      "0x40D28"
+    ],
+    "uso": "GL_PROJECTION ×3, GL_MODELVIEW ×8",
+    "estado": "confirmado"
+  },
+  "0xDE378": {
+    "nombre": "glMultMatrixf",
+    "args": [
+      "const GLfloat* m (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "OpenGL (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x408F4"
+    ],
+    "uso": "matriz 4x4 de cada malla 3D (0x408F4)",
+    "estado": "confirmado"
+  },
+  "0xEC443": {
+    "nombre": "gluLookAt",
+    "args": [
+      "GLdouble eyeX (pila+0)",
+      "GLdouble eyeY (pila+8)",
+      "GLdouble eyeZ (pila+16)",
+      "GLdouble centerX (pila+24)",
+      "GLdouble centerY (pila+32)",
+      "GLdouble centerZ (pila+40)",
+      "GLdouble upX (pila+48)",
+      "GLdouble upY (pila+56)",
+      "GLdouble upZ (pila+64)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 72,
+    "biblioteca": "GLU (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x40D28"
+    ],
+    "uso": "(0, 0, 3.2,  0, 0, -1,  0, 1, 0) en 0x40D28",
+    "estado": "confirmado (el c?digo es el de GLU de Mesa)"
+  },
+  "0xEC895": {
+    "nombre": "gluPerspective",
+    "args": [
+      "GLdouble fovy (pila+0)",
+      "GLdouble aspect (pila+8)",
+      "GLdouble zNear (pila+16)",
+      "GLdouble zFar (pila+24)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 32,
+    "biblioteca": "GLU (Mesa 3.0)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x40D28"
+    ],
+    "uso": "(73.74, 1.3333, 0.01, 15.0) en 0x40D28",
+    "estado": "confirmado (el c?digo es el de GLU de Mesa)"
+  },
+  "0xEEC87": {
+    "nombre": "auxInitDisplayMode",
+    "args": [
+      "GLenum mode (EAX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "capa AUX sobre fxMesa",
+    "llamadas": 1,
+    "llamadores": [
+      "0x20DCC"
+    ],
+    "uso": "(2 = AUX_DOUBLE: RGB con doble buffer, sin profundidad, alfa, stencil ni acumulación)",
+    "estado": "deducido (nombre); confirmado (qué hace)"
+  },
+  "0xEEC9C": {
+    "nombre": "auxInitPosition",
+    "args": [
+      "int x (EAX)",
+      "int y (EDX)",
+      "int width (EBX)",
+      "int height (ECX)"
+    ],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "capa AUX sobre fxMesa",
+    "llamadas": 1,
+    "llamadores": [
+      "0x20DCC"
+    ],
+    "uso": "(0, 0, 640, 480)",
+    "estado": "deducido (nombre); confirmado (qué hace)"
+  },
+  "0xEECBE": {
+    "nombre": "auxSwapBuffers",
+    "args": [],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "capa AUX sobre fxMesa",
+    "llamadas": 5,
+    "llamadores": [
+      "0x20DAC",
+      "0x21024",
+      "0x21738",
+      "0x2F680"
+    ],
+    "uso": "fin de cada cuadro (0x21738), pantallas completas por LFB (0x2F680), 0x21024 y la salida 0x20DAC",
+    "estado": "deducido (nombre); confirmado (qué hace)"
+  },
+  "0xEECCD": {
+    "nombre": "auxQuit",
+    "args": [],
+    "retorno": "nada",
+    "pila_bytes": 0,
+    "biblioteca": "capa AUX sobre fxMesa",
+    "llamadas": 2,
+    "llamadores": [
+      "0x20DAC",
+      "0x20DCC"
+    ],
+    "uso": "si auxInitWindow falla (0x20DCC) y al salir (0x20DAC, por atexit)",
+    "estado": "deducido (nombre); confirmado (qué hace)"
+  },
+  "0xEECE8": {
+    "nombre": "auxInitWindow",
+    "args": [
+      "const char* title (EAX)"
+    ],
+    "retorno": "GLenum (EAX: 1 = bien, 0 = error)",
+    "pila_bytes": 0,
+    "biblioteca": "capa AUX sobre fxMesa",
+    "llamadas": 1,
+    "llamadores": [
+      "0x20DCC"
+    ],
+    "uso": "(\"PUMP3\"): crea el contexto fxMesa de 640x480",
+    "estado": "deducido (nombre); confirmado (qué hace)"
+  },
+  "0x11731D": {
+    "nombre": "grLfbLock",
+    "args": [
+      "GrLock_t type (pila+0)",
+      "GrBuffer_t buffer (pila+4)",
+      "GrLfbWriteMode_t writeMode (pila+8)",
+      "GrOriginLocation_t origin (pila+12)",
+      "FxBool pixelPipeline (pila+16)",
+      "GrLfbInfo_t* info (pila+20)"
+    ],
+    "retorno": "FxBool (EAX)",
+    "pila_bytes": 24,
+    "biblioteca": "Glide 2 (GLIDE2X.OVL, _GRLFBLOCK@24)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x2F680"
+    ],
+    "uso": "(GR_LFB_WRITE_ONLY=1, GR_BUFFER_BACKBUFFER=1, GR_LFBWRITEMODE_565=0, GR_ORIGIN_UPPER_LEFT=0, FXTRUE, &info): escribe una imagen de 640x480 de 24 bits (B,G,R) pasada a RGB565 directo en el buffer de atrás (0x2F680)",
+    "estado": "confirmado (tabla de nombres del cargador de Glide)"
+  },
+  "0x11732C": {
+    "nombre": "grLfbUnlock",
+    "args": [
+      "GrLock_t type (pila+0)",
+      "GrBuffer_t buffer (pila+4)"
+    ],
+    "retorno": "FxBool (EAX)",
+    "pila_bytes": 8,
+    "biblioteca": "Glide 2 (GLIDE2X.OVL, _GRLFBUNLOCK@8)",
+    "llamadas": 1,
+    "llamadores": [
+      "0x2F680"
+    ],
+    "uso": "(GR_LFB_WRITE_ONLY, GR_BUFFER_BACKBUFFER)",
+    "estado": "confirmado (tabla de nombres del cargador de Glide)"
+  }
+}

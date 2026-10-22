@@ -1,0 +1,12 @@
+PUMP IT UP EXTRA para Linux (64 bits) — port de Ravenlight (ravenlight.net)
+
+Cómo jugar
+1. Descomprimí el archivo:  tar -xzf "Pump It Up Extra - Linux.tar.gz"
+2. Entrá a la carpeta "Pump It Up Extra" y abrí JUGAR.sh (doble clic, o en la terminal:  ./JUGAR.sh ).
+
+- Esc sale; F11 o doble clic cambian la pantalla completa.
+- Teclas: jugador 1 Z Q S E C, jugador 2 el numérico 1 7 5 9 3. También alfombras y joysticks USB (OPCIONES > MANDO USB).
+- El ranking y el online son los de ravenlight.net (hace falta internet; sin internet se juega igual, sin ranking).
+- Lo que guarda el juego (opciones, tus canciones, tus pasos) queda en la carpeta "guardado", al lado: si copiás la
+  carpeta entera a otra PC, se lleva todo.
+- Si no abre: en la terminal, adentro de la carpeta,  chmod +x pump-it-up-extra JUGAR.sh  y otra vez  ./JUGAR.sh

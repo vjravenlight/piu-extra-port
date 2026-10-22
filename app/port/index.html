@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex, nofollow">
+<title>Pump It Up Extra · port</title>
+<style>
+  :root { --fondo: #000; --texto: #e9ecf5; --tenue: #8a90a6; --acento: #ffd23f; }
+  html, body { margin: 0; height: 100%; background: var(--fondo); color: var(--texto); font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  /* el juego, el menu y el marcador del rival ocupan el mismo cuadro 4:3 (principal.js fija el tamano) */
+  #pantalla, #menu, #hud { position: absolute; inset: 0; margin: auto; background: transparent; }
+  #pantalla { background: #000; }
+  #hud { pointer-events: none; }
+  /* el cuadro de texto queda en pantalla pero invisible: asi el celular abre su teclado al escribir el nickname o el chat */
+  #escribir { position: fixed; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; font-size: 16px; }
+  body { touch-action: none; -webkit-tap-highlight-color: transparent; }
+  #estado { position: absolute; left: 10px; bottom: 8px; font: 12px monospace; color: var(--tenue); pointer-events: none; white-space: pre; display: none; }
+  body.depurar #estado { display: block; }
+  body.jugando { cursor: none; }
+  #aviso { position: absolute; left: 50%; top: 24px; transform: translateX(-50%); padding: 10px 18px; border-radius: 8px;
+    background: rgba(0, 0, 0, .78); color: var(--acento); font: 600 16px "Segoe UI", system-ui, sans-serif; pointer-events: none;
+    opacity: 0; transition: opacity .3s; white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
+  #aviso.ver { opacity: 1; }
+  #luces { position: absolute; right: 10px; bottom: 10px; display: none; gap: 5px; pointer-events: none; }
+  body.depurar #luces { display: flex; }
+  #luces i { width: 10px; height: 10px; border-radius: 50%; background: #222; display: block; }
+  #luces i.on { background: #ffd23f; box-shadow: 0 0 8px #ffd23f; }
+</style>
+</head>
+<body>
+<!-- Pump It Up Extra: el juego original de la cabina (2001), traducido a JavaScript.
+     Menu principal (app\port\online.js): JUGAR SOLO (la cabina tal cual), ONLINE (salon con nickname, chat y desafios),
+     RANKING y CONTROLES (que parte del teclado usar). En el juego: Z Q S E C o 1 7 5 9 3, F1 TEST, F2 SERVICE,
+     F3 CLEAR, F4 COIN, F7 lista con todo, F9 datos de prueba, doble clic o F11 pantalla completa, Esc vuelve o sale. -->
+<canvas id="pantalla"></canvas>
+<canvas id="menu" width="640" height="480"></canvas>
+<canvas id="hud" width="640" height="480"></canvas>
+<!-- dentro de un formulario: el boton "Ir" del teclado del celular lo envia (online.js lo toma como Enter) -->
+<form id="formEscribir" style="margin:0"><input id="escribir" type="text" autocomplete="off" spellcheck="false" aria-label="texto" enterkeyhint="go"></form>
+<div id="luces"></div>
+<div id="estado"></div>
+<div id="aviso"></div>
+<script type="module" src="principal.js"></script>
+</body>
+</html>

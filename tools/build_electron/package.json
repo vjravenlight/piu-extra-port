@@ -1,0 +1,8 @@
+{
+  "name": "pump-it-up-extra",
+  "productName": "Pump It Up Extra",
+  "version": "1.0.0",
+  "description": "Pump It Up Extra (Andamiro 2001), port de Ravenlight",
+  "main": "main.js",
+  "private": true
+}

@@ -1,0 +1,52 @@
+// Pump It Up Extra para Android (21/10). El juego (app\port + el disco entero) va adentro como assets, tal cual la
+// carpeta juego\ de la build de Edge, y lo sirve la app (Servidor.java) en 127.0.0.1 con COOP/COEP. Se muestra con
+// GeckoView (el motor de Firefox) porque la WebView de Android no da memoria compartida (crossOriginIsolated = false,
+// medido en el Nubia) y el port la necesita. Solo arm64 (los telefonos de ahora): asi pesa la mitad.
+plugins {
+    id 'com.android.application' version '9.3.3'
+}
+
+android {
+    namespace = 'net.ravenlight.piu'
+    // GeckoView 157 pide compilar contra Android 37.1 (la sub-version del SDK)
+    compileSdk {
+        version = release(37) { minorApiLevel = 1 }
+    }
+    defaultConfig {
+        applicationId = 'net.ravenlight.piu'
+        minSdk = 29
+        targetSdk = 35
+        versionCode = 2
+        versionName = '1.1.0'
+        ndk { abiFilters += ['arm64-v8a'] }
+    }
+    sourceSets {
+        main { assets.srcDirs = [file('../../../build/Pump It Up Extra - Edge/juego')] }
+    }
+    // el disco ya viene comprimido o cifrado: sin comprimir, el servidor lo lee directo (y sabe el largo)
+    androidResources {
+        noCompress += ['dat', 'aud', 'pnz', 'not', 'bin', 'js', 'html', 'json', 'cfg', 'png', 'md', 'sp2', 'txt']
+    }
+    signingConfigs {
+        release {
+            storeFile = file('../firma/piu.jks')
+            storePassword = System.getenv('PIU_KS')
+            keyAlias = 'piu'
+            keyPassword = System.getenv('PIU_KS')
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.release
+            minifyEnabled = false
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'org.mozilla.geckoview:geckoview-arm64-v8a:157.0.20261005135250'
+}

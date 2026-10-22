@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Prueba de la capa OpenGL 1.x</title>
+<style>html, body { margin: 0; background: #000; color: #ccc; font: 13px monospace; } canvas { display: block; width: 640px; height: 480px; }</style>
+</head>
+<body>
+<canvas id="c" width="1280" height="960"></canvas>
+<div id="estado">cargando…</div>
+<script type="module">
+import { GL1 } from '../motor/gl1.js';
+const estado = document.getElementById('estado');
+try {
+  const gl = new GL1(document.getElementById('c'), { escala: 2 });
+  const img = new Image(); img.src = '/datos/graficos/Bga/00/ARROW02.PNG'; await img.decode();
+  const [tex] = gl.glGenTextures(1);
+  gl.glBindTexture(gl.GL_TEXTURE_2D, tex);
+  gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR);
+  gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR);
+  gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA, img.width, img.height, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, img);
+  // textura chica hecha a mano (formato ALPHA) para probar la prueba de alfa
+  const [texA] = gl.glGenTextures(1);
+  gl.glBindTexture(gl.GL_TEXTURE_2D, texA);
+  gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST);
+  gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST);
+  const a = new Uint8Array(8 * 8); for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) a[y * 8 + x] = ((x + y) % 2) ? 255 : 30;
+  gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_ALPHA, 8, 8, 0, gl.GL_ALPHA, gl.GL_UNSIGNED_BYTE, a);
+
+  let t0 = performance.now(), cuadros = 0;
+  function cuadro() {
+    const t = (performance.now() - t0) / 1000;
+    gl.glViewport(0, 0, 640, 480);
+    gl.glClearColor(0.05, 0.06, 0.15, 1); gl.glClearDepth(1);
+    gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT);
+    // 2D
+    gl.glMatrixMode(gl.GL_PROJECTION); gl.glLoadIdentity(); gl.glOrtho(0, 640, 480, 0, -1, 1);
+    gl.glMatrixMode(gl.GL_MODELVIEW); gl.glLoadIdentity();
+    gl.glDisable(gl.GL_DEPTH_TEST); gl.glDisable(gl.GL_TEXTURE_2D);
+    gl.glBegin(gl.GL_TRIANGLES);
+    gl.glColor3f(1, 0, 0); gl.glVertex2f(40, 200); gl.glColor3f(0, 1, 0); gl.glVertex2f(140, 30); gl.glColor3f(0, 0, 1); gl.glVertex2f(240, 200);
+    gl.glEnd();
+    // flecha real del juego con mezcla normal
+    gl.glEnable(gl.GL_TEXTURE_2D); gl.glBindTexture(gl.GL_TEXTURE_2D, tex);
+    gl.glEnable(gl.GL_BLEND); gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA);
+    gl.glTexEnvi(gl.GL_TEXTURE_ENV, gl.GL_TEXTURE_ENV_MODE, gl.GL_MODULATE);
+    gl.glPushMatrix(); gl.glTranslatef(380, 120, 0); gl.glRotatef(t * 60, 0, 0, 1);
+    gl.glBegin(gl.GL_QUADS); gl.glColor4f(1, 1, 1, 1);
+    gl.glTexCoord2f(0, 0); gl.glVertex2f(-100, -100); gl.glTexCoord2f(1, 0); gl.glVertex2f(100, -100);
+    gl.glTexCoord2f(1, 1); gl.glVertex2f(100, 100); gl.glTexCoord2f(0, 1); gl.glVertex2f(-100, 100);
+    gl.glEnd(); gl.glPopMatrix();
+    // la misma, aditiva y tenida
+    gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE);
+    gl.glBegin(gl.GL_QUADS); gl.glColor4f(1, 0.4, 0.1, 0.8);
+    gl.glTexCoord2f(0, 0); gl.glVertex2f(520, 20); gl.glTexCoord2f(1, 0); gl.glVertex2f(630, 20);
+    gl.glTexCoord2f(1, 1); gl.glVertex2f(630, 130); gl.glTexCoord2f(0, 1); gl.glVertex2f(520, 130);
+    gl.glEnd();
+    // prueba de alfa con textura ALPHA
+    gl.glDisable(gl.GL_BLEND);
+    gl.glBindTexture(gl.GL_TEXTURE_2D, texA);
+    gl.glEnable(gl.GL_ALPHA_TEST); gl.glAlphaFunc(gl.GL_GREATER, 0.5);
+    gl.glBegin(gl.GL_QUADS); gl.glColor4f(1, 1, 0, 1);
+    gl.glTexCoord2f(0, 0); gl.glVertex2f(520, 150); gl.glTexCoord2f(1, 0); gl.glVertex2f(630, 150);
+    gl.glTexCoord2f(1, 1); gl.glVertex2f(630, 260); gl.glTexCoord2f(0, 1); gl.glVertex2f(520, 260);
+    gl.glEnd();
+    gl.glDisable(gl.GL_ALPHA_TEST); gl.glDisable(gl.GL_TEXTURE_2D);
+    // lineas y puntos
+    gl.glBegin(gl.GL_LINE_LOOP); gl.glColor3f(1, 1, 1);
+    for (let i = 0; i < 6; i++) gl.glVertex2f(140 + 60 * Math.cos(i * Math.PI / 3 + t), 330 + 60 * Math.sin(i * Math.PI / 3 + t));
+    gl.glEnd();
+    gl.glPointSize(4); gl.glBegin(gl.GL_POINTS); gl.glColor3f(0, 1, 1); for (let i = 0; i < 20; i++) gl.glVertex2f(40 + i * 10, 450); gl.glEnd();
+    // 3D con profundidad y niebla
+    gl.glMatrixMode(gl.GL_PROJECTION); gl.glLoadIdentity(); gl.gluPerspective(45, 640 / 480, 1, 50);
+    gl.glMatrixMode(gl.GL_MODELVIEW); gl.glLoadIdentity(); gl.glTranslatef(1.6, -0.9, -6); gl.glRotatef(t * 40, 1, 1, 0);
+    gl.glEnable(gl.GL_DEPTH_TEST); gl.glDepthFunc(gl.GL_LEQUAL);
+    gl.glEnable(gl.GL_FOG); gl.glFogi(gl.GL_FOG_MODE, gl.GL_LINEAR); gl.glFogf(gl.GL_FOG_START, 4); gl.glFogf(gl.GL_FOG_END, 9); gl.glFogfv(gl.GL_FOG_COLOR, [0.05, 0.06, 0.15, 1]);
+    const caras = [[[1,1,1],[-1,1,1],[-1,-1,1],[1,-1,1]],[[1,1,-1],[1,-1,-1],[-1,-1,-1],[-1,1,-1]],[[1,1,1],[1,-1,1],[1,-1,-1],[1,1,-1]],[[-1,1,1],[-1,1,-1],[-1,-1,-1],[-1,-1,1]],[[1,1,1],[1,1,-1],[-1,1,-1],[-1,1,1]],[[1,-1,1],[-1,-1,1],[-1,-1,-1],[1,-1,-1]]];
+    const cols = [[1,0.3,0.3],[0.3,1,0.3],[0.3,0.3,1],[1,1,0.3],[1,0.3,1],[0.3,1,1]];
+    gl.glBegin(gl.GL_QUADS); caras.forEach((c, i) => { gl.glColor3f(...cols[i]); c.forEach(v => gl.glVertex3f(...v)); }); gl.glEnd();
+    gl.glDisable(gl.GL_FOG); gl.glDisable(gl.GL_DEPTH_TEST);
+    gl.glFlush();
+    cuadros++;
+    estado.textContent = 'ok · cuadros ' + cuadros + ' · error GL ' + gl.glGetError();
+    requestAnimationFrame(cuadro);
+  }
+  cuadro();
+  window.__gl1 = 'ok';
+} catch (e) { estado.textContent = 'ERROR ' + e.stack; window.__gl1 = 'error: ' + e.message; console.log('ERROR ' + e.stack); }
+</script>
+</body>
+</html>

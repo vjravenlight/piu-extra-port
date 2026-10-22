@@ -1,0 +1,30 @@
+PUMP IT UP EXTRA — port de Ravenlight (ravenlight.net)
+
+Elegí el archivo de tu aparato:
+
+ANDROID (teléfono o tablet, Android 10 o más nuevo, 64 bits)
+  Pump It Up Extra - Android.apk
+  Pasalo al teléfono y tocalo para instalarlo. Si pregunta, permití "instalar apps de origen desconocido".
+  Pesa unos 600 MB: dejá al menos 1,5 GB libres.
+
+WINDOWS (10 u 11)
+  Pump It Up Extra - Windows.zip
+  Descomprimilo y abrí "Pump It Up Extra.exe". Si la PC no tiene el motor WebView2 de Microsoft, el juego
+  pregunta y lo instala solo (hace falta internet esa vez).
+
+MAC
+  Pump It Up Extra - Mac Apple.tar.gz   (Mac con chip M1, M2, M3, M4…)
+  Pump It Up Extra - Mac Intel.tar.gz   (Mac anteriores)
+  Adentro hay un LEEME con los dos pasos para abrirla la primera vez (la app no está firmada por Apple).
+
+LINUX (64 bits)
+  Pump It Up Extra - Linux.tar.gz
+  Descomprimilo y abrí JUGAR.sh. Adentro hay un LEEME.
+
+En todos:
+- Teclas: jugador 1 Z Q S E C, jugador 2 el numérico 1 7 5 9 3 (se cambian en OPCIONES > TECLAS).
+  En el celular, los paneles en la pantalla. Alfombras y joysticks USB: OPCIONES > MANDO USB.
+- El ranking y el online son los de ravenlight.net (hace falta internet; sin internet se juega igual).
+- El nombre se pide una vez; en OPCIONES > CLAVE DEL NOMBRE lo protegés para que nadie más lo use.
+
+Pump It Up Extra (C) Andamiro 2001. Port hecho por Ravenlight para jugar entre amigos.

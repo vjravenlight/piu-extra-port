@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pump It Up Extra · prototipo</title>
+<style>
+  :root { --fondo: #05060a; --texto: #e9ecf5; --tenue: #8a90a6; --acento: #ffd23f; }
+  html, body { margin: 0; height: 100%; background: var(--fondo); color: var(--texto); font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #ayuda { position: fixed; inset: auto 12px 10px 12px; color: var(--tenue); font-size: 13px; text-align: center; pointer-events: none; }
+  #error { position: fixed; top: 12px; left: 12px; right: 12px; color: #ff6b6b; font: 14px monospace; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<canvas id="lienzo"></canvas>
+<div id="ayuda"></div>
+<div id="error"></div>
+<script type="module" src="juego.js"></script>
+</body>
+</html>

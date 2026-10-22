@@ -1,0 +1,26 @@
+# Lo de Andamiro no va al repositorio: cada uno lo genera desde su disco con PREPARAR.cmd / preparar.sh
+*.bin
+*.BIN
+*.cue
+*.CUE
+*.iso
+*.ISO
+extraido/
+descifrado/
+investigacion/volcados/
+app/port/traducido.js
+app/port/game_*.cfg
+
+# lo que genera el juego o el armado
+build/
+guardado/
+.herramientas/
+app/online/datos/*
+!app/online/datos/.htaccess
+node_modules/
+
+# Android: la firma es de cada uno (nunca se sube) y lo que arma Gradle
+tools/build_android/firma/
+tools/build_android/gecko/build/
+tools/build_android/gecko/.gradle/
+tools/build_android/gecko/local.properties

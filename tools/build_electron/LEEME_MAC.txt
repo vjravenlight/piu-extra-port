@@ -1,0 +1,20 @@
+PUMP IT UP EXTRA para Mac — port de Ravenlight (ravenlight.net)
+
+Hay dos versiones: "Apple" para las Mac con chip M1, M2, M3, M4… y "Intel" para las anteriores.
+(Menú Apple > Acerca de esta Mac: si dice "Chip Apple", es la Apple.)
+
+Cómo instalar
+1. Doble clic en el .tar.gz: aparece "Pump It Up Extra.app". Arrastrala a Aplicaciones.
+2. La app no está firmada por Apple, así que la primera vez macOS no la deja abrir ("está dañada" o "no se puede
+   verificar"). Se arregla una sola vez: abrí la app Terminal y pegá estas dos líneas (Enter después de cada una):
+
+   xattr -cr "/Applications/Pump It Up Extra.app"
+   codesign --force --deep --sign - "/Applications/Pump It Up Extra.app"
+
+3. Abrila normal. Si igual pregunta, clic derecho sobre la app > Abrir > Abrir.
+
+- Esc sale; F11 o doble clic cambian la pantalla completa.
+- Teclas: jugador 1 Z Q S E C, jugador 2 el numérico 1 7 5 9 3. También alfombras y joysticks USB (OPCIONES > MANDO USB).
+- El ranking y el online son los de ravenlight.net (hace falta internet; sin internet se juega igual, sin ranking).
+- Lo que guarda el juego (opciones, tus canciones, tus pasos) queda en
+  ~/Library/Application Support/Pump It Up Extra/guardado
