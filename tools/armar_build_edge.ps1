@@ -68,6 +68,9 @@ if ($SinDisco) {
     foreach ($f in 'codigo_0x20000.bin', 'datos_0x130000.bin') { Copy-Item (Join-Path $base "investigacion\volcados\$f") (Join-Path $juego 'volcados') -Force }
     Write-Host '5/5 disco del juego (400 MB, la primera vez tarda)...'
     Copiar (Join-Path $base 'extraido\Piu') (Join-Path $juego 'disco')
+    # la ROM de efectos de la placa (30/10), si esta: app\port\efectos.js
+    $rom = Join-Path $base 'bios\pumpitup\piu10.u9'
+    if (Test-Path $rom) { New-Item -ItemType Directory -Force (Join-Path $juego 'efectos') | Out-Null; Copy-Item $rom (Join-Path $juego 'efectos') -Force; Write-Host '    + efectos de la cabina (piu10.u9)' }
 }
 
 $mb = [math]::Round(((Get-ChildItem $destino -Recurse -File | Measure-Object Length -Sum).Sum / 1MB))

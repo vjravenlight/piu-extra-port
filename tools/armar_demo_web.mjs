@@ -52,6 +52,9 @@ const sirveDemo = (r) => {
   }
   return false;
 };
+// (30/10) la ROM de efectos de la placa, si esta (app\port\efectos.js)
+const romEfectos = path.join(base, 'bios', 'pumpitup', 'piu10.u9');
+if (TODAS && fs.existsSync(romEfectos)) copiar(romEfectos, path.join(destino, 'efectos', 'piu10.u9'));
 for (const r of todos) if (sirve(r)) { const d = path.join(destino, 'disco', ...r.toLowerCase().split('/')); copiar(path.join(piu, r), d); sumar(d); }
 
 // 3. la lista de la demo y su configuracion

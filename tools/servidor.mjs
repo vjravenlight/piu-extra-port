@@ -210,6 +210,12 @@ function atender(req, res) {
       if (!fs.existsSync(ruta)) { res.writeHead(404, { 'Cross-Origin-Resource-Policy': 'same-origin' }); return res.end('no existe'); }
       return servirArchivo(req, res, ruta);
     }
+    // (30/10) la ROM de efectos de la placa (bios\pumpitup\piu10.u9, la que encontro Charles): app\port\efectos.js
+    if (url === '/efectos/piu10.u9') {
+      const rom = path.join(proyecto, 'bios', 'pumpitup', 'piu10.u9');
+      if (sinDisco || !fs.existsSync(rom)) { res.writeHead(404); return res.end('sin la ROM de efectos'); }
+      return servirArchivo(req, res, rom);
+    }
     if (url.startsWith('/disco/')) {
       const p = indiceDisco.get(url.slice('/disco/'.length).replace(/\\/g, '/').toLowerCase());
       if (!p) { res.writeHead(404); return res.end('no existe'); }

@@ -10,6 +10,7 @@ descifrado/
 investigacion/volcados/
 app/port/traducido.js
 app/port/game_*.cfg
+bios/
 
 # lo que genera el juego o el armado
 build/

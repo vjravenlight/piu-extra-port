@@ -584,6 +584,7 @@ K.musica.parar = () => { D[0] = -1; postMessage({ tipo: 'parar' }); };
 K.musica.segundos = () => (D[0] < 0 ? -1 : D[0] + (ahoraAbs() - D[1]) / 1000);
 K.musica.termino = () => D[2] === 1;
 K.efectos.tocar = (efecto, voz, lazo) => postMessage({ tipo: 'efecto', efecto, voz, lazo });
+K.efectos.cortar = (voz) => postMessage({ tipo: 'efectoCortar', voz });
 
 // ---------- reinicio: otro juego en el mismo hilo ----------
 // Antes la pagina cerraba este hilo y abria otro para cada juego (fondo del menu -> partida -> fondo...). En la

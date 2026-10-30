@@ -5,6 +5,7 @@ import * as Menu from './online.js';
 import * as T from './tactil.js';
 import * as M from './mando.js';
 import * as Archivos from './archivos.js';
+import { cargarEfectos, tocarEfecto, cortarEfecto } from './efectos.js';
 
 const lienzo = document.getElementById('pantalla');
 const estado = document.getElementById('estado');
@@ -129,6 +130,9 @@ function precargarAudio(bytes) {
   while (precargas.size >= 3) precargas.delete(precargas.keys().next().value);
   precargas.set(k, audio().decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)).catch(() => null));
 }
+// a donde va el sonido (musica y efectos): pasa por el VOLUMEN de OPCIONES
+function salidaAudio() { if (!ganancia) { ganancia = audio().createGain(); ganancia.gain.value = volumen; ganancia.connect(actx.destination); } return ganancia; }
+cargarEfectos().then((si) => registrar(si ? 'efectos de la cabina: ROM cargada (35 efectos)' : 'efectos de la cabina: sin la ROM (efectos/piu10.u9), el juego anda igual'));
 async function tocarMusica(bytes) {
   pararMusica();
   try {
@@ -364,7 +368,9 @@ function crearHilo() {
     else if (m.tipo === 'precarga') precargarAudio(m.bytes);
     else if (m.tipo === 'parar') { pararMusica(); registrar('musica: el juego la corta'); }
     else if (m.tipo === 'registro') registrar(m.s);
-    else if (m.tipo === 'efecto') registrar(`efecto #${m.efecto} (sin muestras todavia)`);
+    // (30/10) los efectos de la cabina desde su ROM (efectos.js); sin la ROM, solo se anotan
+    else if (m.tipo === 'efecto') { if (!(!modoFondo && tocarEfecto(audio(), salidaAudio(), m.efecto, m.voz, m.lazo))) registrar(`efecto #${m.efecto} (sin la ROM de efectos)`); }
+    else if (m.tipo === 'efectoCortar') cortarEfecto(m.voz);
     else if (m.tipo === 'marcador') {
       Menu.marcador(m);
       if (m.terminado && !cfg.pasos) {
