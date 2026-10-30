@@ -6,6 +6,7 @@
 // Los paneles le mandan al juego lo mismo que el teclado (P1) y, en los menus, hacen de flechas (↖ ↗ suben, ↙ ↘ bajan,
 // ● elige). Hay ademas ATRAS (Esc) y CHAT (T). En PC no aparece nada de esto: ?tactil lo fuerza para probar.
 import { abrirPaquete } from '../motor/cifrados.js';
+import { traer } from './archivos.js';      // del servidor o del disco propio
 
 export const esTactil = new URLSearchParams(location.search).has('tactil') ||
   (matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0);
@@ -30,13 +31,19 @@ export function fijarDos(v) { dos = !!v; if (ultimoLugar) ubicar(...ultimoLugar)
 let tamano = 1, vibrar = true;
 export function fijarTamano(k) { tamano = Math.max(0.6, Math.min(1.5, +k || 1)); if (ultimoLugar) ubicar(...ultimoLugar); }
 export function fijarVibrar(v) { vibrar = !!v; }
+// (30/10) en la APK (motor de Firefox) navigator.vibrate ya no existe: vibra el telefono por la app (window.piuBuild.vibrar)
+export function vibrarAhora(ms) {
+  try {
+    if (window.piuBuild && window.piuBuild.vibrar) window.piuBuild.vibrar(ms);
+    else if (navigator.vibrate) navigator.vibrate(ms);
+  } catch (e) { /* sin vibrador */ }
+}
 let capa, fondos = [], botones = [], imagenes = null, alPad = () => {}, alTecla = () => {};
 const apretados = new Map();   // puntero -> id del pad que pisa
 const estadoPad = {};          // id -> apretado
 
 async function cargarFlechas() {
-  const r = await fetch(new URL('../disco/bga/00.dat', location.href));
-  const p = abrirPaquete(new Uint8Array(await r.arrayBuffer())), m = {};
+  const p = abrirPaquete(await traer(new URL('../disco/bga/00.dat', location.href).href)), m = {};
   for (const a of p.archivos) m[a.nombre.toUpperCase()] = a;
   const img = (n) => createImageBitmap(new Blob([m[n].datos()], { type: 'image/png' }));
   imagenes = { flechas: await img('ARROW01.PNG'), centro: await img('ARROW03.PNG') };
@@ -118,7 +125,7 @@ function actualizarPads() {
     const on = ahora.has(p.id);
     if (!!estadoPad[p.id] !== on) {
       estadoPad[p.id] = on; alPad(p, on);
-      if (on && vibrar && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* sin vibrador */ } } dibujarPad(p); if (p.lienzo2) { const l = p.lienzo; p.lienzo = p.lienzo2; dibujarPad(p); p.lienzo = l; }
+      if (on && vibrar) vibrarAhora(12); dibujarPad(p); if (p.lienzo2) { const l = p.lienzo; p.lienzo = p.lienzo2; dibujarPad(p); p.lienzo = l; }
     }
   }
 }

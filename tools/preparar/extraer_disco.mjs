@@ -6,33 +6,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { Disco } from '../../app/motor/disco.js';
+import { Disco, lectorDeIso, esIso } from '../../app/motor/disco.js';
 
 // lector de un archivo del disco duro, por tramos (el .bin pesa 730 MB: no se carga entero)
 function lectorDeArchivo(ruta) {
   const fd = fs.openSync(ruta, 'r'), tam = fs.fstatSync(fd).size;
   return { tam, fd, async leer(pos, n) { const b = Buffer.alloc(Math.max(0, Math.min(n, tam - pos))); fs.readSync(fd, b, 0, b.length, pos); return new Uint8Array(b.buffer, b.byteOffset, b.length); } };
-}
-// un .iso (2048 por sector) visto como sectores crudos de 2352 en modo 1, que es lo que entiende disco.js
-function lectorDeIso(ruta) {
-  const l = lectorDeArchivo(ruta), n = Math.floor(l.tam / 2048);
-  const bcd = (v) => ((Math.floor(v / 10) << 4) | (v % 10));
-  return {
-    tam: n * 2352, fd: l.fd,
-    async leer(pos, cuanto) {
-      const salida = new Uint8Array(cuanto), primero = Math.floor(pos / 2352), ultimo = Math.floor((pos + cuanto - 1) / 2352);
-      const datos = await l.leer(primero * 2048, (ultimo - primero + 1) * 2048);
-      for (let s = primero; s <= ultimo; s++) {
-        const crudo = new Uint8Array(2352), lba = s + 150;
-        crudo.set([0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0], 0);
-        crudo[12] = bcd(Math.floor(lba / 4500)); crudo[13] = bcd(Math.floor(lba / 75) % 60); crudo[14] = bcd(lba % 75); crudo[15] = 1;
-        crudo.set(datos.subarray((s - primero) * 2048, (s - primero + 1) * 2048), 16);
-        const desde = Math.max(pos, s * 2352), hasta = Math.min(pos + cuanto, (s + 1) * 2352);
-        salida.set(crudo.subarray(desde - s * 2352, hasta - s * 2352), desde - pos);
-      }
-      return salida;
-    },
-  };
 }
 
 export function abrirImagen(ruta) {
@@ -43,9 +22,8 @@ export function abrirImagen(ruta) {
     r = path.join(path.dirname(r), path.basename(m[1]));
   }
   if (!fs.existsSync(r)) throw new Error('no existe ' + r);
-  const tam = fs.statSync(r).size;
-  const iso = r.toLowerCase().endsWith('.iso') || (tam % 2352 !== 0 && tam % 2048 === 0);
-  return { ruta: r, lector: iso ? lectorDeIso(r) : lectorDeArchivo(r), iso };
+  const l = lectorDeArchivo(r), iso = esIso(r, l.tam);
+  return { ruta: r, lector: iso ? { ...lectorDeIso(l), fd: l.fd } : l, iso };
 }
 
 // nombre seguro para el disco duro: nada de ".." ni separadores ni caracteres que Windows no acepta

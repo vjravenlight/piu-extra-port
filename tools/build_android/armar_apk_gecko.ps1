@@ -6,8 +6,10 @@
 # Antes: correr tools\armar_build_edge.ps1 (deja build\Pump It Up Extra - Edge\juego al dia: son los assets).
 # La firma es la de firma\ (la misma de la APK anterior: se instala encima). Si no hay (copia nueva), se crea una propia
 # con una clave al azar guardada con DPAPI (solo la puede leer este usuario de Windows): no se comparte nunca.
-# Uso: powershell -ExecutionPolicy Bypass -File armar_apk_gecko.ps1 [-AceptarLicenciasAndroid]
-param([switch]$AceptarLicenciasAndroid)
+# -SinDisco: PumpItUpExtra-sin-disco.apk, con la build sin disco (armar_build_edge.ps1 -SinDisco): sin nada de
+#   Andamiro, la primera vez pide el disco del jugador.
+# Uso: powershell -ExecutionPolicy Bypass -File armar_apk_gecko.ps1 [-AceptarLicenciasAndroid] [-SinDisco]
+param([switch]$AceptarLicenciasAndroid, [switch]$SinDisco)
 $ErrorActionPreference = 'Continue'
 $aqui = $PSScriptRoot
 $base = Split-Path -Parent (Split-Path -Parent $aqui)
@@ -21,8 +23,8 @@ try {
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
 $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 $proyecto = Join-Path $aqui 'gecko'
-$juego = Join-Path $base 'build\Pump It Up Extra - Edge\juego'
-if (-not (Test-Path (Join-Path $juego 'port\index.html'))) { Write-Host "FALLO: falta $juego (correr antes tools\armar_build_edge.ps1)" -ForegroundColor Red; exit 1 }
+$juego = Join-Path $base $(if ($SinDisco) { 'build\Pump It Up Extra - Edge (sin disco)\juego' } else { 'build\Pump It Up Extra - Edge\juego' })
+if (-not (Test-Path (Join-Path $juego 'port\index.html'))) { Write-Host "FALLO: falta $juego (correr antes tools\armar_build_edge.ps1$(if ($SinDisco) { ' -SinDisco' }))" -ForegroundColor Red; exit 1 }
 # donde esta el SDK (Gradle lo lee de local.properties, con las barras escapadas)
 Set-Content -Path (Join-Path $proyecto 'local.properties') -Value ('sdk.dir=' + $env:ANDROID_HOME.Replace('\', '\\').Replace(':', '\:')) -Encoding Ascii
 
@@ -38,7 +40,11 @@ if (-not (Test-Path (Join-Path $firma 'piu.jks'))) {
 }
 $s = Get-Content $cl | ConvertTo-SecureString
 $env:PIU_KS = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))
+# (la carpeta del juego va por variable: Gradle la lee como la propiedad 'juego'; una ruta con parentesis por la linea
+# de comandos de gradle.bat se rompe)
+$env:ORG_GRADLE_PROJECT_juego = $juego
 & $gradle -p $proyecto assembleRelease --no-daemon --console=plain
+Remove-Item Env:\ORG_GRADLE_PROJECT_juego
 $codigo = $LASTEXITCODE
 Remove-Item Env:\PIU_KS
 if ($codigo -ne 0) { Write-Host 'FALLO: gradle' -ForegroundColor Red; exit 1 }
@@ -47,6 +53,7 @@ $sale = Join-Path $proyecto 'build\outputs\apk\release\PumpItUpExtra-release.apk
 if (-not (Test-Path $sale)) { $sale = (Get-ChildItem (Join-Path $proyecto 'build\outputs\apk\release') -Filter *.apk)[0].FullName }
 $destino = Join-Path $base 'build\Pump It Up Extra - Android'
 New-Item -ItemType Directory -Force $destino | Out-Null
-Copy-Item $sale (Join-Path $destino 'PumpItUpExtra.apk') -Force
-$mb = [math]::Round((Get-Item (Join-Path $destino 'PumpItUpExtra.apk')).Length / 1MB)
-Write-Host "LISTO: $destino\PumpItUpExtra.apk ($mb MB)" -ForegroundColor Green
+$nombre = if ($SinDisco) { 'PumpItUpExtra-sin-disco.apk' } else { 'PumpItUpExtra.apk' }
+Copy-Item $sale (Join-Path $destino $nombre) -Force
+$mb = [math]::Round((Get-Item (Join-Path $destino $nombre)).Length / 1MB)
+Write-Host "LISTO: $destino\$nombre ($mb MB)" -ForegroundColor Green

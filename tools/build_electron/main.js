@@ -102,7 +102,12 @@ Menu.setApplicationMenu(null);
 let ventana = null;
 app.whenReady().then(() => {
   raizGuardado = carpetaGuardado();
-  servidor.listen(0, '127.0.0.1', () => {
+  // siempre el mismo puerto (el disco propio y las opciones quedan guardados por direccion, puerto incluido); si esta
+  // ocupado, el siguiente; y si no hay ninguno, uno cualquiera
+  let puerto = 47821;
+  servidor.on('error', (e) => { if (e.code === 'EADDRINUSE') servidor.listen(puerto < 47830 ? ++puerto : 0, '127.0.0.1'); });
+  servidor.listen(puerto, '127.0.0.1');
+  servidor.once('listening', () => {
     ventana = new BrowserWindow({
       width: 1280, height: 960, fullscreen: !prueba, backgroundColor: '#000000', title: 'Pump It Up Extra', autoHideMenuBar: true, show: false,
       webPreferences: { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false, offscreen: !!prueba },

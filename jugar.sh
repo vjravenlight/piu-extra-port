@@ -1,5 +1,6 @@
 #!/bin/sh
-# Pump It Up Extra en el navegador (Linux y Mac). Antes, una vez: ./preparar.sh (con el disco). Necesita Node.js 18 o mas.
-cd "$(dirname "$0")"
-command -v node >/dev/null 2>&1 || { echo "Falta Node.js (https://nodejs.org)"; exit 1; }
-exec node tools/servidor.mjs "$@"
+# Pump It Up Extra en el navegador (Linux y Mac). Si no hay Node.js, lo baja solo (no instala nada).
+# Con el disco preparado (./preparar.sh) arranca directo; si no, el navegador pide el disco la primera vez.
+cd "$(dirname "$0")" || exit 1
+. tools/buscar_node.sh
+exec "$NODO" tools/servidor.mjs "$@"

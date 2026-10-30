@@ -1,0 +1,10 @@
+{
+ "exe_le.mjs": "preparar/exe_le.mjs",
+ "listas.mjs": "preparar/listas.mjs",
+ "traducir.mjs": "recompilador/traducir.mjs",
+ "cfg.mjs": "recompilador/cfg.mjs",
+ "x86.mjs": "recompilador/x86.mjs",
+ "funciones.txt": "recompilador/funciones.txt",
+ "entradas_extra.json": "recompilador/entradas_extra.json",
+ "canciones_online.mjs": "canciones_online.mjs"
+}

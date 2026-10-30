@@ -1,6 +1,8 @@
 package net.ravenlight.piu;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -37,6 +39,7 @@ public class Juego extends Activity {
         super.onCreate(estado);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_FULLSCREEN);
         servidor = new Servidor(getAssets(), getFilesDir(), new Runnable() { public void run() { runOnUiThread(new Runnable() { public void run() { finishAndRemoveTask(); } }); } });
+        servidor.vibrador = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
         servidor.start();
         if (motor == null) {
             GeckoRuntimeSettings.Builder ajustes = new GeckoRuntimeSettings.Builder()
@@ -50,6 +53,18 @@ public class Juego extends Activity {
             public GeckoResult<Integer> onContentPermissionRequest(GeckoSession s, ContentPermission p) {
                 // sonido sin gesto previo (autoplay) y lo que pida el juego: todo es de la propia app
                 return GeckoResult.fromValue(ContentPermission.VALUE_ALLOW);
+            }
+        });
+        // elegir archivos (el disco propio: app\port\instalar.js): GeckoView no tiene selector propio, se usa el del telefono
+        sesion.setPromptDelegate(new GeckoSession.PromptDelegate() {
+            @Override
+            public GeckoResult<GeckoSession.PromptDelegate.PromptResponse> onFilePrompt(GeckoSession s, GeckoSession.PromptDelegate.FilePrompt pedido) {
+                Intent i = new Intent(Intent.ACTION_GET_CONTENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE);
+                if (pedido.type == GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE) i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                archivoPedido = pedido; archivoRespuesta = new GeckoResult<>();
+                try { startActivityForResult(Intent.createChooser(i, "Elegir el disco"), ELEGIR_ARCHIVO); }
+                catch (Exception e) { archivoRespuesta.complete(pedido.dismiss()); }
+                return archivoRespuesta;
             }
         });
         sesion.open(motor);
@@ -93,6 +108,28 @@ public class Juego extends Activity {
 
     @Override
     public void onWindowFocusChanged(boolean foco) { super.onWindowFocusChanged(foco); if (foco) pantallaCompleta(); }
+
+    // lo que eligio en el selector de archivos del telefono, para la pagina
+    private static final int ELEGIR_ARCHIVO = 7;
+    private GeckoSession.PromptDelegate.FilePrompt archivoPedido;
+    private GeckoResult<GeckoSession.PromptDelegate.PromptResponse> archivoRespuesta;
+
+    @Override
+    @SuppressWarnings("deprecation")
+    protected void onActivityResult(int pedido, int resultado, Intent datos) {
+        super.onActivityResult(pedido, resultado, datos);
+        if (pedido != ELEGIR_ARCHIVO || archivoRespuesta == null) return;
+        GeckoSession.PromptDelegate.FilePrompt p = archivoPedido;
+        GeckoResult<GeckoSession.PromptDelegate.PromptResponse> r = archivoRespuesta;
+        archivoPedido = null; archivoRespuesta = null;
+        if (resultado != RESULT_OK || datos == null) { r.complete(p.dismiss()); return; }
+        java.util.ArrayList<Uri> elegidos = new java.util.ArrayList<>();
+        if (datos.getClipData() != null) for (int k = 0; k < datos.getClipData().getItemCount(); k++) elegidos.add(datos.getClipData().getItemAt(k).getUri());
+        else if (datos.getData() != null) elegidos.add(datos.getData());
+        if (elegidos.isEmpty()) r.complete(p.dismiss());
+        else if (elegidos.size() == 1) r.complete(p.confirm(this, elegidos.get(0)));
+        else r.complete(p.confirm(this, elegidos.toArray(new Uri[0])));
+    }
 
     // el boton Atras del telefono hace de Esc del juego
     @Override

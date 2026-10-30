@@ -20,6 +20,8 @@ console.log = (...a) => fs.appendFileSync(registro, a.join(' ') + '\n');
 process.on('uncaughtException', (e) => { console.log('EXCEPCION', e.stack); app.quit(); });
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+// PIU_IGNORAR_CERT=1: entrar al modo servidor (https con su certificado propio), como quien toca "Continuar"
+if (process.env.PIU_IGNORAR_CERT) app.commandLine.appendSwitch('ignore-certificate-errors');
 // cada prueba con su perfil: asi se pueden abrir dos a la vez (por ejemplo, dos jugadores del salon online)
 app.setPath('userData', path.join(salida, 'perfil'));
 // cada pedido a la pagina con un tope de 5 s: si se traba (GPU, compositor), la prueba sigue y lo anota

@@ -4,11 +4,11 @@
 //   I[0] senal "cuadro mostrado" · I[3]/I[4] luces 0x2A4/0x2A6 · I[10] cuantos toques escribio la pagina en Q
 //   I[11] lista con todo (F7): 1 = el juego lee game_con_todo.cfg en vez del game.cfg del disco
 //   I[12] velocidad de las flechas elegida con 1-9 (0 = la del juego) · I[13] 1 = la pagina pide cortar este juego
+//   I[20..22] modificadores antes de cada cancion (instalarModsPorCancion): respuesta, opciones, skin
 //   (para arrancar otro en el mismo hilo: ver "reinicio" abajo)
 //   Q cola de 256 toques: [hora absoluta en ms, grupo*0x20000 + bit*2 + apretado] (grupo 0 P1, 1 P2, 2 botones)
 //   D[0] segundos de musica (-1 si no suena) · D[1] cuando se midio (ms absolutos) · D[2] 1 si termino
 import * as C from './cpu.js';
-import './traducido.js';
 import { reiniciarZlib } from './zlib_hle.js';
 import * as S from './sistema.js';
 import * as G from './gl_hle.js';
@@ -20,10 +20,42 @@ let I = null, D = null, Q = null;
 const ahoraAbs = () => performance.timeOrigin + performance.now();
 // la carpeta del juego (port\, motor\, disco\, volcados\...): en la PC es la raiz; en el hosting, /piu-prueba/
 const BASE = new URL('../', self.location.href).href;
+// DISCO PROPIO (archivos.js, 21/10): lo del disco no esta en el servidor sino guardado en el navegador; se le pide a la
+// pagina por el canal { L, B } y se espera con Atomics (este hilo no puede esperar promesas)
+const DEL_DISCO = /^(disco\/|volcados\/|port\/(traducido\.js|game_[a-z]+\.cfg)$)/;
+let canal = null;
+function leerPropio(rel) {
+  const L = new Int32Array(canal.L), B = new Uint8Array(canal.B), partes = [];
+  let desde = 0, total = 0;
+  do {
+    Atomics.store(L, 0, 0);
+    postMessage({ tipo: 'leer', ruta: rel, desde });
+    Atomics.wait(L, 0, 0);
+    if (Atomics.load(L, 0) === 2) return null;
+    total = L[1];
+    partes.push(B.slice(0, L[2])); desde += L[2];
+  } while (desde < total && L[2] > 0);
+  if (partes.length === 1) return partes[0];
+  const b = new Uint8Array(total); let o = 0;
+  for (const p of partes) { b.set(p, o); o += p.length; }
+  return b;
+}
 const traer = (url) => {
+  if (canal && url.startsWith(BASE)) { const rel = url.slice(BASE.length).replace(/\\/g, '/').toLowerCase(); if (DEL_DISCO.test(rel)) return leerPropio(rel); }
   const x = new XMLHttpRequest(); x.open('GET', url, false); x.responseType = 'arraybuffer'; x.send();
   return x.status === 200 ? new Uint8Array(x.response) : null;
 };
+// el codigo traducido de Piu.exe: del servidor, o (disco propio) el que se armo en el navegador al preparar el disco.
+// Ese es un texto guardado: se carga como modulo desde un blob, con su import de cpu.js apuntando al de aca (el mismo modulo).
+let traducidoListo = null;
+function cargarTraducido() {
+  if (traducidoListo) return traducidoListo;
+  if (!canal) return (traducidoListo = import('./traducido.js'));
+  const b = leerPropio('port/traducido.js');
+  if (!b) return (traducidoListo = Promise.reject(new Error('falta el codigo traducido (preparar el disco otra vez)')));
+  const js = new TextDecoder().decode(b).replace("from './cpu.js'", `from '${new URL('./cpu.js', import.meta.url).href}'`);
+  return (traducidoListo = import(URL.createObjectURL(new Blob([js], { type: 'text/javascript' }))));
+}
 
 // ---------- OpenGL: grabador de comandos ----------
 let cmds = [], transferir = [], sigTex = 1;
@@ -147,8 +179,11 @@ function desbloquear(bytes) {
   const i = lineas.findIndex((l) => /^MODENAME\s+XX\b/.test(l.trim()));
   if (i < 0) return bytes;
   let fin = lineas.findIndex((l, k) => k > i && /^MODENAME\b/.test(l.trim())); if (fin < 0) fin = lineas.length;
-  const ya = new Set(lineas.slice(i, fin).map((l) => l.trim().split(/\s+/)).filter((p) => p[0] === 'SONG').map((p) => +p[1]));
-  const nuevas = OCULTAS_XX.filter(([n]) => !ya.has(n)).map(([n, nivel]) => `SONG   ${String(n).padStart(2)}    ${nivel}   0`);
+  // (30/10, Charles: "no quiero que cuando gane una cancion se habiliten las ocultas y aparezcan dos veces") la simple
+  // Y la doble (marca 2), como las agrega el juego al ganar (0x2EEE8); asi lo que agrega despues sale repetido y
+  // deduplicarXX lo saca
+  const ya = new Set(lineas.slice(i, fin).map((l) => l.trim().split(/\s+/)).filter((p) => p[0] === 'SONG').map((p) => +p[1] * 256 + +p[3]));
+  const nuevas = OCULTAS_XX.flatMap(([n, nivel]) => [0, 2].filter((marca) => !ya.has(n * 256 + marca)).map((marca) => `SONG   ${String(n).padStart(2)}    ${nivel}   ${marca}`));
   lineas.splice(i + 1, 0, ...nuevas);
   postMessage({ tipo: 'registro', s: `todo desbloqueado: ${nuevas.length} ocultas en CRAZY desde el principio` });
   return Uint8Array.from(lineas.join('\r\n'), (ch) => ch.charCodeAt(0) & 255);
@@ -349,6 +384,24 @@ function instalarEleccion() {
     postMessage({ tipo: 'registro', s: `eleccion: ${cmd} (banderas 0x${(m.banderas >>> 0).toString(16)}, opciones 0x${(m.opciones >>> 0).toString(16)}, skin ${m.skin})` });
     postMessage(m);
     for (;;) { correrTics(); Atomics.wait(espera, 0, 0, 20); }   // hasta que la pagina lo corte (I[13])
+  };
+}
+// (30/10, Charles: "que despues de los modificadores aparezca o no (elegir opciones) antes de empezar la cancion") modo
+// solo con OPCIONES > MODIFICADORES: EN CADA CANCION. Al confirmar la cancion (el run de la consola, 0x35FB8) el juego
+// espera a que la pagina muestre el panel: I[20] = 1 aplica lo elegido (I[21] opciones de los dos jugadores, I[22] skin),
+// 2 = sigue con lo que tenia (los codigos de la seleccion). La demo de la atraccion no pregunta.
+function instalarModsPorCancion() {
+  C.HLE[0x35FB8] = () => {
+    const banderas = C.r32(0x1CFB08);
+    if (banderas & 0x100000) { C.FN[0x35FB8](); return -4; }
+    const guardados = Int32Array.from(C.R);
+    Atomics.store(I, 20, 0);
+    postMessage({ tipo: 'modsCancion', cancion: C.r32(0x2B3A68), banderas, opciones: C.r32(0x1CFB0C), skin: C.r32(0x2AC088) });
+    while (Atomics.load(I, 20) === 0) { correrTics(); Atomics.wait(I, 20, 0, 20); }   // (correrTics corta si la pagina cierra el juego)
+    C.R.set(guardados);
+    if (Atomics.load(I, 20) === 1) { const o = Atomics.load(I, 21); C.w32(0x1CFB0C, o); C.w32(0x1CFB10, o); C.w32(0x2AC088, Atomics.load(I, 22)); }
+    postMessage({ tipo: 'registro', s: `modificadores de la cancion: opciones 0x${(C.r32(0x1CFB0C) >>> 0).toString(16)}, skin ${C.r32(0x2AC088)}` });
+    C.FN[0x35FB8](); return -4;
   };
 }
 function instalarOnline() {
@@ -560,6 +613,12 @@ function dejarComoNuevo() {
 let corridas = 0;
 onmessage = (e) => {
   if (e.data.tipo !== 'iniciar') return;
+  if (e.data.canal) canal = e.data.canal;
+  // la primera vez, antes de arrancar: el codigo traducido (la pagina espera el 'listo')
+  const t = performance.now(), primera = !traducidoListo;
+  cargarTraducido().then(() => { if (primera) postMessage({ tipo: 'registro', s: `codigo traducido cargado en ${Math.round(performance.now() - t)} ms${canal ? ' (disco propio)' : ''}` }); iniciar(e); }, (err) => postMessage({ tipo: 'fin', motivo: 'no carga el juego: ' + (err && err.message || err) }));
+};
+function iniciar(e) {
   I = new Int32Array(e.data.I); D = new Float64Array(e.data.D); Q = new Float64Array(e.data.Q);
   if (corridas++) dejarComoNuevo();
   anotarEntradas = !!e.data.anotarEntradas;
@@ -571,6 +630,7 @@ onmessage = (e) => {
   practica = !!e.data.practica;
   avisarEleccion = !!e.data.eleccion;
   modsSolo = solo && e.data.modsSolo ? e.data.modsSolo : null;
+  if (solo && e.data.modsCancion) instalarModsPorCancion();
   seguidorSolo = solo ? crearSeguidorSolo((m) => postMessage(m)) : null;
   if (online) instalarOnline();
   else if (e.data.eleccion) instalarEleccion();
@@ -663,4 +723,4 @@ onmessage = (e) => {
     if (err instanceof Reinicio) { Atomics.store(I, 13, 0); postMessage({ tipo: 'reiniciado' }); return; }
     postMessage({ tipo: 'fin', motivo: (err && err.message) || String(err), pila: (err && err.stack || '').split('\n').filter(l => /f_[0-9a-f]+/.test(l)).slice(0, 8).map(l => l.trim().replace(/\(.*\)/, '')).join(' < ') });
   }
-};
+}

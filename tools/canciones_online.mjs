@@ -10,8 +10,12 @@ export const CANCIONES = [60, 12, 8, 23, 58, 15, 13, 67, 19, 44, 9, 40, 11, 42, 
 // 20/10, "subile ademas un par de canciones remix": 32 (Seontaek + Goodbye + Kkum) y 53 (Kiss + Geunyeoneun Yeppeotda)
 export const REMIX = [52, 32, 53];
 
+// (30/10) el online tambien con TODAS las canciones (Charles: "subime todas las canciones a la web"): la web, las builds
+// y el disco propio tienen el disco entero, asi que se desafia con cualquiera. soloLasDeLaDemo = la lista vieja de 32.
+export const TODAS_ONLINE = true;
 // game_con_todo.cfg recortado a esas canciones (lineas, latin1). Ningun modo puede quedar vacio (ver REMIX).
-export function listaOnline(conTodo) {
+export function listaOnline(conTodo, soloLasDeLaDemo = !TODAS_ONLINE) {
+  if (!soloLasDeLaDemo) return conTodo.split(/\r?\n/).join('\r\n');
   let modo = '';
   const lista = conTodo.split(/\r?\n/).filter(l => {
     const p = l.trim().split(/\s+/);

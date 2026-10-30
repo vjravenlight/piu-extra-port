@@ -6,14 +6,16 @@
 # Sale en .tar.gz y no en .zip: un zip hecho en Windows pierde los permisos de ejecucion (Linux) y los enlaces de los
 # frameworks (Mac). El tar se escribe aca mismo, con el modo de cada archivo y los enlaces tal cual vienen en el zip.
 # Antes: correr tools\armar_build_edge.ps1 (deja juego\ al dia).
-# Uso: powershell -ExecutionPolicy Bypass -File armar_multiplataforma.ps1 [-Solo linux,apple,intel]
-param([string[]]$Solo = @('linux', 'apple', 'intel'))
+# -SinDisco: con la build sin disco (armar_build_edge.ps1 -SinDisco); los archivos salen con "(sin disco)" en el nombre.
+# Uso: powershell -ExecutionPolicy Bypass -File armar_multiplataforma.ps1 [-Solo linux,apple,intel] [-SinDisco]
+param([string[]]$Solo = @('linux', 'apple', 'intel'), [switch]$SinDisco)
 $ErrorActionPreference = 'Stop'
 $Solo = @($Solo | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $base = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'herramientas.ps1')
 $kit = Conseguir $base 'electron-44.5.1'
-$juego = Join-Path $base 'build\Pump It Up Extra - Edge\juego'
+$juego = Join-Path $base $(if ($SinDisco) { 'build\Pump It Up Extra - Edge (sin disco)\juego' } else { 'build\Pump It Up Extra - Edge\juego' })
+$sufijo = if ($SinDisco) { ' (sin disco)' } else { '' }
 $prog = Join-Path $PSScriptRoot 'build_electron'
 $salida = Join-Path $base 'build\Pump It Up Extra - Linux y Mac'
 if (-not (Test-Path (Join-Path $juego 'port\index.html'))) { throw "Falta $juego (correr antes tools\armar_build_edge.ps1)" }
@@ -129,7 +131,7 @@ function CopiarElectron($tar, $zipRuta, $cambiar, $retocar) {
 
 if ($Solo -contains 'linux') {
     Write-Host 'Linux (64 bits)...'
-    $tar = New-Object TarGz (Join-Path $salida 'Pump It Up Extra - Linux.tar.gz')
+    $tar = New-Object TarGz (Join-Path $salida "Pump It Up Extra - Linux$sufijo.tar.gz")
     try {
         $raiz = 'Pump It Up Extra/'
         $tar.Carpeta($raiz, 493)
@@ -149,7 +151,7 @@ if ($Solo -contains 'linux') {
 foreach ($mac in @(@('apple', 'darwin-arm64', 'Apple'), @('intel', 'darwin-x64', 'Intel'))) {
     if ($Solo -notcontains $mac[0]) { continue }
     Write-Host "Mac $($mac[2])..."
-    $tar = New-Object TarGz (Join-Path $salida "Pump It Up Extra - Mac $($mac[2]).tar.gz")
+    $tar = New-Object TarGz (Join-Path $salida "Pump It Up Extra - Mac $($mac[2])$sufijo.tar.gz")
     try {
         $app = 'Pump It Up Extra.app/'
         CopiarElectron $tar (Join-Path $kit "electron-v44.5.1-$($mac[1]).zip") {

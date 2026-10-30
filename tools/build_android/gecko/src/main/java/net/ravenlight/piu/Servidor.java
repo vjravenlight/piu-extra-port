@@ -42,7 +42,11 @@ class Servidor extends Thread {
             // cada 5 s, los cuadros por segundo y la pantalla al registro del telefono (adb logcat | GeckoConsole): para medir
             + "setInterval(function(){if(window.__port){var t=(window.__port.ultimos||[]).filter(function(l){return /tiron/.test(l);}).slice(-2).join(' | ');"
             + "fetch('/medida?c='+window.__port.cuadrosSeg+'&p='+window.__port.menu().pantalla+(t?'&t='+encodeURIComponent(t):'')).catch(function(){});}},5000);"
-            + "window.piuBuild={android:true,salir:function(){fetch('/salir').catch(function(){});},pantallaCompleta:function(){},estaCompleta:function(){return true;}};})();</script>";
+            + "window.piuBuild={android:true,salir:function(){fetch('/salir').catch(function(){});},pantallaCompleta:function(){},estaCompleta:function(){return true;},"
+            // (30/10) vibrar: el motor de Firefox ya no tiene navigator.vibrate; lo hace el telefono (/vibrar)
+            + "vibrar:function(ms){fetch('/vibrar?ms='+(ms|0)).catch(function(){});}};})();</script>";
+    // el vibrador del telefono (lo pone Juego): los paneles vibran al pisar (OPCIONES > VIBRAR AL PISAR)
+    android.os.Vibrator vibrador;
     private static final Pattern EDICION = Pattern.compile("^[0-9]{2}_([nhx][12]|db)\\.not$");
 
     private final Runnable alSalir;
@@ -51,8 +55,17 @@ class Servidor extends Thread {
         this.assets = assets;
         this.alSalir = alSalir;
         this.guardado = new File(dirApp, "guardado");
-        try { escucha = new ServerSocket(0, 64, InetAddress.getByName("127.0.0.1")); }
-        catch (IOException e) { throw new RuntimeException(e); }
+        // siempre el mismo puerto (el disco propio y las opciones quedan guardados por direccion, puerto incluido); si
+        // esta ocupado, el siguiente; y si no hay ninguno, uno cualquiera
+        ServerSocket s = null;
+        for (int p = 47821; p <= 47830 && s == null; p++) {
+            try { s = new ServerSocket(p, 64, InetAddress.getByName("127.0.0.1")); } catch (IOException e) { s = null; }
+        }
+        if (s == null) {
+            try { s = new ServerSocket(0, 64, InetAddress.getByName("127.0.0.1")); }
+            catch (IOException e) { throw new RuntimeException(e); }
+        }
+        escucha = s;
         setDaemon(true);
     }
 
@@ -88,6 +101,13 @@ class Servidor extends Thread {
             int largo = 0;
             for (String l : lineas) if (l.regionMatches(true, 0, "Content-Length:", 0, 15)) try { largo = Integer.parseInt(l.substring(15).trim()); } catch (NumberFormatException e) { largo = 0; }
             // SALIR del menu principal (o Esc/ATRAS en el menu): la pagina avisa y la app se cierra
+            if (ruta.startsWith("/vibrar?ms=")) {
+                responder(sal, 204, "No Content");
+                try { int ms = Math.max(1, Math.min(200, Integer.parseInt(ruta.substring(11))));
+                      if (vibrador != null) vibrador.vibrate(android.os.VibrationEffect.createOneShot(ms, android.os.VibrationEffect.DEFAULT_AMPLITUDE)); }
+                catch (Exception e) { /* sin vibrador o numero raro */ }
+                return;
+            }
             if (ruta.equals("/salir")) { responder(sal, 204, "No Content"); if (alSalir != null) alSalir.run(); return; }
 
             // lo que el juego graba: eeprom.bin (exactamente 128 bytes) y opciones.json (hasta 4 KB)

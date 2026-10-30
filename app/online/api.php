@@ -23,6 +23,9 @@ const ESPERA_ARRANQUE = 45;    // s de respaldo entre aceptar y arrancar, por si
 const VENCE_PARTIDA = 600;     // s maximos de una partida
 const CANCIONES = [8, 12, 13, 15, 19, 23, 58, 60, 67, 9, 10, 11, 22, 40, 42, 44, 48, 64, 63, 65, 66, 47, 4, 6, 14, 16, 24, 26, 33, 45, 55, 61];
 const MODOS = ['NORMAL', 'HARD', 'CRAZY', 'DOUBLE', 'REMIX'];
+const CANCIONES_VERSUS = 4;    // versus completo: cada uno elige dos
+const TORNEO_MAX = 16;         // anotados como mucho en un torneo
+const VENCE_ELEGIR = 180;      // s para elegir la cancion que toca en una serie (si no, pierde)
 
 $dir = getenv('PIU_ONLINE_DATOS') ?: (__DIR__ . '/datos');   // las pruebas usan su propia carpeta
 if (!is_dir($dir)) mkdir($dir, 0755, true);
@@ -96,7 +99,8 @@ if ($accion === 'ranking') {
 
 // ---------- modo solo (Charles, 20/10): los mejores de cada cancion y modo (10, uno por nickname; la seleccion
 // muestra los 3 primeros) y de cada sesion de juego, sumando sus etapas (20, uno por nickname). Sin sala ni clave.
-const CANCIONES_SOLO = [8, 12, 13, 15, 19, 23, 58, 60, 67, 9, 10, 11, 22, 40, 42, 44, 48, 64, 63, 65, 66, 47, 4, 6, 14, 16, 24, 26, 33, 45, 55, 61, 7, 20, 21, 52, 32, 53];
+// (30/10, Charles: "subime todas las canciones a la web") todas las del disco: 04 a 72 (antes, las 32 de la demo + ocultas y remixes)
+define('CANCIONES_SOLO', range(4, 72));
 const MODOS_SOLO = ['NORMAL', 'HARD', 'CRAZY', 'DOUBLE', 'REMIX', 'BATTLE'];
 function mejorPorNick(array $lista, array $nuevo, int $tope): array {
     foreach ($lista as $k => $e) {
@@ -431,6 +435,11 @@ $ahora = microtime(true);
 foreach ($sala['jugadores'] as $id => $j) if ($ahora - $j['visto'] > VENCE_JUGADOR) unset($sala['jugadores'][$id]);
 foreach ($sala['desafios'] as $id => $d) if ($ahora - $d['t'] > VENCE_DESAFIO || !isset($sala['jugadores'][$d['de']], $sala['jugadores'][$d['a']])) unset($sala['desafios'][$id]);
 foreach ($sala['partidas'] as $id => $pa) if ($ahora - $pa['inicio'] > VENCE_PARTIDA) unset($sala['partidas'][$id]);
+// (21/10) series (versus completo, cruces del torneo) y el torneo: los que se fueron pierden, lo vencido se borra
+$sala['series'] = $sala['series'] ?? [];
+$sala['torneo'] = $sala['torneo'] ?? null;
+repasarSeries($sala, $ahora);
+avanzarTorneo($sala, $dir, $ahora);
 // paquetes de canciones propias que ya nadie usa (de vez en cuando: un desafio o partida que lo nombre lo mantiene)
 if (random_int(0, 19) === 0) {
     $usados = [];
@@ -488,10 +497,14 @@ switch ($accion) {
         if ($cmd !== '' && (!preg_match('/^run (\d\d)_[a-z0-9]{1,3}\.not -[sd] (\d\d)\.dat$/i', $cmd, $mm) || (int)$mm[1] !== $c || (int)$mm[2] !== $c)) error('comando de cancion invalido');
         if ($banderas < 0 || $banderas > 0xFFFF) error('banderas invalidas');
         if ($sala['jugadores'][$a]['estado'] !== 'sala' || $yo['estado'] !== 'sala') error('alguno de los dos esta jugando');
+        if (enTorneo($sala, $id) || enTorneo($sala, $a)) error('alguno de los dos esta en el torneo');
         // (21/10) la cuenta antes de arrancar, en segundos, desde que los dos cargaron el juego (OPCIONES del que desafia)
         $espera = max(3, min(15, (int)($p['espera'] ?? 5)));
+        // (21/10, Charles) UNA cancion o VERSUS COMPLETO: cada uno elige dos (4 canciones), gana el que suma mas
+        $tipo = ($p['tipo'] ?? '') === 'versus' ? 'versus' : 'una';
+        if ($tipo === 'versus' && $paquete) error('el versus completo es con canciones del disco');
         foreach ($sala['desafios'] as $k => $o) if ($o['de'] === $id) unset($sala['desafios'][$k]);   // uno pendiente por persona
-        $sala['desafios'][bin2hex(random_bytes(5))] = ['de' => $id, 'a' => $a, 'cancion' => $c, 'modo' => $m, 'cmd' => $cmd, 'banderas' => $banderas, 't' => $ahora, 'paquete' => $paquete, 'espera' => $espera];
+        $sala['desafios'][bin2hex(random_bytes(5))] = ['de' => $id, 'a' => $a, 'cancion' => $c, 'modo' => $m, 'cmd' => $cmd, 'banderas' => $banderas, 't' => $ahora, 'paquete' => $paquete, 'espera' => $espera, 'tipo' => $tipo];
         break;
 
     case 'paquete_trozo':   // el que desafia sube su cancion propia de a trozos de 512 KB, antes de desafiar
@@ -530,14 +543,11 @@ switch ($accion) {
         unset($sala['desafios'][$did]);
         $rival = $d['de'];
         if (!empty($p['acepta']) && isset($sala['jugadores'][$rival]) && $sala['jugadores'][$rival]['estado'] === 'sala') {
-            $pid = bin2hex(random_bytes(5));
-            // 'inicio' es de respaldo (si alguno nunca avisa que cargo); con los dos 'listo' pasa a ahora + espera
-            $sala['partidas'][$pid] = ['cancion' => $d['cancion'], 'modo' => $d['modo'], 'cmd' => $d['cmd'] ?? '', 'banderas' => $d['banderas'] ?? 0, 'inicio' => $ahora + ESPERA_ARRANQUE, 'paquete' => $d['paquete'] ?? null,
-                'espera' => $d['espera'] ?? 5, 'listos' => new stdClass(), 'arrancada' => false,
-                'jugadores' => [$rival => ['nick' => $sala['jugadores'][$rival]['nick']], $id => ['nick' => $yo['nick']]], 'cerrada' => false];
-            foreach ([$rival, $id] as $j) { $sala['jugadores'][$j]['estado'] = 'jugando'; $sala['jugadores'][$j]['partida'] = $pid; }
+            // versus completo: la primera cancion es la que eligio el que desafio; despues elige el otro, y asi
+            $sid = ($d['tipo'] ?? 'una') === 'versus' ? nuevaSerie($sala, $rival, $id, CANCIONES_VERSUS, null, $ahora) : null;
+            $pid = nuevaPartida($sala, $d, $rival, $id, $sid, $ahora);
             foreach ($sala['desafios'] as $k => $o) if (in_array($o['de'], [$rival, $id], true) || in_array($o['a'], [$rival, $id], true)) unset($sala['desafios'][$k]);
-            $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => $sala['jugadores'][$rival]['nick'] . ' vs ' . $yo['nick'] . ': ' . (!empty($d['paquete']) ? $d['paquete']['nombre'] . ' (propia)' : 'cancion ' . $d['cancion']) . ' ' . $d['modo'], 't' => $ahora];
+            $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => $sala['jugadores'][$rival]['nick'] . ' vs ' . $yo['nick'] . ($sid ? ' (VERSUS COMPLETO)' : '') . ': ' . (!empty($d['paquete']) ? $d['paquete']['nombre'] . ' (propia)' : 'cancion ' . $d['cancion']) . ' ' . $d['modo'], 't' => $ahora];
         }
         break;
 
@@ -552,19 +562,81 @@ switch ($accion) {
             'juicios' => preg_replace('/[^PGOBM]/', '', texto($p['juicios'] ?? '', 40)), 'pads' => max(0, min(1023, (int)($p['pads'] ?? 0))),
             'cuentas' => array_map(fn($v) => max(0, min(9999, (int)$v)), array_slice(array_pad(is_array($p['cuentas'] ?? null) ? $p['cuentas'] : [], 5, 0), 0, 5)),
             'seq' => ($pa['jugadores'][$id]['seq'] ?? 0) + 1]);
-        $todos = true;
-        foreach ($pa['jugadores'] as $jj) if (empty($jj['terminado'])) $todos = false;
-        if ($todos && !$pa['cerrada']) { $pa['cerrada'] = true; anotarRanking($dir, $pa); }
         unset($pa);
+        cerrarSiTerminaron($sala, $pid, $dir, $ahora);
         break;
 
-    case 'volver':     // termino (o abandono) la partida: vuelve a la sala
+    case 'volver':     // termino (o abandono) la partida: vuelve a la sala (o a su serie, si sigue)
         $pid = (string)$yo['partida'];
+        // (la partida que dice el cliente: si ya empezo otra de su serie, esa no se toca)
+        if (isset($p['partida']) && (string)$p['partida'] !== $pid) break;
         if (isset($sala['partidas'][$pid]) && !$sala['partidas'][$pid]['cerrada'] && empty($sala['partidas'][$pid]['jugadores'][$id]['terminado'])) {
             $sala['partidas'][$pid]['jugadores'][$id]['abandono'] = true;
             $sala['partidas'][$pid]['jugadores'][$id]['terminado'] = true;
+            cerrarSiTerminaron($sala, $pid, $dir, $ahora);
         }
-        $yo['estado'] = 'sala'; $yo['partida'] = null;
+        $s = $sala['series'][$yo['serie'] ?? ''] ?? null;
+        $yo['estado'] = $s && $s['estado'] !== 'terminada' ? 'serie' : 'sala'; $yo['partida'] = null;
+        break;
+
+    // ---------- series: la proxima cancion la elige al que le toca; salir = perder ----------
+    case 'serie_elegir':
+        $sid = (string)($yo['serie'] ?? ''); $s = $sala['series'][$sid] ?? null;
+        if (!$s || $s['estado'] !== 'eligiendo' || ($s['orden'][$s['ronda'] - 1] ?? '') !== $id) error('no te toca elegir');
+        $otro = otroDe($s, $id);
+        if (!isset($sala['jugadores'][$otro])) error('el rival se fue');
+        if ($sala['jugadores'][$otro]['estado'] !== 'serie') error('espera que ' . $s['nicks'][$otro] . ' vuelva del resultado');
+        $c = (int)($p['cancion'] ?? 0); $m = (string)($p['modo'] ?? ''); $cmd = texto($p['cmd'] ?? '', 40); $banderas = (int)($p['banderas'] ?? 0);
+        if (!in_array($c, CANCIONES_SOLO, true) || !in_array($m, MODOS, true)) error('cancion o modo invalido');
+        if ($cmd !== '' && (!preg_match('/^run (\d\d)_[a-z0-9]{1,3}\.not -[sd] (\d\d)\.dat$/i', $cmd, $mm) || (int)$mm[1] !== $c || (int)$mm[2] !== $c)) error('comando de cancion invalido');
+        if ($banderas < 0 || $banderas > 0xFFFF) error('banderas invalidas');
+        nuevaPartida($sala, ['cancion' => $c, 'modo' => $m, 'cmd' => $cmd, 'banderas' => $banderas, 'espera' => max(3, min(15, (int)($p['espera'] ?? 5)))], $id, $otro, $sid, $ahora);
+        $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => $s['nicks'][$id] . ' eligio la cancion ' . $c . ' ' . $m . ' (' . $s['ronda'] . ' de ' . $s['rondas'] . ')', 't' => $ahora];
+        break;
+
+    case 'serie_salir':   // ver el resultado y volver al salon; si la serie seguia, es abandonarla (gana el otro)
+        $sid = (string)($yo['serie'] ?? '');
+        if (isset($sala['series'][$sid]) && $sala['series'][$sid]['estado'] !== 'terminada') {
+            $pid = (string)$yo['partida'];
+            if (isset($sala['partidas'][$pid]) && !$sala['partidas'][$pid]['cerrada']) { $sala['partidas'][$pid]['jugadores'][$id]['abandono'] = true; $sala['partidas'][$pid]['jugadores'][$id]['terminado'] = true; $sala['partidas'][$pid]['cerrada'] = true; }
+            terminarSerie($sala, $sid, otroDe($sala['series'][$sid], $id), $ahora);
+        }
+        $yo['serie'] = null; $yo['estado'] = 'sala'; $yo['partida'] = null;
+        break;
+
+    // ---------- torneo (Charles 21/10: "la gente se apunta, se le asigna por algun orden y asi hasta que quede uno") ----------
+    case 'torneo_crear':
+        $t = $sala['torneo'];
+        if ($t && $t['estado'] !== 'terminado') error('ya hay un torneo armado');
+        if ($yo['estado'] !== 'sala') error('primero termina lo que estas jugando');
+        $sala['torneo'] = ['id' => bin2hex(random_bytes(4)), 'creador' => $id, 'estado' => 'anotando', 't' => $ahora,
+            'orden' => in_array($p['orden'] ?? '', ['ranking', 'azar', 'llegada'], true) ? $p['orden'] : 'ranking',
+            'formato' => ($p['formato'] ?? '') === 'versus' ? 'versus' : 'una',
+            'anotados' => [$id => $yo['nick']], 'nicks' => [$id => $yo['nick']], 'eliminados' => [], 'rondas' => [], 'campeon' => null];
+        $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => $yo['nick'] . ' armo un TORNEO: anotense (arriba de la lista de jugadores)', 't' => $ahora];
+        break;
+
+    case 'torneo_anotarse':
+        $t = $sala['torneo'];
+        if (!$t || $t['estado'] !== 'anotando') error('no hay un torneo para anotarse');
+        if (count($t['anotados']) >= TORNEO_MAX && !isset($t['anotados'][$id])) error('el torneo esta lleno (' . TORNEO_MAX . ')');
+        $sala['torneo']['anotados'][$id] = $yo['nick']; $sala['torneo']['nicks'][$id] = $yo['nick'];
+        break;
+
+    case 'torneo_salir':   // anotado: se borra (si es quien lo armo, se cancela); jugando: abandona (gana su rival)
+        $t = $sala['torneo'];
+        if ($t && $t['estado'] === 'anotando') {
+            if ($t['creador'] === $id) { $sala['torneo'] = null; $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => 'Se cancelo el torneo', 't' => $ahora]; }
+            else unset($sala['torneo']['anotados'][$id]);
+        } elseif ($t && $t['estado'] === 'jugando' && enTorneo($sala, $id)) abandonarTorneo($sala, $id, $ahora);
+        break;
+
+    case 'torneo_empezar':
+        $t = $sala['torneo'];
+        if (!$t || $t['estado'] !== 'anotando' || $t['creador'] !== $id) error('solo lo empieza quien lo armo');
+        if (count($t['anotados']) < 2) error('hacen falta al menos 2 anotados');
+        armarLlaves($sala, $dir, $ahora);
+        avanzarTorneo($sala, $dir, $ahora);
         break;
 
     case 'estado':
@@ -594,7 +666,7 @@ switch ($accion) {
 // respuesta comun: la sala vista por este jugador
 $desde = (int)($p['chatDesde'] ?? 0);
 $jugadores = [];
-foreach ($sala['jugadores'] as $jid => $j) $jugadores[] = ['id' => $jid, 'nick' => $j['nick'], 'estado' => $j['estado'], 'partida' => $j['estado'] === 'jugando' ? $j['partida'] : null, 'avatar' => $j['avatar'] ?? null];
+foreach ($sala['jugadores'] as $jid => $j) $jugadores[] = ['id' => $jid, 'nick' => $j['nick'], 'estado' => $j['estado'], 'partida' => $j['estado'] === 'jugando' ? $j['partida'] : null, 'avatar' => $j['avatar'] ?? null, 'torneo' => enTorneo($sala, $jid)];
 // cuantos miran cada partida (los que preguntaron en los ultimos 5 s)
 foreach ($sala['partidas'] as $k => $pa) {
     $m = 0;
@@ -603,8 +675,28 @@ foreach ($sala['partidas'] as $k => $pa) {
 }
 $desafios = [];
 foreach ($sala['desafios'] as $did => $d) {
-    if ($d['a'] === $id) $desafios[] = ['id' => $did, 'de' => $d['de'], 'nick' => $sala['jugadores'][$d['de']]['nick'] ?? '?', 'cancion' => $d['cancion'], 'modo' => $d['modo'], 'mio' => false, 'paquete' => $d['paquete'] ?? null];
-    if ($d['de'] === $id) $desafios[] = ['id' => $did, 'a' => $d['a'], 'nick' => $sala['jugadores'][$d['a']]['nick'] ?? '?', 'cancion' => $d['cancion'], 'modo' => $d['modo'], 'mio' => true, 'paquete' => $d['paquete'] ?? null];
+    if ($d['a'] === $id) $desafios[] = ['id' => $did, 'de' => $d['de'], 'nick' => $sala['jugadores'][$d['de']]['nick'] ?? '?', 'cancion' => $d['cancion'], 'modo' => $d['modo'], 'mio' => false, 'paquete' => $d['paquete'] ?? null, 'tipo' => $d['tipo'] ?? 'una'];
+    if ($d['de'] === $id) $desafios[] = ['id' => $did, 'a' => $d['a'], 'nick' => $sala['jugadores'][$d['a']]['nick'] ?? '?', 'cancion' => $d['cancion'], 'modo' => $d['modo'], 'mio' => true, 'paquete' => $d['paquete'] ?? null, 'tipo' => $d['tipo'] ?? 'una'];
+}
+// mi serie (si estoy en una o recien termino) y el torneo, como los ve este jugador
+$serie = null;
+if (!empty($yo['serie']) && isset($sala['series'][$yo['serie']])) {
+    $s = $sala['series'][$yo['serie']];
+    $otro = otroDe($s, $id);
+    $serie = ['id' => $yo['serie'], 'rondas' => $s['rondas'], 'ronda' => $s['ronda'], 'estado' => $s['estado'], 'torneo' => !empty($s['torneo']),
+        'yo' => $s['nicks'][$id], 'rival' => $s['nicks'][$otro] ?? '?', 'rivalId' => $otro, 'rivalListo' => ($sala['jugadores'][$otro]['estado'] ?? '') === 'serie',
+        'meToca' => $s['estado'] === 'eligiendo' && ($s['orden'][$s['ronda'] - 1] ?? '') === $id,
+        'totales' => ['yo' => $s['totales'][$id] ?? 0, 'rival' => $s['totales'][$otro] ?? 0],
+        'historial' => array_map(fn($h) => ['cancion' => $h['cancion'], 'modo' => $h['modo'], 'mia' => $h['eligio'] === $id, 'yo' => $h['puntos'][$id] ?? 0, 'rival' => $h['puntos'][$otro] ?? 0], $s['historial']),
+        'gane' => $s['estado'] === 'terminada' ? $s['ganador'] === $id : null];
+}
+$torneo = null;
+if ($sala['torneo']) {
+    $t = $sala['torneo'];
+    $nick = fn($j) => $j === null ? null : ($t['nicks'][$j] ?? '?');
+    $torneo = ['estado' => $t['estado'], 'orden' => $t['orden'], 'formato' => $t['formato'], 'creador' => $nick($t['creador']), 'soyCreador' => $t['creador'] === $id,
+        'anotados' => array_values($t['anotados']), 'anotado' => isset($t['anotados'][$id]), 'vivo' => enTorneo($sala, $id), 'campeon' => $t['campeon'],
+        'rondas' => array_map(fn($r) => array_map(fn($m) => ['a' => $nick($m['a']), 'b' => $nick($m['b']), 'ganador' => $nick($m['ganador']), 'jugando' => !empty($m['serie']) && empty($m['ganador'])], $r), $t['rondas'])];
 }
 $partida = null;
 if ($yo['partida'] && isset($sala['partidas'][$yo['partida']])) { $partida = $sala['partidas'][$yo['partida']]; $partida['id'] = $yo['partida']; }
@@ -613,7 +705,7 @@ $guardar();
 if ($mirada && isset($mirada['id'])) { $mirada['miran'] = $sala['partidas'][$mirada['id']]['miran'] ?? 0; unset($mirada['mirando']); }
 if ($partida) { $partida['miran'] = $sala['partidas'][$partida['id']]['miran'] ?? 0; unset($partida['mirando']); }
 responder(['yo' => ['id' => $id, 'nick' => $yo['nick'], 'estado' => $yo['estado']], 'jugadores' => $jugadores, 'desafios' => $desafios,
-    'partida' => $partida, 'chat' => $chat, 'ahora' => $ahora, 'mirada' => $mirada]);
+    'partida' => $partida, 'chat' => $chat, 'ahora' => $ahora, 'mirada' => $mirada, 'serie' => $serie, 'torneo' => $torneo]);
 
 // ---------- ranking: mejor puntaje por cancion y modo (top 10) y ganadas/perdidas por nickname ----------
 function anotarRanking(string $dir, array $pa): void {
@@ -643,4 +735,172 @@ function anotarRanking(string $dir, array $pa): void {
             'combo' => $j['comboMax'] ?? $j['combo'] ?? 0, 'resultado' => !empty($j['abandono']) ? 'P' : ($empate ? 'E' : ($mejor && $j['nick'] === $mejor['nick'] ? 'G' : 'P'))]);
     }
     grabar("$dir/ranking.json", $r);
+}
+
+// ---------- partidas ----------
+// $d: cancion, modo, cmd, banderas, espera (y paquete). 'inicio' es de respaldo (si alguno nunca avisa que cargo); con
+// los dos 'listo' pasa a ahora + espera. $a y $b quedan jugando.
+function nuevaPartida(array &$sala, array $d, string $a, string $b, ?string $sid, float $ahora): string {
+    $pid = bin2hex(random_bytes(5));
+    $sala['partidas'][$pid] = ['cancion' => $d['cancion'], 'modo' => $d['modo'], 'cmd' => $d['cmd'] ?? '', 'banderas' => $d['banderas'] ?? 0, 'inicio' => $ahora + ESPERA_ARRANQUE, 'paquete' => $d['paquete'] ?? null,
+        'espera' => $d['espera'] ?? 5, 'listos' => new stdClass(), 'arrancada' => false, 'serie' => $sid,
+        'jugadores' => [$a => ['nick' => $sala['jugadores'][$a]['nick']], $b => ['nick' => $sala['jugadores'][$b]['nick']]], 'cerrada' => false];
+    foreach ([$a, $b] as $j) { $sala['jugadores'][$j]['estado'] = 'jugando'; $sala['jugadores'][$j]['partida'] = $pid; }
+    if ($sid && isset($sala['series'][$sid])) { $sala['series'][$sid]['estado'] = 'jugando'; $sala['series'][$sid]['desde'] = $ahora; }
+    return $pid;
+}
+// los dos terminaron (o abandonaron): al ranking y, si es de una serie, a su cuenta
+function cerrarSiTerminaron(array &$sala, string $pid, string $dir, float $ahora): void {
+    if (!isset($sala['partidas'][$pid]) || $sala['partidas'][$pid]['cerrada']) return;
+    foreach ($sala['partidas'][$pid]['jugadores'] as $jj) if (empty($jj['terminado'])) return;
+    $sala['partidas'][$pid]['cerrada'] = true;
+    $pa = $sala['partidas'][$pid];
+    anotarRanking($dir, $pa);
+    $sid = $pa['serie'] ?? null;
+    if (!$sid || !isset($sala['series'][$sid]) || $sala['series'][$sid]['estado'] === 'terminada') return;
+    $s = &$sala['series'][$sid];
+    $puntos = [];
+    foreach (array_keys($s['totales']) as $j) { $jj = $pa['jugadores'][$j] ?? []; $puntos[$j] = !empty($jj['abandono']) ? 0 : (int)($jj['puntaje'] ?? 0); $s['totales'][$j] += $puntos[$j]; }
+    $s['historial'][] = ['cancion' => $pa['cancion'], 'modo' => $pa['modo'], 'eligio' => $s['orden'][$s['ronda'] - 1] ?? '', 'puntos' => $puntos];
+    if ($s['ronda'] >= $s['rondas']) { unset($s); terminarSerie($sala, $sid, null, $ahora); return; }
+    $s['ronda']++; $s['estado'] = 'eligiendo'; $s['desde'] = $ahora;
+    unset($s);
+}
+
+// ---------- series (Charles 21/10): VERSUS COMPLETO y los cruces del torneo ----------
+// Varias canciones entre los mismos dos; cada ronda la elige uno (en orden: a, b, a, b) y gana el que suma mas puntos.
+// Entre cancion y cancion los dos quedan en estado 'serie' (no se los puede desafiar). Irse del salon = perder.
+function otroDe(array $s, string $id): string { foreach (array_keys($s['nicks']) as $j) if ($j !== $id) return $j; return ''; }
+function nuevaSerie(array &$sala, string $a, string $b, int $rondas, ?string $torneo, float $ahora): string {
+    $sid = bin2hex(random_bytes(5));
+    $orden = []; for ($i = 0; $i < $rondas; $i++) $orden[] = $i % 2 ? $b : $a;
+    $sala['series'][$sid] = ['rondas' => $rondas, 'ronda' => 1, 'orden' => $orden, 'nicks' => [$a => $sala['jugadores'][$a]['nick'], $b => $sala['jugadores'][$b]['nick']],
+        'totales' => [$a => 0, $b => 0], 'historial' => [], 'estado' => 'eligiendo', 'desde' => $ahora, 'ganador' => null, 'torneo' => $torneo, 't' => $ahora];
+    foreach ([$a, $b] as $j) { $sala['jugadores'][$j]['serie'] = $sid; if ($sala['jugadores'][$j]['estado'] === 'sala') $sala['jugadores'][$j]['estado'] = 'serie'; }
+    return $sid;
+}
+function terminarSerie(array &$sala, string $sid, ?string $ganador, float $ahora): void {
+    if (!isset($sala['series'][$sid]) || $sala['series'][$sid]['estado'] === 'terminada') return;
+    $s = $sala['series'][$sid];
+    [$a, $b] = array_keys($s['totales']);
+    if ($ganador === null) {
+        $ganador = $s['totales'][$a] > $s['totales'][$b] ? $a : ($s['totales'][$b] > $s['totales'][$a] ? $b : null);
+        if ($ganador === null) {     // empate: la mejor cancion sola; si sigue igual, el que eligio primero
+            $mejor = fn($j) => array_reduce($s['historial'], fn($m, $h) => max($m, $h['puntos'][$j] ?? 0), 0);
+            $ganador = $mejor($b) > $mejor($a) ? $b : $a;
+        }
+    }
+    $perdedor = $ganador === $a ? $b : $a;
+    $sala['series'][$sid]['estado'] = 'terminada'; $sala['series'][$sid]['ganador'] = $ganador; $sala['series'][$sid]['fin'] = $ahora;
+    foreach ([$a, $b] as $j) if (isset($sala['jugadores'][$j]) && $sala['jugadores'][$j]['estado'] === 'serie') $sala['jugadores'][$j]['estado'] = 'sala';
+    $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => ($s['torneo'] ? 'TORNEO: ' : 'VERSUS COMPLETO: ') . $s['nicks'][$ganador] . ' le gano a ' . $s['nicks'][$perdedor]
+        . ($s['rondas'] > 1 ? ' (' . $s['totales'][$ganador] . ' a ' . $s['totales'][$perdedor] . ')' : ''), 't' => $ahora];
+    if ($s['torneo']) torneoResultado($sala, $sid, $ganador, $perdedor);
+}
+// cada consulta: el que se fue pierde; el que no elige a tiempo pierde; una partida vencida se vuelve a elegir
+function repasarSeries(array &$sala, float $ahora): void {
+    foreach ($sala['series'] as $sid => $s) {
+        if ($s['estado'] === 'terminada') {
+            // a los 5 minutos se borra (el resultado ya se vio); los jugadores que la apuntan quedan libres
+            if ($ahora - ($s['fin'] ?? $ahora) > 300) { unset($sala['series'][$sid]); foreach ($sala['jugadores'] as $j => $_) if (($sala['jugadores'][$j]['serie'] ?? null) === $sid) $sala['jugadores'][$j]['serie'] = null; }
+            continue;
+        }
+        [$a, $b] = array_keys($s['nicks']);
+        $estaA = isset($sala['jugadores'][$a]); $estaB = isset($sala['jugadores'][$b]);
+        if (!$estaA || !$estaB) { terminarSerie($sala, $sid, $estaA ? $a : $b, $ahora); continue; }
+        if ($s['estado'] === 'eligiendo' && $ahora - ($s['desde'] ?? $s['t']) > VENCE_ELEGIR) { terminarSerie($sala, $sid, otroDe($s, $s['orden'][$s['ronda'] - 1]), $ahora); continue; }
+        if ($s['estado'] === 'jugando') {
+            $hay = false; foreach ($sala['partidas'] as $pa) if (($pa['serie'] ?? null) === $sid && !$pa['cerrada']) $hay = true;
+            if (!$hay && $ahora - ($s['desde'] ?? $s['t']) > 30) { $sala['series'][$sid]['estado'] = 'eligiendo'; $sala['series'][$sid]['desde'] = $ahora; }
+        }
+    }
+}
+
+// ---------- torneo: llaves de eliminacion; cada cruce es una serie (de una cancion o versus completo) ----------
+// El orden de las llaves: por el ranking del online (ganadas, despues mejor puntaje), al azar o por orden de llegada.
+// Los mejores ubicados se cruzan al final (1 contra el ultimo, etc.) y, si no son potencia de 2, pasan sin jugar.
+function enTorneo(array $sala, string $id): bool {
+    $t = $sala['torneo'] ?? null;
+    return $t && $t['estado'] === 'jugando' && isset($t['anotados'][$id]) && empty($t['eliminados'][$id]);
+}
+function sembrado(int $n): array {   // 8 -> [1, 8, 4, 5, 2, 7, 3, 6]
+    $s = [1];
+    while (count($s) < $n) { $m = 2 * count($s) + 1; $nuevo = []; foreach ($s as $x) { $nuevo[] = $x; $nuevo[] = $m - $x; } $s = $nuevo; }
+    return $s;
+}
+function armarLlaves(array &$sala, string $dir, float $ahora): void {
+    $t = &$sala['torneo'];
+    $ids = array_keys($t['anotados']);
+    if ($t['orden'] === 'azar') shuffle($ids);
+    elseif ($t['orden'] === 'ranking') {
+        $r = leer("$dir/ranking.json", ['jugadores' => []]);
+        $peso = fn($j) => $r['jugadores'][$t['anotados'][$j]] ?? ['ganadas' => 0, 'mejor' => 0];
+        usort($ids, fn($x, $y) => [$peso($y)['ganadas'] ?? 0, $peso($y)['mejor'] ?? 0] <=> [$peso($x)['ganadas'] ?? 0, $peso($x)['mejor'] ?? 0]);
+    }
+    $P = 1; while ($P < count($ids)) $P *= 2;
+    $pos = sembrado($P); $primera = [];
+    for ($i = 0; $i < $P; $i += 2) $primera[] = ['a' => $ids[$pos[$i] - 1] ?? null, 'b' => $ids[$pos[$i + 1] - 1] ?? null, 'ganador' => null, 'serie' => null];
+    $t['rondas'] = [$primera]; $t['estado'] = 'jugando'; $t['empezo'] = $ahora;
+    $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => 'Empezo el TORNEO: ' . count($ids) . ' jugadores (' . ($t['formato'] === 'versus' ? 'versus completo' : 'una cancion') . ' por cruce)', 't' => $ahora];
+    unset($t);
+}
+function torneoResultado(array &$sala, string $sid, string $ganador, string $perdedor): void {
+    if (!$sala['torneo']) return;
+    $k = count($sala['torneo']['rondas']) - 1;
+    foreach ($sala['torneo']['rondas'][$k] as $i => $m) if (($m['serie'] ?? null) === $sid) $sala['torneo']['rondas'][$k][$i]['ganador'] = $ganador;
+    $sala['torneo']['eliminados'][$perdedor] = true;
+}
+function abandonarTorneo(array &$sala, string $id, float $ahora): void {
+    $t = $sala['torneo']; $k = count($t['rondas']) - 1;
+    foreach ($t['rondas'][$k] as $i => $m) {
+        if ($m['ganador'] !== null || ($m['a'] !== $id && $m['b'] !== $id)) continue;
+        $otro = $m['a'] === $id ? $m['b'] : $m['a'];
+        if ($m['serie'] && isset($sala['series'][$m['serie']]) && $otro) { terminarSerie($sala, $m['serie'], $otro, $ahora); }
+        else { $sala['torneo']['rondas'][$k][$i]['ganador'] = $otro; }
+    }
+    $sala['torneo']['eliminados'][$id] = true;
+    if (isset($sala['jugadores'][$id]) && ($sala['jugadores'][$id]['estado'] ?? '') === 'serie') $sala['jugadores'][$id]['estado'] = 'sala';
+}
+// cada consulta: arma los cruces que se pueden jugar, pasa a los que no tienen rival y, con la ronda completa, la siguiente
+function avanzarTorneo(array &$sala, string $dir, float $ahora): void {
+    $t = $sala['torneo'];
+    if (!$t) return;
+    // los vencidos se borran: anotando sin su creador, o terminado hace media hora
+    if (($t['estado'] === 'anotando' && !isset($sala['jugadores'][$t['creador']])) || ($t['estado'] === 'terminado' && $ahora - ($t['fin'] ?? $ahora) > 1800) || $ahora - $t['t'] > 4 * 3600) { $sala['torneo'] = null; return; }
+    if ($t['estado'] === 'anotando') { foreach ($t['anotados'] as $j => $_) if (!isset($sala['jugadores'][$j])) unset($sala['torneo']['anotados'][$j]); return; }
+    if ($t['estado'] !== 'jugando') return;
+    $k = count($t['rondas']) - 1;
+    foreach ($t['rondas'][$k] as $i => $m) {
+        if ($m['ganador'] !== null || !empty($m['vacia'])) continue;
+        $ref = &$sala['torneo']['rondas'][$k][$i];
+        if ($m['a'] === null && $m['b'] === null) { $ref['vacia'] = true; unset($ref); continue; }
+        if ($m['a'] === null || $m['b'] === null) { $ref['ganador'] = $m['a'] ?? $m['b']; unset($ref); continue; }      // pasa sin jugar
+        $estaA = isset($sala['jugadores'][$m['a']]); $estaB = isset($sala['jugadores'][$m['b']]);
+        if (!$m['serie'] && (!$estaA || !$estaB)) {      // alguno se fue antes de empezar: pasa el otro
+            $ref['ganador'] = $estaA ? $m['a'] : $m['b'];
+            $sala['torneo']['eliminados'][$estaA ? $m['b'] : $m['a']] = true;
+            unset($ref); continue;
+        }
+        // los dos libres en el salon: empieza su cruce
+        if (!$m['serie'] && $sala['jugadores'][$m['a']]['estado'] === 'sala' && $sala['jugadores'][$m['b']]['estado'] === 'sala') {
+            foreach ($sala['desafios'] as $kd => $o) if (in_array($o['de'], [$m['a'], $m['b']], true) || in_array($o['a'], [$m['a'], $m['b']], true)) unset($sala['desafios'][$kd]);
+            $ref['serie'] = nuevaSerie($sala, $m['a'], $m['b'], $t['formato'] === 'versus' ? CANCIONES_VERSUS : 1, $t['id'], $ahora);
+            $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => 'TORNEO: ' . $t['nicks'][$m['a']] . ' vs ' . $t['nicks'][$m['b']] . ' (elige ' . $t['nicks'][$m['a']] . ')', 't' => $ahora];
+        }
+        unset($ref);
+    }
+    // la ronda termino: los que pasaron se cruzan en la siguiente, o ya hay campeon
+    $ronda = $sala['torneo']['rondas'][$k];
+    foreach ($ronda as $m) if ($m['ganador'] === null && empty($m['vacia'])) return;
+    $pasan = array_map(fn($m) => $m['ganador'], $ronda);
+    if (count(array_filter($pasan, fn($x) => $x !== null)) <= 1) {
+        $campeon = array_values(array_filter($pasan, fn($x) => $x !== null))[0] ?? null;
+        $sala['torneo']['estado'] = 'terminado'; $sala['torneo']['fin'] = $ahora;
+        $sala['torneo']['campeon'] = $campeon ? $t['nicks'][$campeon] : null;
+        if ($campeon) $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => '*** ' . $t['nicks'][$campeon] . ' GANO EL TORNEO ***', 't' => $ahora];
+        return;
+    }
+    $sig = [];
+    for ($i = 0; $i < count($pasan); $i += 2) $sig[] = ['a' => $pasan[$i], 'b' => $pasan[$i + 1] ?? null, 'ganador' => null, 'serie' => null];
+    $sala['torneo']['rondas'][] = $sig;
 }

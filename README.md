@@ -1,53 +1,44 @@
 # Pump It Up Extra — port a PC, Android, Linux y Mac
 
 Port del arcade **Pump It Up Extra** (Andamiro, 2001) hecho por **VJ Ravenlight** ([ravenlight.net](https://ravenlight.net)).
-No es un emulador: el programa original de la cabina (`Piu.exe`) se traduce a JavaScript y corre en el navegador, con sus gráficos, su música, sus menús y sus reglas. Le suma un menú propio con online, ranking, editor de pasos, mandos USB y pantalla táctil.
 
-> **¿Primera vez? Leé la [guía paso a paso](GUIA.md):** todo paso por paso, desde bajar esto hasta instalarlo en el teléfono.
+No es un emulador. El programa original de la cabina (`Piu.exe`) se traduce a JavaScript y corre en el navegador, con sus gráficos, su música, sus menús y sus reglas.
 
-> **Este repositorio no trae nada de Andamiro.** No incluye el disco, la música, los videos, los pasos ni el programa del juego. Para usarlo hace falta **la imagen del disco de la cabina** (`.cue` + `.bin`, o `.iso`). Las herramientas de acá sacan todo de ese disco y arman el juego en tu computadora.
+Además trae un menú propio con:
+- **online**: una canción, versus completo y torneos;
+- ranking;
+- editor de pasos;
+- mandos USB y alfombras;
+- pantalla táctil.
 
-## 1. Preparar (una sola vez)
+> **¿Primera vez? Leé la [guía paso a paso](GUIA.md).**
 
-Poné la imagen del disco en la carpeta del repositorio. El `.cue` y el `.bin` van juntos y sin cambiarles el nombre.
+## Hace falta el disco
 
-| Sistema | Qué hacer |
+**Este repositorio no trae nada de Andamiro:** ni el disco, ni la música, ni los videos, ni los pasos, ni el programa del juego. Cada uno usa **su propia imagen del disco de la cabina**:
+- el `.bin` (el archivo grande que va con el `.cue`),
+- o un `.iso`,
+- o la carpeta con los archivos ya sacados.
+
+El juego lo prepara solo la primera vez y el disco no sale de tu aparato.
+
+## Cómo usarlo (de lo más fácil a lo más completo)
+
+Ninguna de estas formas pide instalar nada aparte: lo que haga falta se baja solo, de su sitio oficial.
+
+| Quiero… | Qué hacer |
 |---|---|
-| **Windows** | Doble clic en `PREPARAR.cmd`. También podés arrastrar la imagen encima. Si la PC no tiene Node.js, lo baja solo (la versión portátil oficial, sin instalar nada). |
-| **Linux / Mac** | Instalá [Node.js](https://nodejs.org) 18 o más nuevo y corré `./preparar.sh` (o `./preparar.sh /ruta/al/disco.cue`). |
+| **Jugar en la compu** | Bajá el repositorio (botón verde **Code → Download ZIP**) y descomprimilo. Windows: doble clic en **`JUGAR.cmd`**. Mac: **`JUGAR.command`**. Linux: `sh jugar.sh`. Se abre el navegador y la primera vez te pide el disco. |
+| **Jugar con amigos en la misma wifi** (o por internet) | **`SERVIDOR.cmd`** (Mac: `SERVIDOR.command`, Linux: `sh servidor.sh`). Hace tres preguntas y te da las direcciones para entrar desde los celulares y las otras compus. |
+| **Armar las apps** (Windows, Android, Linux, Mac) | Desde Windows: **`ARMAR_VERSIONES.cmd`**. Arma las versiones **sin disco**, que piden el disco la primera vez. Si antes corriste `PREPARAR.cmd`, arma también las **completas**. |
+| **Preparar el disco de antemano** | **`PREPARAR.cmd`** (Mac: `PREPARAR.command`, Linux: `sh preparar.sh`), con el `.cue`+`.bin` o el `.iso` en la carpeta. No hace falta para jugar: sirve para que el servidor reparta el disco en tu red y para armar las versiones completas. |
 
-Tarda uno o dos minutos y hace cuatro cosas:
+## Online
 
-1. Saca los archivos del disco a `extraido/`.
-2. Lee `Piu.exe` y saca su código y sus datos a `investigacion/volcados/`. Avisa si tu disco no es el mismo que se usó para el port.
-3. Traduce el código a JavaScript (`app/port/traducido.js`).
-4. Arma las listas de canciones (`app/port/game_con_todo.cfg` y `game_online.cfg`).
-
-Nada de eso se sube al repositorio: está en el `.gitignore`.
-
-## 2. Jugar en el navegador
-
-- **Windows:** `JUGAR.cmd`.
-- **Linux / Mac:** `./jugar.sh`.
-
-Se abre `http://localhost:8790/port/` en el navegador; sirven Chrome, Edge o Firefox actualizados. Si tenés PHP instalado, también levanta un salón online local. Sin PHP, el juego anda igual.
-
-## 3. Armar las versiones para compartir (desde Windows)
-
-`ARMAR_VERSIONES.cmd` arma todo en `build/`:
-
-| Versión | Script | Qué baja la primera vez |
-|---|---|---|
-| Windows (motor de Edge, 1 MB de programa + el juego) | `tools/armar_build_edge.ps1` | SDK de WebView2 (NuGet de Microsoft, con suma comprobada) |
-| Android 10+ (APK con GeckoView, 64 bits) | `tools/build_android/armar_apk_gecko.ps1` | Java 21 (Temurin), Gradle 9.7.1 y lo que pide el plugin de Android |
-| Linux y Mac (Apple e Intel), en Electron 44.5.1 | `tools/armar_multiplataforma.ps1` | Los zips oficiales de Electron (con suma comprobada) |
-| Carpeta para compartir (las cuatro + un LEEME) | `tools/armar_para_compartir.ps1` | — |
-
-Para hacer la APK hay que aceptar las licencias del SDK de Android: `ARMAR_VERSIONES.cmd` lo pregunta, y a mano se pasa `-AceptarLicenciasAndroid`.
-
-- Todo lo que se baja queda en `.herramientas/`, adentro del repositorio. No se instala nada en el sistema.
-- La primera APK crea su propia firma en `tools/build_android/firma/`. **Guardala:** sin ella no se puede actualizar la app ya instalada en un teléfono. Nunca la subas.
-- El orden importa: primero Windows (deja `build/Pump It Up Extra - Edge/juego`, que usan las otras), después la APK, Linux/Mac y la carpeta para compartir.
+- **Una canción:** desafiás a alguien, elegís la canción en la selección de verdad del juego y la juegan a la vez.
+- **Versus completo:** 4 canciones. Cada uno elige 2 y gana el que suma más puntos.
+- **Torneo:** alguien lo arma, la gente se anota y las llaves se ordenan por ranking, al azar o por llegada. Cada cruce es de una canción o un versus completo, y se elimina hasta que queda uno.
+- Hay **ranking** por canción, del modo solo, semanal y de la canción del día, más un **perfil** por jugador.
 
 ## Controles
 
@@ -56,21 +47,28 @@ Para hacer la APK hay que aceptar las licencias del SDK de Android: `ARMAR_VERSI
 | Jugador 1 | Z | Q | S | E | C |
 | Jugador 2 (numérico) | 1 | 7 | 5 | 9 | 3 |
 
-- **Esc**: volver (en el menú principal, salir).
-- **F1 / F2**: TEST / SERVICE (menú de servicio de la cabina).
-- **1 a 9**: velocidad de las flechas.
-- **F7**: lista con todos los pasos del disco.
-- Las teclas, los mandos USB y alfombras, el desfase del sonido y el resto se cambian en **OPCIONES**.
-- En el celular aparecen los paneles en pantalla.
+- **Esc** vuelve.
+- **1 a 9** cambian la velocidad de las flechas.
+- **F7** muestra todos los pasos del disco.
+- Las teclas, los mandos, el desfase y el volumen se cambian en **OPCIONES**.
 
 ## Cómo está hecho
 
-- `app/port/`: el port. `trabajador.js` corre el juego traducido en un hilo aparte; `principal.js` dibuja (OpenGL 1.x → WebGL, `app/motor/gl1.js`) y pone el sonido; `online.js` es el menú, el online y el ranking; `editor.js` es el editor de pasos.
+- `app/port/`: el port.
+  - `trabajador.js` corre el juego traducido en un hilo aparte.
+  - `principal.js` dibuja (OpenGL 1.x → WebGL) y pone el sonido.
+  - `online.js` es el menú, el online y el ranking.
+  - `instalar.js` + `instalador.js` preparan el disco del jugador en el navegador.
 - `app/online/`: el salón online y el ranking (PHP, sin base de datos).
 - `tools/recompilador/`: el traductor de x86 a JavaScript.
 - `tools/preparar/`: el extractor del disco y el cargador de `Piu.exe` (formato LE de DOS/4GW).
-- `investigacion/`: los formatos del disco, las reglas del juego, el mapa del exe y cómo se rompió cada cifrado.
+- `tools/servidor.mjs`: el servidor (en la compu o en la red, con HTTPS propio y túnel opcional).
+- `investigacion/`: los formatos del disco, las reglas del juego, el mapa del exe y cómo se abrió cada cifrado.
 
 ## Aviso
 
-*Pump It Up* y todo el contenido del juego son de **Andamiro Co., Ltd.** Este repositorio tiene solamente el código del port, hecho sin fines de lucro para preservar el juego y jugarlo entre amigos. Cada quien necesita su propia copia del disco.
+*Pump It Up* y todo el contenido del juego son de **Andamiro Co., Ltd.**
+
+Este port lo hizo Ravenlight por amor a este juego, sin fines de lucro, para que no se pierda y para jugarlo entre amigos. **No busca perjudicar a Andamiro ni a nadie.** Por eso este repositorio y las apps no traen nada suyo, y cada persona usa su propio disco.
+
+Si Andamiro quiere que algo se cambie o se baje, alcanza con pedirlo.

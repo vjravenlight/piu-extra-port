@@ -4,20 +4,26 @@
 # Usa las DLL del SDK de WebView2 de Documents\CLAUDE\_herramientas\webview2-sdk (o las baja: herramientas.ps1).
 # Se puede volver a correr cuando cambia el port: no toca guardado\ (las opciones que haya grabado el juego).
 # Antes (en una copia nueva): tools\preparar (PREPARAR.cmd), que deja el disco, los volcados y lo traducido.
-# Uso: powershell -ExecutionPolicy Bypass -File armar_build_edge.ps1
+# -SinDisco (21/10): build\Pump It Up Extra - Edge (sin disco), sin nada de Andamiro: la primera vez el juego pide el
+#   disco del jugador y lo prepara solo (app\port\instalar.js). Esa no necesita PREPARAR.
+# Uso: powershell -ExecutionPolicy Bypass -File armar_build_edge.ps1 [-SinDisco]
+param([switch]$SinDisco)
 $ErrorActionPreference = 'Stop'
 $base = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'herramientas.ps1')
-foreach ($f in 'app\port\traducido.js', 'investigacion\volcados\codigo_0x20000.bin', 'extraido\Piu\Piu.exe') {
-    if (-not (Test-Path (Join-Path $base $f))) { throw "Falta $f (correr antes PREPARAR.cmd con el disco)" }
+if (-not $SinDisco) {
+    foreach ($f in 'app\port\traducido.js', 'investigacion\volcados\codigo_0x20000.bin', 'extraido\Piu\Piu.exe') {
+        if (-not (Test-Path (Join-Path $base $f))) { throw "Falta $f (correr antes PREPARAR.cmd con el disco, o armar con -SinDisco)" }
+    }
 }
 $sdk = Conseguir $base 'webview2-sdk'
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-$destino = Join-Path $base 'build\Pump It Up Extra - Edge'
+$destino = Join-Path $base $(if ($SinDisco) { 'build\Pump It Up Extra - Edge (sin disco)' } else { 'build\Pump It Up Extra - Edge' })
 $juego = Join-Path $destino 'juego'
 
-function Copiar($desde, $hasta) {
-    & robocopy $desde $hasta /E /NFL /NDL /NJH /NJS /NP | Out-Null
+function Copiar($desde, $hasta, [string[]]$afuera = @()) {
+    $x = @(); if ($afuera.Count) { $x = @('/XF') + $afuera }
+    & robocopy $desde $hasta /E /NFL /NDL /NJH /NJS /NP @x | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "robocopy fallo copiando $desde (codigo $LASTEXITCODE)" }
 }
 
@@ -42,18 +48,27 @@ New-Item -ItemType Directory -Force (Join-Path $destino 'motor-webview2') | Out-
 Copy-Item (Join-Path $sdk 'MicrosoftEdgeWebview2Setup.exe') (Join-Path $destino 'motor-webview2') -Force
 Copy-Item (Join-Path $PSScriptRoot 'build_edge\LEEME.md') $destino -Force
 
-Write-Host '3/5 port (app\port, gl1.js y cifrados.js)...'
-Copiar (Join-Path $base 'app\port') (Join-Path $juego 'port')
+Write-Host '3/5 port (app\port, motor y preparar)...'
+# (sin disco: sin lo que sale de Piu.exe; lo arma el navegador con el disco del jugador)
+Copiar (Join-Path $base 'app\port') (Join-Path $juego 'port') $(if ($SinDisco) { @('traducido.js', 'game_*.cfg') } else { @() })
 New-Item -ItemType Directory -Force (Join-Path $juego 'motor') | Out-Null
-# gl1.js dibuja; cifrados.js lo usa el menu (online.js) para leer los graficos del disco (sin el, pantalla negra: 20/10)
-foreach ($m in 'gl1.js', 'cifrados.js') { Copy-Item (Join-Path $base "app\motor\$m") (Join-Path $juego 'motor') -Force }
+# gl1.js dibuja; cifrados.js lo usa el menu (online.js) para leer los graficos del disco (sin el, pantalla negra: 20/10);
+# disco.js lee la imagen del disco propio
+foreach ($m in 'gl1.js', 'cifrados.js', 'disco.js') { Copy-Item (Join-Path $base "app\motor\$m") (Join-Path $juego 'motor') -Force }
+# lo que usa el navegador para preparar un disco propio (app\port\instalador.js): el traductor, el cargador del exe, las listas
+New-Item -ItemType Directory -Force (Join-Path $juego 'preparar') | Out-Null
+$lista = Get-Content (Join-Path $PSScriptRoot 'preparar\archivos_navegador.json') -Raw | ConvertFrom-Json
+foreach ($p in $lista.PSObject.Properties) { Copy-Item (Join-Path $PSScriptRoot $p.Value) (Join-Path $juego "preparar\$($p.Name)") -Force }
 
-Write-Host '4/5 codigo y datos de Piu.exe...'
-New-Item -ItemType Directory -Force (Join-Path $juego 'volcados') | Out-Null
-foreach ($f in 'codigo_0x20000.bin', 'datos_0x130000.bin') { Copy-Item (Join-Path $base "investigacion\volcados\$f") (Join-Path $juego 'volcados') -Force }
-
-Write-Host '5/5 disco del juego (400 MB, la primera vez tarda)...'
-Copiar (Join-Path $base 'extraido\Piu') (Join-Path $juego 'disco')
+if ($SinDisco) {
+    Write-Host '4/5 y 5/5: sin disco (cada jugador pone el suyo)'
+} else {
+    Write-Host '4/5 codigo y datos de Piu.exe...'
+    New-Item -ItemType Directory -Force (Join-Path $juego 'volcados') | Out-Null
+    foreach ($f in 'codigo_0x20000.bin', 'datos_0x130000.bin') { Copy-Item (Join-Path $base "investigacion\volcados\$f") (Join-Path $juego 'volcados') -Force }
+    Write-Host '5/5 disco del juego (400 MB, la primera vez tarda)...'
+    Copiar (Join-Path $base 'extraido\Piu') (Join-Path $juego 'disco')
+}
 
 $mb = [math]::Round(((Get-ChildItem $destino -Recurse -File | Measure-Object Length -Sum).Sum / 1MB))
 Write-Host "Listo: $destino ($mb MB)"

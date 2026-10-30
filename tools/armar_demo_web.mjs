@@ -4,7 +4,9 @@
 //   TODO EN MINUSCULA (el hosting es Linux: los nombres distinguen mayusculas, y el port pide todo en minuscula);
 // - port\game_demo.cfg: la lista de game_con_todo.cfg recortada a las 9; port\config.json: { demo, canciones, atrae };
 // - .htaccess: aislamiento (COOP/COEP) para la memoria compartida, CSP propia, sin indexar ni listar.
-// Uso: node armar_demo_web.mjs
+// Desde el 30/10 sube el disco ENTERO (todas las canciones, como las builds; Charles: "subime todas las canciones a la
+// web"); con --demo arma la demo vieja de 32 canciones.
+// Uso: node armar_demo_web.mjs [--demo]
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +25,9 @@ const sumar = (f) => { bytes += fs.statSync(f).size; archivos++; };
 
 // 1. el juego y el salon
 for (const f of fs.readdirSync(path.join(base, 'app', 'port'))) copiar(path.join(base, 'app', 'port', f), path.join(destino, 'port', f));
-for (const f of ['gl1.js', 'cifrados.js']) copiar(path.join(base, 'app', 'motor', f), path.join(destino, 'motor', f));
+for (const f of ['gl1.js', 'cifrados.js', 'disco.js']) copiar(path.join(base, 'app', 'motor', f), path.join(destino, 'motor', f));
+// lo que usa el navegador para preparar un disco propio (app\port\instalador.js; tools\preparar\archivos_navegador.json)
+for (const [n, f] of Object.entries(JSON.parse(fs.readFileSync(path.join(base, 'tools', 'preparar', 'archivos_navegador.json'), 'utf8')))) copiar(path.join(base, 'tools', f), path.join(destino, 'preparar', n));
 for (const f of ['api.php', 'filtro.php']) copiar(path.join(base, 'app', 'online', f), path.join(destino, 'online', f));
 for (const f of ['codigo_0x20000.bin', 'datos_0x130000.bin']) copiar(path.join(base, 'investigacion', 'volcados', f), path.join(destino, 'volcados', f));
 
@@ -31,7 +35,11 @@ for (const f of ['codigo_0x20000.bin', 'datos_0x130000.bin']) copiar(path.join(b
 const todos = [];
 (function recorrer(d, rel) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const r = rel ? rel + '/' + e.name : e.name; if (e.isDirectory()) recorrer(path.join(d, e.name), r); else todos.push(r); } })(piu, '');
 const lista = new Set([...CANCIONES, ...OCULTAS, ...REMIX].map(nn));
-const sirve = (r) => {
+// (30/10, Charles: "subime todas las canciones a la web") TODAS = el disco entero, como las builds: todo lo que lee el
+// juego (pasos, musica, fondos, caratulas, game.cfg, piu.bin), sin los programas de la cabina (.exe, .bat, .com, .ovl)
+const TODAS = !process.argv.includes('--demo');
+const sirve = (r) => TODAS ? /\.(aud|dat|not|pnz|cfg|bin)$/i.test(r) : sirveDemo(r);
+const sirveDemo = (r) => {
   const b = r.toLowerCase(), [carpeta, nombre] = b.includes('/') ? b.split('/') : ['', b];
   if (carpeta === '') return ['game.cfg', 'piu.bin'].includes(nombre);
   if (carpeta === 'step') return lista.has(nombre.slice(0, 2));
@@ -54,7 +62,8 @@ fs.writeFileSync(path.join(destino, 'port', 'game_demo.cfg'), demoCfg, 'latin1')
 fs.writeFileSync(path.join(base, 'app', 'port', 'game_online.cfg'), demoCfg, 'latin1');
 const steps = new Set(todos.filter(r => r.toLowerCase().startsWith('step/')).map(r => r.toLowerCase().slice(5)));
 const atrae = CANCIONES.filter(n => steps.has(`${nn(n)}_h2.not`));
-fs.writeFileSync(path.join(destino, 'port', 'config.json'), JSON.stringify({ demo: true, canciones: CANCIONES, atrae }, null, 1));
+// (con TODAS no es una demo: config.json dice demo false y el juego usa su game.cfg, como las builds)
+fs.writeFileSync(path.join(destino, 'port', 'config.json'), JSON.stringify(TODAS ? { demo: false } : { demo: true, canciones: CANCIONES, atrae }, null, 1));
 
 // 4. reglas del servidor y la entrada
 fs.writeFileSync(path.join(destino, '.htaccess'), [
@@ -67,7 +76,8 @@ fs.writeFileSync(path.join(destino, '.htaccess'), [
   '  Header always set Cross-Origin-Embedder-Policy "require-corp"',
   '  Header always set Cross-Origin-Resource-Policy "same-origin"',
   '  Header always set X-Robots-Tag "noindex, nofollow, noarchive"',
-  '  Header set Content-Security-Policy "default-src \'self\'; script-src \'self\'; worker-src \'self\'; connect-src \'self\'; img-src \'self\' data: blob:; media-src \'self\' blob:; style-src \'self\' \'unsafe-inline\'; object-src \'none\'; base-uri \'self\'; frame-ancestors \'self\'"',
+  '  # (blob: en script-src: con el disco propio, el codigo traducido en el navegador se carga desde un blob; 21/10)',
+  '  Header set Content-Security-Policy "default-src \'self\'; script-src \'self\' blob:; worker-src \'self\' blob:; connect-src \'self\'; img-src \'self\' data: blob:; media-src \'self\' blob:; style-src \'self\' \'unsafe-inline\'; object-src \'none\'; base-uri \'self\'; frame-ancestors \'self\'"',
   '  # el codigo y la configuracion se revisan siempre (Charles, 20/10: "me sigue cacheando lo anterior"); los',
   '  # archivos grandes del disco (videos, musica) se pueden guardar un dia',
   '  <FilesMatch "\\.(js|mjs|html|json|cfg|php)$">',

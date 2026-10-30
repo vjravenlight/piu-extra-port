@@ -1,33 +1,60 @@
-// Servidor local para jugar en la PC: sirve app\ en /, descifrado\ en /datos/ (con Range, para el audio),
-// el disco extraido (extraido\Piu) en /disco/ sin distinguir mayusculas, e investigacion\volcados en /volcados/.
+// Servidor del juego: sirve app\ en /, el disco extraido (extraido\Piu) en /disco/ sin distinguir mayusculas,
+// investigacion\volcados en /volcados/ y lo que usa el navegador para preparar un disco propio en /preparar/.
 // Manda los encabezados de aislamiento (COOP/COEP) que hacen falta para la memoria compartida del port.
-// Uso: JUGAR.cmd (o: node servidor.mjs [puerto]). Variable PIU_NO_ABRIR=1 para no abrir el navegador.
+// Dos usos:
+// - JUGAR.cmd / jugar.sh: para jugar en esta compu (http://localhost:8790/port/).
+// - SERVIDOR.cmd / servidor.sh (Charles 21/10: "que se active como web server y la gente lo pueda correr con el puerto"):
+//   --preguntar hace las preguntas; o a mano: node servidor.mjs [puerto] --red [--salon=ravenlight|propio] [--tunel] [--sin-disco]
+//   --red      escucha en la red (la misma wifi), con HTTPS propio (certificado.mjs): el juego lo necesita fuera de localhost
+//   --salon    el salon online y el ranking: el de ravenlight.net (se le pasan los pedidos) o uno propio (PHP, api.php)
+//   --tunel    ademas lo abre a internet con un tunel gratis de Cloudflare (sin abrir puertos); por internet nunca se
+//              reparte el disco: cada jugador pone el suyo (app\port\archivos.js)
+//   --sin-disco no reparte el disco aunque este (cada uno pone el suyo); tambien PIU_SIN_DISCO=1
+// Variables: PIU_NO_ABRIR=1 (no abrir el navegador), PIU_GUARDADO (otra carpeta de guardado, para pruebas).
 import http from 'node:http';
+import https from 'node:https';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { exec, spawn } from 'node:child_process';
+import crypto from 'node:crypto';
+import { exec, spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { certificadoPropio } from './certificado.mjs';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
-const raizApp = path.join(aqui, '..', 'app');
-const raizDatos = path.join(aqui, '..', 'descifrado');
-const raizVolcados = path.join(aqui, '..', 'investigacion', 'volcados');
-const raizDisco = path.join(aqui, '..', 'extraido', 'Piu');
+const proyecto = path.join(aqui, '..');
+const raizApp = path.join(proyecto, 'app');
+const raizDatos = path.join(proyecto, 'descifrado');
+const raizVolcados = path.join(proyecto, 'investigacion', 'volcados');
+const raizDisco = path.join(proyecto, 'extraido', 'Piu');
+const herramientas = path.join(proyecto, '.herramientas');
 // lo que el juego graba (por ahora solo la EEPROM de 128 bytes: opciones del menu de servicio).
 // PIU_GUARDADO cambia la carpeta (las pruebas usan la suya y no tocan las opciones de Charles).
-const raizGuardado = process.env.PIU_GUARDADO || path.join(aqui, '..', 'guardado');
-// eeprom.bin: exactamente 128 bytes; opciones.json (opciones del port, como F7): hasta 4 KB
-const GUARDABLES = { '/guardado/eeprom.bin': { exacto: 128 }, '/guardado/opciones.json': { max: 4096 } };
-// los nombres que acepta guardado\canciones\ y su tope (pasos, musica hasta lo que lee la placa, vista previa, portada)
-function topeCancion(n) {
-  const num = '(8[2-9]|9\\d)';
-  if (new RegExp(`^${num}_([nhx][12]|db)\\.not$`).test(n)) return 262144;
-  if (new RegExp(`^d${num}\\.aud$`).test(n)) return 614400;
-  if (new RegExp(`^${num}\\.aud$`).test(n)) return 16777216;   // entera: si pasa la placa (2,6 MB) el juego recibe una recortada
-  if (new RegExp(`^t${num}\\.pnz$`).test(n)) return 2097152;
-  if (n === 'canciones.json') return 65536;
-  return 0;
+const raizGuardado = process.env.PIU_GUARDADO || path.join(proyecto, 'guardado');
+
+// ---------- opciones ----------
+const args = process.argv.slice(2);
+const bandera = (n) => args.some((a) => a === '--' + n || a.startsWith('--' + n + '='));
+const valor = (n) => { const a = args.find((x) => x.startsWith('--' + n + '=')); return a ? a.slice(n.length + 3) : null; };
+let puerto0 = +(args.find((a) => /^\d+$/.test(a)) || 8790);
+let red = bandera('red'), tunel = bandera('tunel'), sinDisco = bandera('sin-disco') || !!process.env.PIU_SIN_DISCO, salon = valor('salon');
+if (bandera('preguntar')) await preguntar();
+if (tunel) { red = true; sinDisco = true; }
+const conHttps = red && !bandera('http');
+
+async function preguntar() {
+  const rl = (await import('node:readline/promises')).createInterface({ input: process.stdin, output: process.stdout });
+  console.log('\n  PUMP IT UP EXTRA - modo servidor\n  (Enter = lo que esta entre corchetes)\n');
+  const p = (await rl.question(`  1. Puerto [${puerto0}]: `)).trim();
+  if (/^\d{2,5}$/.test(p)) puerto0 = +p;
+  console.log('\n  2. Salon online y ranking:\n     1 = el de ravenlight.net (todos juntos)\n     2 = uno propio de este servidor (solo los que entran aca)');
+  salon = (await rl.question('     [1]: ')).trim() === '2' ? 'propio' : 'ravenlight';
+  console.log('\n  3. Abrirlo tambien a internet? Con un tunel gratis de Cloudflare: te da una direccion https para pasarle a\n     quien quieras, sin tocar el router. Por internet cada jugador pone su propio disco.');
+  tunel = /^s/i.test((await rl.question('     s/n [n]: ')).trim());
+  red = true;
+  rl.close();
 }
+
 // indice del disco en minusculas: el juego pide "bga\00.dat", "AUDIO\01.AUD", "STEP\60_N1.NOT"...
 const indiceDisco = new Map();
 (function recorrer(d, rel) {
@@ -37,41 +64,92 @@ const indiceDisco = new Map();
     if (e.isDirectory()) recorrer(path.join(d, e.name), r); else indiceDisco.set(r.toLowerCase(), path.join(d, e.name));
   }
 })(raizDisco, '');
-const puerto0 = +(process.argv[2] || 8790);
+const hayDisco = indiceDisco.size > 0 && fs.existsSync(path.join(raizVolcados, 'codigo_0x20000.bin'));
+// la carpeta preparar\ de las builds y la web: nombre publicado -> archivo en tools\ (la misma lista usan los armadores)
+const ARCHIVOS_PREPARAR = JSON.parse(fs.readFileSync(path.join(aqui, 'preparar', 'archivos_navegador.json'), 'utf8'));
 
-// ---------- salon online: /online/* va al PHP (app\online\api.php), como en el hosting ----------
-// En la PC se usa el PHP portatil de ravenlight-web. PIU_ONLINE_DATOS cambia la carpeta de datos del salon (pruebas).
-const raizOnline = path.join(aqui, '..', 'app', 'online');
-// (en otra PC o en Linux/Mac: el php que haya instalado; sin PHP el juego anda igual, sin salon local)
-const phpCharles = path.join(aqui, '..', '..', '..', '2_Ravenlight.net', 'ravenlight-web', '_herramientas', 'php', 'php.exe');
-const php = fs.existsSync(phpCharles) ? phpCharles : 'php';
+// ---------- bajar herramientas (PHP en Windows, el tunel de Cloudflare) ----------
+function pedir(url, enArchivo) {
+  return new Promise((ok, mal) => {
+    https.get(url, { headers: { 'User-Agent': 'piu-extra-port' } }, (r) => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) { r.resume(); return pedir(new URL(r.headers.location, url).href, enArchivo).then(ok, mal); }
+      if (r.statusCode !== 200) { r.resume(); return mal(new Error(`${url}: ${r.statusCode}`)); }
+      if (enArchivo) { const f = fs.createWriteStream(enArchivo); r.pipe(f); f.on('finish', () => f.close(() => ok(enArchivo))); f.on('error', mal); }
+      else { const partes = []; r.on('data', (c) => partes.push(c)); r.on('end', () => ok(Buffer.concat(partes))); }
+    }).on('error', mal);
+  });
+}
+const suma = (archivo) => crypto.createHash('sha256').update(fs.readFileSync(archivo)).digest('hex');
+const carpetaNueva = () => { const d = path.join(herramientas, '.bajando-' + crypto.randomBytes(4).toString('hex')); fs.mkdirSync(d, { recursive: true }); return d; };
+
+// ---------- salon online ----------
+// propio: /online/* va al PHP (app\online\api.php), como en el hosting. ravenlight: se le pasan los pedidos al de
+// ravenlight.net (desde aca, asi el hosting no tiene que aceptar pedidos de cualquier pagina).
+const raizOnline = path.join(proyecto, 'app', 'online');
+const phpCharles = path.join(proyecto, '..', '..', '2_Ravenlight.net', 'ravenlight-web', '_herramientas', 'php', 'php.exe');
+const phpPropio = path.join(herramientas, 'php', process.platform === 'win32' ? 'php.exe' : 'php');
+function buscarPhp() {
+  if (fs.existsSync(phpCharles)) return phpCharles;
+  if (fs.existsSync(phpPropio)) return phpPropio;
+  const r = spawnSync(process.platform === 'win32' ? 'where' : 'which', ['php'], { encoding: 'utf8' });
+  return r.status === 0 ? 'php' : null;
+}
+// PHP portatil oficial (windows.php.net) para Windows, con su suma; en Linux/Mac hay que tenerlo instalado
+async function conseguirPhp() {
+  if (process.platform !== 'win32') return null;
+  try {
+    console.log('  Bajando PHP portatil (windows.php.net), una sola vez...');
+    const lista = JSON.parse((await pedir('https://windows.php.net/downloads/releases/releases.json')).toString());
+    const rama = Object.keys(lista).filter((k) => /^8\.\d+$/.test(k)).sort((a, b) => +a.split('.')[1] - +b.split('.')[1]).pop();
+    const clave = Object.keys(lista[rama]).find((k) => /^nts-vs\d+-x64$/.test(k));
+    const zip = lista[rama][clave].zip, tmp = carpetaNueva(), archivo = path.join(tmp, zip.path);
+    await pedir('https://windows.php.net/downloads/releases/' + zip.path, archivo);
+    if (suma(archivo) !== zip.sha256) throw new Error('el PHP bajado no coincide con su suma oficial');
+    const x = spawnSync('powershell', ['-NoProfile', '-Command', `Expand-Archive -LiteralPath '${archivo}' -DestinationPath '${path.join(herramientas, 'php')}' -Force`], { stdio: 'inherit' });
+    fs.rmSync(tmp, { recursive: true, force: true });
+    return x.status === 0 && fs.existsSync(phpPropio) ? phpPropio : null;
+  } catch (e) { console.log('  No pude bajar PHP: ' + e.message); return null; }
+}
+let php = buscarPhp();
+if (salon === null) salon = php ? 'propio' : 'ravenlight';       // JUGAR.cmd: el propio si hay PHP; si no, el de ravenlight.net
+if (salon === 'propio' && !php) php = await conseguirPhp();
+if (salon === 'propio' && !php) { console.log('  Sin PHP no hay salon propio: uso el de ravenlight.net.'); salon = 'ravenlight'; }
 const puertoPhp = puerto0 + 61;
 let procesoPhp = null;
-if (fs.existsSync(raizOnline)) {
+if (salon === 'propio') {
   procesoPhp = spawn(php, ['-S', `127.0.0.1:${puertoPhp}`, '-t', raizOnline], { stdio: 'ignore', windowsHide: true, env: process.env });
-  procesoPhp.on('error', () => { procesoPhp = null; console.log('(sin PHP: el salon online local no anda; el juego si)'); });
-  process.on('exit', () => { try { if (procesoPhp) procesoPhp.kill(); } catch (e) { /* ya cerrado */ } });
-  for (const s of ['SIGINT', 'SIGTERM', 'SIGBREAK']) process.on(s, () => process.exit(0));
+  procesoPhp.on('error', () => { procesoPhp = null; console.log('  (PHP no arranco: el salon local no anda; el juego si)'); });
 }
+const procesos = [];
+process.on('exit', () => { for (const p of [procesoPhp, ...procesos]) try { if (p) p.kill(); } catch (e) { /* ya cerrado */ } });
+for (const s of ['SIGINT', 'SIGTERM', 'SIGBREAK']) process.on(s, () => process.exit(0));
 function alSalon(req, res) {
-  const r = http.request({ host: '127.0.0.1', port: puertoPhp, path: req.url.slice('/online'.length) || '/', method: req.method,
-    headers: { ...req.headers, host: `127.0.0.1:${puertoPhp}` } }, (pr) => {
-    res.writeHead(pr.statusCode, { ...pr.headers, 'Cross-Origin-Resource-Policy': 'same-origin' });
-    pr.pipe(res);
-  });
-  r.on('error', () => { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end('{"error":"no esta el servidor del salon (falta PHP)"}'); });
+  const responder = (pr) => { res.writeHead(pr.statusCode, { 'Content-Type': pr.headers['content-type'] || 'application/json', 'Cache-Control': 'no-store', 'Cross-Origin-Resource-Policy': 'same-origin' }); pr.pipe(res); };
+  const fallo = () => { if (!res.headersSent) { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end('{"error":"no contesta el servidor del salon"}'); } };
+  let r;
+  if (salon === 'ravenlight') {
+    if (!/^\/online\/api\.php(\?|$)/.test(req.url)) { res.writeHead(404); return res.end(); }
+    const h = { 'Content-Type': req.headers['content-type'] || 'application/json' };
+    if (req.headers['content-length']) h['Content-Length'] = req.headers['content-length'];
+    r = https.request('https://ravenlight.net/piu' + req.url, { method: req.method, headers: h }, responder);
+  } else {
+    r = http.request({ host: '127.0.0.1', port: puertoPhp, path: req.url.slice('/online'.length) || '/', method: req.method,
+      headers: { ...req.headers, host: `127.0.0.1:${puertoPhp}` } }, responder);
+  }
+  r.on('error', fallo);
   req.pipe(r);
 }
-const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.csv': 'text/csv; charset=utf-8',
-  '.png': 'image/png', '.mp3': 'audio/mpeg', '.svg': 'image/svg+xml' };
 
+// ---------- archivos ----------
+const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.csv': 'text/csv; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
+  '.png': 'image/png', '.mp3': 'audio/mpeg', '.svg': 'image/svg+xml' };
+const AISLAR = { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp', 'Cross-Origin-Resource-Policy': 'same-origin' };
 function servirArchivo(req, res, ruta) {
   const st = fs.statSync(ruta);
   const tipo = TIPOS[path.extname(ruta).toLowerCase()] || 'application/octet-stream';
   const rango = req.headers.range && /bytes=(\d+)-(\d*)/.exec(req.headers.range);
-  const cab = { 'Content-Type': tipo, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store',
-    'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp', 'Cross-Origin-Resource-Policy': 'same-origin' };
+  const cab = { 'Content-Type': tipo, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store', ...AISLAR };
   if (rango) {
     const ini = +rango[1], fin = rango[2] ? Math.min(+rango[2], st.size - 1) : st.size - 1;
     res.writeHead(206, { ...cab, 'Content-Range': `bytes ${ini}-${fin}/${st.size}`, 'Content-Length': fin - ini + 1 });
@@ -83,49 +161,52 @@ function servirArchivo(req, res, ruta) {
     fs.createReadStream(ruta).pipe(res);
   }
 }
+// los nombres que acepta guardado\canciones\ y su tope (pasos, musica hasta lo que lee la placa, vista previa, portada)
+const GUARDABLES = { '/guardado/eeprom.bin': { exacto: 128 }, '/guardado/opciones.json': { max: 4096 } };
+function topeCancion(n) {
+  const num = '(8[2-9]|9\\d)';
+  if (new RegExp(`^${num}_([nhx][12]|db)\\.not$`).test(n)) return 262144;
+  if (new RegExp(`^d${num}\\.aud$`).test(n)) return 614400;
+  if (new RegExp(`^${num}\\.aud$`).test(n)) return 16777216;   // entera: si pasa la placa (2,6 MB) el juego recibe una recortada
+  if (new RegExp(`^t${num}\\.pnz$`).test(n)) return 2097152;
+  if (n === 'canciones.json') return 65536;
+  return 0;
+}
+function recibir(req, res, tope, exacto, guardar) {
+  const partes = []; let total = 0;
+  req.on('data', (c) => { total += c.length; if (total <= tope) partes.push(c); });
+  req.on('end', () => {
+    if (total === 0 || total > tope || (exacto && total !== exacto)) { res.writeHead(400); return res.end('tamano incorrecto'); }
+    guardar(Buffer.concat(partes));
+    res.writeHead(204, { 'Cross-Origin-Resource-Policy': 'same-origin' }); res.end();
+  });
+}
 
-const servidor = http.createServer((req, res) => {
+function atender(req, res) {
   try {
     const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (url.startsWith('/online/')) return alSalon(req, res);
+    // pruebas del disco propio: PIU_DISCO_PRUEBA = ruta de una imagen, la pagina la toma de aca (?discoDePrueba=...)
+    if (url === '/disco-de-prueba.bin' && process.env.PIU_DISCO_PRUEBA) return servirArchivo(req, res, process.env.PIU_DISCO_PRUEBA);
+    // sin disco: como un servidor sin nada de Andamiro (cada jugador pone su disco: app\port\archivos.js)
+    if ((sinDisco || !hayDisco) && /^\/(disco|volcados|datos)\/|^\/port\/(traducido\.js|game_[a-z]+\.cfg)$/i.test(url)) { res.writeHead(404); return res.end('sin disco'); }
+    // en la red, lo guardado es de esta compu: los demas guardan en su navegador (como en la web)
+    if (red && url.startsWith('/guardado/')) { res.writeHead(404, { 'Cross-Origin-Resource-Policy': 'same-origin' }); return res.end(); }
     if (url in GUARDABLES) {
-      const ruta = path.join(raizGuardado, path.basename(url));
-      if (req.method === 'PUT') {
-        const partes = [];
-        req.on('data', (c) => partes.push(c));
-        req.on('end', () => {
-          const datos = Buffer.concat(partes);
-          const lim = GUARDABLES[url];
-          if (lim.exacto ? datos.length !== lim.exacto : (datos.length === 0 || datos.length > lim.max)) { res.writeHead(400); return res.end('tamano incorrecto'); }
-          fs.mkdirSync(raizGuardado, { recursive: true });
-          fs.writeFileSync(ruta, datos);
-          res.writeHead(204, { 'Cross-Origin-Resource-Policy': 'same-origin' }); res.end();
-        });
-        return;
-      }
+      const ruta = path.join(raizGuardado, path.basename(url)), lim = GUARDABLES[url];
+      if (req.method === 'PUT') return recibir(req, res, lim.exacto || lim.max, lim.exacto, (d) => { fs.mkdirSync(raizGuardado, { recursive: true }); fs.writeFileSync(ruta, d); });
       if (!fs.existsSync(ruta)) { res.writeHead(404, { 'Cross-Origin-Resource-Policy': 'same-origin' }); return res.end('no existe'); }
       return servirArchivo(req, res, ruta);
     }
     // canciones propias del editor (EDITOR_MASTER.md etapa 2): guardado\canciones\, solo estos nombres (numeros 82-99)
-    // y con tope de tamano por tipo; no se puede escribir nada mas
-    // "tu version" de los pasos de una cancion del disco (editor, G): guardado\ediciones\, solo NN_xx.not; el original del
-    // disco nunca se toca
+    // y con tope de tamano por tipo; "tu version" de los pasos de una cancion del disco (editor, G): guardado\ediciones\,
+    // solo NN_xx.not; el original del disco nunca se toca
     if (url.startsWith('/guardado/canciones/') || url.startsWith('/guardado/ediciones/')) {
       const edicion = url.startsWith('/guardado/ediciones/'), n = url.slice(20).toLowerCase();
       const tope = edicion ? (/^\d\d_([nhx][12]|db)\.not$/.test(n) ? 262144 : 0) : topeCancion(n);
       if (!tope) { res.writeHead(404); return res.end('nombre no permitido'); }
       const ruta = path.join(raizGuardado, edicion ? 'ediciones' : 'canciones', n);
-      if (req.method === 'PUT') {
-        const partes = []; let total = 0;
-        req.on('data', (c) => { total += c.length; if (total <= tope) partes.push(c); });
-        req.on('end', () => {
-          if (total === 0 || total > tope) { res.writeHead(400); return res.end('tamano incorrecto'); }
-          fs.mkdirSync(path.dirname(ruta), { recursive: true });
-          fs.writeFileSync(ruta, Buffer.concat(partes));
-          res.writeHead(204, { 'Cross-Origin-Resource-Policy': 'same-origin' }); res.end();
-        });
-        return;
-      }
+      if (req.method === 'PUT') return recibir(req, res, tope, 0, (d) => { fs.mkdirSync(path.dirname(ruta), { recursive: true }); fs.writeFileSync(ruta, d); });
       if (!fs.existsSync(ruta)) { res.writeHead(404, { 'Cross-Origin-Resource-Policy': 'same-origin' }); return res.end('no existe'); }
       return servirArchivo(req, res, ruta);
     }
@@ -133,6 +214,13 @@ const servidor = http.createServer((req, res) => {
       const p = indiceDisco.get(url.slice('/disco/'.length).replace(/\\/g, '/').toLowerCase());
       if (!p) { res.writeHead(404); return res.end('no existe'); }
       return servirArchivo(req, res, p);
+    }
+    // /preparar/: lo que usa el navegador para preparar un disco propio (app\port\instalador.js); en las builds es la
+    // carpeta juego\preparar, aca sale de tools\ (ARCHIVOS_PREPARAR)
+    if (url.startsWith('/preparar/')) {
+      const p = ARCHIVOS_PREPARAR[url.slice('/preparar/'.length)];
+      if (!p) { res.writeHead(404); return res.end('no existe'); }
+      return servirArchivo(req, res, path.join(aqui, p));
     }
     let raiz = raizApp, rel = url === '/' ? 'index.html' : url;
     if (url.endsWith('/')) rel = url + 'index.html';
@@ -143,18 +231,84 @@ const servidor = http.createServer((req, res) => {
     if (!fs.existsSync(ruta) || fs.statSync(ruta).isDirectory()) { res.writeHead(404); return res.end('no existe'); }
     servirArchivo(req, res, ruta);
   } catch (e) { res.writeHead(500); res.end(String(e)); }
-});
-
-function abrir(p) {
-  const url = `http://localhost:${p}/port/`;
-  console.log('Pump It Up Extra en ' + url + '  (el prototipo viejo sigue en http://localhost:' + p + '/)  (cerra esta ventana para apagarlo)');
-  if (!process.env.PIU_NO_ABRIR) exec(process.platform === 'win32' ? `cmd /c start "" "${url}"` : `${process.platform === 'darwin' ? 'open' : 'xdg-open'} "${url}"`);
 }
 
+// ---------- red: direcciones y certificado ----------
+const ipsDeRed = () => Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
+// el certificado queda guardado (asi los celulares no vuelven a avisar cada vez); se rehace si cambian las direcciones
+function certificado() {
+  const d = path.join(raizGuardado, 'servidor'), ips = ['127.0.0.1', ...ipsDeRed()].sort();
+  const f = (n) => path.join(d, n);
+  try {
+    if (fs.readFileSync(f('direcciones.txt'), 'utf8') === ips.join(',')) return { key: fs.readFileSync(f('llave.pem')), cert: fs.readFileSync(f('certificado.pem')) };
+  } catch (e) { /* no hay o cambio */ }
+  const c = certificadoPropio(ips, ['localhost', os.hostname().toLowerCase()]);
+  fs.mkdirSync(d, { recursive: true });
+  fs.writeFileSync(f('llave.pem'), c.llave); fs.writeFileSync(f('certificado.pem'), c.certificado); fs.writeFileSync(f('direcciones.txt'), ips.join(','));
+  return { key: c.llave, cert: c.certificado };
+}
+
+// ---------- tunel de Cloudflare (cloudflared, el programa oficial; "quick tunnel": sin cuenta) ----------
+async function conseguirCloudflared() {
+  const win = process.platform === 'win32', mac = process.platform === 'darwin', arm = process.arch === 'arm64';
+  const nombre = win ? 'cloudflared-windows-amd64.exe' : mac ? `cloudflared-darwin-${arm ? 'arm64' : 'amd64'}.tgz` : `cloudflared-linux-${arm ? 'arm64' : 'amd64'}`;
+  const dest = path.join(herramientas, 'cloudflared', win ? 'cloudflared.exe' : 'cloudflared');
+  if (fs.existsSync(dest)) return dest;
+  console.log('  Bajando el tunel de Cloudflare (github.com/cloudflare/cloudflared), una sola vez...');
+  const ultima = JSON.parse((await pedir('https://api.github.com/repos/cloudflare/cloudflared/releases/latest')).toString());
+  const a = ultima.assets.find((x) => x.name === nombre);
+  if (!a) throw new Error('no encuentro ' + nombre + ' en la ultima version');
+  const tmp = carpetaNueva(), archivo = path.join(tmp, nombre);
+  await pedir(a.browser_download_url, archivo);
+  if (a.digest && a.digest.startsWith('sha256:') && suma(archivo) !== a.digest.slice(7)) throw new Error('el cloudflared bajado no coincide con su suma');
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  if (mac) spawnSync('tar', ['-xzf', archivo, '-C', path.dirname(dest)]); else fs.copyFileSync(archivo, dest);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  if (!win) fs.chmodSync(dest, 0o755);
+  return dest;
+}
+async function abrirTunel(puerto) {
+  try {
+    const cf = await conseguirCloudflared();
+    const p = spawn(cf, ['tunnel', '--no-autoupdate', '--url', `${conHttps ? 'https' : 'http'}://localhost:${puerto}`, ...(conHttps ? ['--no-tls-verify'] : [])], { windowsHide: true });
+    procesos.push(p);
+    let visto = false;
+    const mirar = (d) => {
+      const m = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/.exec(d.toString());
+      if (m && !visto) { visto = true; console.log(`\n  POR INTERNET:     ${m[0]}/port/\n  (pasale esa direccion a quien quieras; cambia cada vez que se abre el servidor)\n`); }
+    };
+    p.stdout.on('data', mirar); p.stderr.on('data', mirar);
+    p.on('exit', (c) => { if (!visto) console.log('  El tunel no arranco (codigo ' + c + '). La red local sigue andando.'); });
+  } catch (e) { console.log('  No pude abrir el tunel: ' + e.message + '. La red local sigue andando.'); }
+}
+
+// ---------- arrancar ----------
+const servidor = conHttps ? https.createServer(certificado(), atender) : http.createServer(atender);
+const esquema = conHttps ? 'https' : 'http';
+function listo(p) {
+  const local = `${esquema}://localhost:${p}/port/`;
+  if (!red) {
+    console.log('Pump It Up Extra en ' + local + '  (cerra esta ventana para apagarlo)');
+  } else {
+    console.log('\n  ===============================================================');
+    console.log('  PUMP IT UP EXTRA - servidor andando');
+    console.log(`  En esta compu:    ${local}`);
+    for (const ip of ipsDeRed()) console.log(`  En la misma wifi: ${esquema}://${ip}:${p}/port/`);
+    console.log(`  Salon online:     ${salon === 'ravenlight' ? 'el de ravenlight.net (todos juntos)' : 'propio de este servidor'}`);
+    console.log(`  Disco:            ${!sinDisco && hayDisco ? 'el de esta compu (los de la wifi no necesitan el suyo)' : 'cada jugador pone el suyo la primera vez'}`);
+    if (conHttps) console.log('  La primera vez cada aparato avisa "la conexion no es privada": tocar\n  "Configuracion avanzada" y despues "Continuar" (el certificado es de este servidor).');
+    console.log('  Si Windows pregunta por el Firewall, tocar "Permitir acceso".');
+    console.log('  Para apagarlo, cerrar esta ventana.');
+    console.log('  ===============================================================\n');
+    if (tunel) abrirTunel(p);
+  }
+  if (!process.env.PIU_NO_ABRIR) exec(process.platform === 'win32' ? `cmd /c start "" "${local}"` : `${process.platform === 'darwin' ? 'open' : 'xdg-open'} "${local}"`);
+}
 let puerto = puerto0;
+const donde = process.env.PIU_ESCUCHAR || (red ? '0.0.0.0' : '127.0.0.1');     // (PIU_ESCUCHAR: pruebas sin abrir la red)
 servidor.on('error', (e) => {
-  if (e.code === 'EADDRINUSE' && puerto < puerto0 + 10) { puerto++; servidor.listen(puerto, '127.0.0.1'); }
+  if (e.code === 'EADDRINUSE' && puerto < puerto0 + 10) { puerto++; servidor.listen(puerto, donde); }
   else { console.error(e.message); process.exit(1); }
 });
-servidor.on('listening', () => abrir(puerto));
-servidor.listen(puerto, '127.0.0.1');
+servidor.on('listening', () => listo(puerto));
+servidor.listen(puerto, donde);

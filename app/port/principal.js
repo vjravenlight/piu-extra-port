@@ -4,6 +4,7 @@ import { GL1 } from '../motor/gl1.js';
 import * as Menu from './online.js';
 import * as T from './tactil.js';
 import * as M from './mando.js';
+import * as Archivos from './archivos.js';
 
 const lienzo = document.getElementById('pantalla');
 const estado = document.getElementById('estado');
@@ -326,15 +327,17 @@ function arrancar(cfg = {}) {
     if (mia !== corrida) return;
     aIniciar = { tipo: 'iniciar', I: sabI, D: sabD, Q: sabQ, leidos: Atomics.load(I, 10), online: cfg.online || null, fondo: modoFondo, solo: !!cfg.solo, atraccion: cfg.atraccion || null, eleccion: !!cfg.eleccion, desbloqueado: !!cfg.desbloqueado, sinCorte: !!cfg.sinCorte, pasos: cfg.pasos || null, paquete: cfg.paquete || null, practica: !!cfg.practica,
       // OPCIONES del menu (online.js op): el fondo de la cancion atenuado o SIN VIDEO
-      fondoBga: (opciones.online || {}).fondo || 0, modsSolo: cfg.modsSolo || null, carrilCentro: (opciones.online || {}).carril === 'centro' && !(cfg.online && !cfg.pasos),   // (en el online, a la derecha va el rival)
-      demo: conf.demo ? conf : null, eeprom: eepromLocal(), anotarEntradas: new URLSearchParams(location.search).has('entradas') };
+      fondoBga: (opciones.online || {}).fondo || 0, modsSolo: cfg.modsSolo || null, modsCancion: !!cfg.modsCancion, carrilCentro: (opciones.online || {}).carril === 'centro' && !(cfg.online && !cfg.pasos),   // (en el online, a la derecha va el rival)
+      demo: conf.demo && !Archivos.propio ? conf : null, eeprom: eepromLocal(), anotarEntradas: new URLSearchParams(location.search).has('entradas'),
+      // disco propio (archivos.js): el hilo pide lo del disco a esta pagina por este canal
+      canal: Archivos.propio ? (canalDisco = canalDisco || Archivos.crearCanal()) : null };
     mandarPendiente();
   });
 }
 // ---------- el hilo del juego: uno solo, que se reusa (trabajador.js, "reinicio") ----------
 // Para cortar un juego se levanta I[13]; el hilo avisa "reiniciado" y recien ahi recibe el proximo "iniciar". Si en
 // 3 s no contesta (trabado en una carga), se cierra y se abre otro, como antes.
-let hilo = null, hiloLibre = false, aIniciar = null, cortarDesde = 0, corriendo = false, cfgActual = {}, corrida = 0, esperandoCorte = false;
+let hilo = null, hiloLibre = false, aIniciar = null, cortarDesde = 0, corriendo = false, cfgActual = {}, corrida = 0, esperandoCorte = false, canalDisco = null;
 function mandarPendiente() {
   if (!aIniciar || !hiloLibre || !hilo) return;
   const m = aIniciar; aIniciar = null; hiloLibre = false;
@@ -342,8 +345,11 @@ function mandarPendiente() {
 }
 function crearHilo() {
   const h = new Worker('./trabajador.js', { type: 'module' });
+  h.onerror = (e) => registrar('ERROR en el hilo del juego: ' + (e.message || 'no cargo trabajador.js') + (e.filename ? ` (${e.filename.split('/').pop()}:${e.lineno})` : ''));
   hiloLibre = true;
   h.onmessage = (e) => {
+    // (antes que nada: el hilo quedo esperando ese archivo, aunque sea de un juego que se esta cortando)
+    if (e.data.tipo === 'leer') { if (!e.data.desde) registrar('disco propio: ' + e.data.ruta); Archivos.servirLectura(canalDisco, e.data); return; }
     if (h !== hilo) return;
     const m = e.data, cfg = cfgActual;
     if (m.tipo === 'reiniciado') { hiloLibre = true; esperandoCorte = false; mandarPendiente(); return; }
@@ -369,6 +375,7 @@ function crearHilo() {
     else if (m.tipo === 'ruleta') Menu.ruletaSolo(m);          // modo solo: la cancion del centro de la seleccion
     else if (m.tipo === 'libre') juegoLibre = m.libre;          // FREE PLAY: sin boton MONEDA en el celular
     else if (m.tipo === 'eleccion') Menu.eleccionHecha(m);     // desafio: la cancion elegida en la seleccion de verdad
+    else if (m.tipo === 'modsCancion') { pararMusica(); Menu.modsCancion(m); }   // solo: los modificadores antes de la cancion
     else if (m.tipo === 'listoOnline') Menu.onlineListo();       // el juego del online cargo: se avisa al salon
     else if (m.tipo === 'eleccionLista') Menu.eleccionLista();   // desafio: la seleccion ya se ve
     else if (m.tipo === 'etapa') { registrar(`etapa: J${m.jugador} cancion ${m.cancion} ${m.modo} ${m.puntaje} puntos, nota ${m.nota}`); Menu.etapaSolo(m); }
@@ -410,13 +417,18 @@ Menu.iniciarMenu({ arrancar, terminar, audio, opciones: () => opcionesListas, gu
   desfase: (ms) => { latencia = Math.max(-0.3, Math.min(0.3, (+ms || 0) / 1000)); }, relojAudio: () => (actx ? relojAudible() : 0),
   // la hora de arranque del online, cuando los dos estan listos (trabajador.js la mira en D[3]); 0 = la de respaldo
   fijarInicio: (ms) => { D[3] = ms > 0 ? ms : 0; },
+  // los modificadores elegidos antes de la cancion (trabajador.js instalarModsPorCancion); null = seguir sin cambiar
+  modsCancion: (opcionesMods, skin) => {
+    if (opcionesMods !== null) { Atomics.store(I, 21, opcionesMods | 0); Atomics.store(I, 22, skin | 0); }
+    Atomics.store(I, 20, opcionesMods === null ? 2 : 1); Atomics.notify(I, 20);
+  },
   pantalla: (m) => { modoPantalla = m === 'estirar' ? 'estirar' : 'original'; ajustar(); },
   teclas: fijarTeclas, volumen: (v) => { volumen = Math.max(0, Math.min(1, +v)); if (ganancia) ganancia.gain.value = volumen; },
   hayCuadros: () => !!trabajador && !modoFondo && performance.now() - ultimoCuadroVisto < 1500 && cuadrosDesdeArranque > 0,
   hayFondo: () => modoFondo && performance.now() - ultimoCuadroFondo < 1000 });
 // detras de los menus corre la pantalla de titulo de verdad; cuando no hay juego andando y se esta en un menu, se prende
 // ('cargando' tambien: el juego tarda unos segundos en llegar a su titulo, mejor que empiece a la par del menu)
-const MENUS = ['cargando', 'menu', 'controles', 'opciones', 'usb', 'teclas', 'avatar', 'mods', 'editor', 'nick', 'sala', 'esperando', 'elegir', 'ranking', 'resultado'];
+const MENUS = ['cargando', 'menu', 'controles', 'opciones', 'usb', 'teclas', 'avatar', 'mods', 'editor', 'nick', 'sala', 'esperando', 'elegir', 'ranking', 'resultado', 'tipo', 'serie', 'torneo', 'crearTorneo'];
 setInterval(() => { if (!trabajador && MENUS.includes(Menu.estadoMenu().pantalla) && !new URLSearchParams(location.search).has('sinfondo')) arrancar({ fondo: true }); }, 500);
 
 // ---------- telemetria: si el juego se cae o se traba, un reporte corto al servidor del salon ----------
@@ -447,11 +459,12 @@ const TECLA_MENU = [{ 1: 'KeyQ', 2: 'KeyE', 4: 'KeyS', 8: 'KeyZ', 16: 'KeyC' }, 
 M.iniciarMandos({
   avisar,
   // (en el online cada uno es el jugador 1 en su PC: el 2.o mando solo cuenta en DOUBLE, que usa los dos pads, o en VERSUS del editor)
-  alPad: (jugador, bit, on) => { audio(); if (trabajador && !modoFondo) anotar(enOnline && !(cfgActual.online.dos || cfgActual.online.modo === 'DOUBLE') ? 0 : jugador, bit, on); else if (on) { const k = TECLA_MENU[jugador][bit]; teclaFalsa(k, true); setTimeout(() => teclaFalsa(k, false), 80); } },
+  alPad: (jugador, bit, on) => { audio(); if (trabajador && !modoFondo && !Menu.panelAbierto()) anotar(enOnline && !(cfgActual.online.dos || cfgActual.online.modo === 'DOUBLE') ? 0 : jugador, bit, on); else if (on) { const k = TECLA_MENU[jugador][bit]; teclaFalsa(k, true); setTimeout(() => teclaFalsa(k, false), 80); } },
   alBoton: (code) => { audio(); teclaFalsa(code, true); setTimeout(() => teclaFalsa(code, false), 80); },
 });
 T.iniciarTactil({
-  alPad: (p, on) => { audio(); if (trabajador && !modoFondo) anotar(p.jugador || 0, p.bit, on); else if (on) teclaFalsa(p.tecla, true); },
+  // (con el juego frenado en un panel del menu, los paneles son del menu: MODIFICADORES antes de la cancion)
+  alPad: (p, on) => { audio(); if (trabajador && !modoFondo && !Menu.panelAbierto()) anotar(p.jugador || 0, p.bit, on); else if (on) teclaFalsa(p.tecla, true); },
   alTecla: (code) => { audio(); teclaFalsa(code, true); setTimeout(() => teclaFalsa(code, false), 120); },
 }).then((si) => {
   if (!si) return;
@@ -498,6 +511,6 @@ function bucle() {
   const ahora = performance.now();
   if (ahora - ultimoSeg >= 1000) { cuadrosSeg = cuadrosRecibidos; cuadrosRecibidos = 0; ultimoSeg = ahora; }
   estado.textContent = `${cuadrosSeg} cuadros/s` + (fin ? '\n' + fin : '') + (ultimos.length ? '\n' + ultimos.join('\n') : '');
-  window.__port = { cuadrosSeg, fin, ultimos, todo, menu: Menu.estadoMenu, arrancar };   // menu: para las pruebas (en que pantalla esta)
+  window.__port = { cuadrosSeg, fin, ultimos, todo, menu: Menu.estadoMenu, arrancar, hilo: () => ({ hay: !!hilo, libre: hiloLibre, pendiente: !!aIniciar, corriendo, esperandoCorte, propio: Archivos.propio }) };   // menu: para las pruebas (en que pantalla esta)
   requestAnimationFrame(bucle);
 }

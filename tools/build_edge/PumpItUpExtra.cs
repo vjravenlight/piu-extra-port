@@ -62,8 +62,15 @@ class Servidor
 
     public void Arrancar()
     {
-        escucha = new TcpListener(IPAddress.Loopback, 0);
-        escucha.Start();
+        // siempre el mismo puerto (el disco propio y las opciones quedan guardados por direccion, puerto incluido); si
+        // esta ocupado, el siguiente; y si no hay ninguno, uno cualquiera
+        escucha = null;
+        for (int p = 47821; p <= 47830 && escucha == null; p++)
+        {
+            try { escucha = new TcpListener(IPAddress.Loopback, p); escucha.Start(); }
+            catch (SocketException) { escucha = null; }
+        }
+        if (escucha == null) { escucha = new TcpListener(IPAddress.Loopback, 0); escucha.Start(); }
         Puerto = ((IPEndPoint)escucha.LocalEndpoint).Port;
         Thread t = new Thread(Aceptar);
         t.IsBackground = true;

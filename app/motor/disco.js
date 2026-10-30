@@ -11,6 +11,29 @@ const bcd = (b) => (b >> 4) * 10 + (b & 15);
 export function lectorDeArchivo(archivo) {
   return { tam: archivo.size, async leer(pos, n) { return new Uint8Array(await archivo.slice(pos, pos + n).arrayBuffer()); } };
 }
+// un .iso (2048 bytes por sector, sin encabezados) visto como sectores crudos de 2352 en modo 1, que es lo que entiende
+// esta clase. Se usa cuando el tamano no es multiplo de 2352 y si de 2048 (o el nombre termina en .iso).
+export const esIso = (nombre, tam) => /\.iso$/i.test(nombre || '') || (tam % SECT !== 0 && tam % 2048 === 0);
+export function lectorDeIso(l) {
+  const n = Math.floor(l.tam / 2048);
+  const aBcd = (v) => ((Math.floor(v / 10) << 4) | (v % 10));
+  return {
+    tam: n * SECT,
+    async leer(pos, cuanto) {
+      const salida = new Uint8Array(cuanto), primero = Math.floor(pos / SECT), ultimo = Math.floor((pos + cuanto - 1) / SECT);
+      const datos = await l.leer(primero * 2048, (ultimo - primero + 1) * 2048);
+      for (let s = primero; s <= ultimo; s++) {
+        const crudo = new Uint8Array(SECT), lba = s + 150;
+        crudo.set([0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0], 0);
+        crudo[12] = aBcd(Math.floor(lba / 4500)); crudo[13] = aBcd(Math.floor(lba / 75) % 60); crudo[14] = aBcd(lba % 75); crudo[15] = 1;
+        crudo.set(datos.subarray((s - primero) * 2048, (s - primero + 1) * 2048), 16);
+        const desde = Math.max(pos, s * SECT), hasta = Math.min(pos + cuanto, (s + 1) * SECT);
+        salida.set(crudo.subarray(desde - s * SECT, hasta - s * SECT), desde - pos);
+      }
+      return salida;
+    },
+  };
+}
 
 export class Disco {
   constructor(lector) {

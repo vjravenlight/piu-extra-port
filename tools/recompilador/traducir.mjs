@@ -1,9 +1,7 @@
 // Traductor x86 -> JavaScript del codigo de Piu.exe. Genera app\port\traducido.js (una funcion JS por funcion x86).
 // Cada funcion: let pc; for(;;) switch(pc) { case <bloque>: ... }. Registros en R[], memoria con r32/w32..., banderas
 // perezosas, FPU x87 y cadenas en app\port\cpu.js. Las llamadas empujan la direccion de retorno como el original.
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+// traducirCodigo() es JavaScript puro: tambien lo usa el navegador para el disco propio (app\port\instalador.js).
 import { Imagen, descubrir, candidatosPuntero } from './cfg.mjs';
 
 const RI = { eax: 0, ecx: 1, edx: 2, ebx: 3, esp: 4, ebp: 5, esi: 6, edi: 7 };
@@ -358,17 +356,16 @@ export function generarFuncion(f) {
   return s;
 }
 
-// ---------- programa ----------
-if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  const base = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-  const vol = path.join(base, 'investigacion', 'volcados');
-  const img = new Imagen(fs.readFileSync(path.join(vol, 'codigo_0x20000.bin')), fs.readFileSync(path.join(vol, 'datos_0x130000.bin')));
+// ---------- todo el programa ----------
+// codigo y datos: los volcados (tools\preparar\exe_le.mjs); funciones: el texto de funciones.txt; extras: el de
+// entradas_extra.json. Devuelve { js, funciones, sinTraducir }.
+export function traducirCodigo(codigo, datos, funciones, extrasTexto, avisar = () => {}) {
+  const img = new Imagen(codigo, datos);
   // donde empieza cada funcion (de la lista 'afl' de radare2; funciones.txt tiene solo las direcciones)
-  const afl = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'funciones.txt'), 'latin1').split(/\r?\n/).filter(l => l.startsWith('0x')).map(l => parseInt(l.split(/\s+/)[0], 16));
+  const afl = funciones.split(/\r?\n/).filter(l => l.startsWith('0x')).map(l => parseInt(l.split(/\s+/)[0], 16));
   const esMesa = (d) => d >= 0x49000 && d < 0xED000;     // provisorio: Mesa no se traduce
   // entradas extra encontradas al correr (punteros que no se descubren solos)
-  const extra = path.join(path.dirname(fileURLToPath(import.meta.url)), 'entradas_extra.json');
-  const extras = fs.existsSync(extra) ? JSON.parse(fs.readFileSync(extra, 'utf8')).map(v => parseInt(v, 16)) : [];
+  const extras = extrasTexto ? JSON.parse(extrasTexto).map(v => parseInt(v, 16)) : [];
   let entradas = [0x10E024, ...afl.filter(d => !esMesa(d)), ...extras];
   let fns = descubrir(img, entradas, new Set(), esMesa);
   for (let vuelta = 0; vuelta < 5; vuelta++) {          // sumar las funciones que solo se usan por puntero
@@ -376,14 +373,27 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     if (!cand.length) break;
     entradas = [...entradas, ...cand];
     fns = descubrir(img, entradas, new Set(), esMesa);
-    console.log(`vuelta ${vuelta + 1}: +${cand.length} punteros a funciones -> ${fns.size} funciones`);
+    avisar(`vuelta ${vuelta + 1}: +${cand.length} punteros a funciones -> ${fns.size} funciones`);
   }
   let js = '// GENERADO por tools\\recompilador\\traducir.mjs a partir de Piu.exe. No editar a mano.\n' +
     "import { R, F, FP, IO, FN, r8, r16, r32, w8, w16, w32, push, pop, fij, add, adc, sub, sbb, logica, inc, dec, neg, shl, shr, sar, rol, ror, rcl, rcr, imul1, imul2, mul1, div1, idiv1, movs, stos, lods, scas, cmps, sahf, lahf, fijarCf, cf, explicitas, pushfd, popfd, pushad, popad, llamar, saltar, fninit, fst, fset, fpush, fpop, fcom, fstsw, redondear, rf32, rf64, rf80, wf32, wf64, wf80, rentero64, wentero64, aEntero, c_o, c_no, c_b, c_ae, c_e, c_ne, c_be, c_a, c_s, c_ns, c_p, c_np, c_l, c_ge, c_le, c_g } from './cpu.js';\n";
   let sinTraducir = 0;
   for (const f of [...fns.values()].sort((p, q) => p.entrada - q.entrada)) { js += generarFuncion(f); sinTraducir += f.sinTraducir || 0; }
-  const salida = process.argv[2] ? path.resolve(process.argv[2]) : path.join(base, 'app', 'port', 'traducido.js');   // (otra salida: para comparar)
-  fs.writeFileSync(salida, js);
-  console.log(`traducidas ${fns.size} funciones -> ${salida} (${(js.length / 1048576).toFixed(1)} MB); instrucciones sin traducir: ${sinTraducir}`);
-  console.log(`banderas: ${estadisticas.sinBanderas} instrucciones sin calcularlas, ${estadisticas.fusionadas} comparaciones fusionadas con su salto (de ${estadisticas.total})`);
+  return { js, funciones: fns.size, sinTraducir };
+}
+
+// ---------- en Node: node traducir.mjs [salida] ----------
+if (typeof process !== 'undefined' && process.argv && process.argv[1]) {
+  const { default: fs } = await import('node:fs'), { default: path } = await import('node:path'), { fileURLToPath } = await import('node:url');
+  if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+    const aqui = path.dirname(fileURLToPath(import.meta.url)), base = path.join(aqui, '..', '..');
+    const vol = path.join(base, 'investigacion', 'volcados');
+    const extra = path.join(aqui, 'entradas_extra.json');
+    const r = traducirCodigo(fs.readFileSync(path.join(vol, 'codigo_0x20000.bin')), fs.readFileSync(path.join(vol, 'datos_0x130000.bin')),
+      fs.readFileSync(path.join(aqui, 'funciones.txt'), 'latin1'), fs.existsSync(extra) ? fs.readFileSync(extra, 'utf8') : '', console.log);
+    const salida = process.argv[2] ? path.resolve(process.argv[2]) : path.join(base, 'app', 'port', 'traducido.js');   // (otra salida: para comparar)
+    fs.writeFileSync(salida, r.js);
+    console.log(`traducidas ${r.funciones} funciones -> ${salida} (${(r.js.length / 1048576).toFixed(1)} MB); instrucciones sin traducir: ${r.sinTraducir}`);
+    console.log(`banderas: ${estadisticas.sinBanderas} instrucciones sin calcularlas, ${estadisticas.fusionadas} comparaciones fusionadas con su salto (de ${estadisticas.total})`);
+  }
 }

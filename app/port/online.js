@@ -5,9 +5,10 @@
 // caratulas TITLE\tNN.pnz. La llave de las caratulas y la musica esta en los datos del exe (0x13BF90, corrida 518).
 // El salon habla con ../online/api.php (app\online). La pagina (principal.js) le presta arrancar/terminar el juego.
 import { abrirPaquete, descifrarPnz, descifrarAudio, leerPasos } from '../motor/cifrados.js';
-import { esTactil } from './tactil.js';
+import { esTactil, vibrarAhora } from './tactil.js';
 import { iniciarEditor, abrirEditor, dibujarEditor, teclaEditor, volverDePrueba, archivoDe } from './editor.js';
 import { revisarPaquete } from './paquete.js';
+import * as Archivos from './archivos.js';
 
 export const CANCIONES = [
   { n: 60, nombre: 'BEETHOVEN VIRUS', modos: ['NORMAL', 'HARD', 'CRAZY', 'DOUBLE'] },
@@ -74,7 +75,8 @@ const VOLCADOS = new URL('../volcados/', location.href).href;
 
 // ---------- recursos del juego ----------
 const R = { listo: false };
-async function traer(url) { const r = await fetch(url); if (!r.ok) throw new Error('falta ' + url); return new Uint8Array(await r.arrayBuffer()); }
+// (del servidor o del disco propio guardado en el navegador: archivos.js)
+const traer = (url) => Archivos.traer(url);
 const imagen = (bytes) => createImageBitmap(new Blob([bytes], { type: 'image/png' }));
 async function paquete(nombre) {
   const p = abrirPaquete(await traer(DISCO + ('bga/' + nombre).toLowerCase()));   // en minuscula: el hosting distingue
@@ -159,11 +161,13 @@ function texto(x, s, px, py, esc = 2, color = 'blanco', centro = false) {
 let J = null;                      // lo que presta principal.js
 let lienzo, x, entrada;            // canvas de la interfaz y el <input> escondido para escribir
 let pantalla = 'cargando', cursor = 0, cursor2 = 0, mensaje = '', mensajeHasta = 0, escribiendo = false;
-const op = { nick: '', controles: 'izquierda', intro: true, demo: true, demoSonido: true, panelesDos: false, desbloqueado: false, sinCorte: false,
+// (30/10, Charles: "que de por si quede todo desbloqueado") desbloqueado: true de fabrica (cargarOpciones lo prende
+// una vez tambien a los que lo tenian guardado en NO; despues cada uno lo cambia en OPCIONES)
+const op = { nick: '', controles: 'izquierda', intro: true, demo: true, demoSonido: true, panelesDos: false, desbloqueado: true, sinCorte: false,
   tamanoPads: 1, vibrar: true, usb: null, desfase: 0, fondo: 0, cuenta: 5, teclas: null, volumen: 1, panelMods: false, pin: '', vistaRival: 'juego', carril: 'lugar', avatar: null, pantalla: 'original',
   mods: { velocidad: 1, vanish: 0, mirror: false, random: false, banda: false, azar: false, skin: 0 } };
 let introVista = false;            // la intro del modo solo, una sola vez por visita
-const sala = { yo: null, jugadores: [], chat: [], desafios: [], partida: null, chatDesde: 0, desfase: 0, sondeo: 0, errores: 0 };
+const sala = { yo: null, jugadores: [], chat: [], desafios: [], partida: null, chatDesde: 0, desfase: 0, sondeo: 0, errores: 0, serie: null, torneo: null };
 let elegido = { cancion: 0, modo: 0, rival: null }, ranking = null, resultado = null, previa = null;
 // modo solo (20/10): nombre, ranking del servidor (api.php solo_*), cancion del centro de la seleccion y etapas jugadas
 let destinoNick = 'online', soloNick = '', rankingSolo = null, ruleta = null, soloEtapas = [], sesionFin = null, paginaRanking = 0;
@@ -199,6 +203,7 @@ async function cargarOpciones() {
   try { Object.assign(op, JSON.parse(localStorage.getItem('piu_online') || '{}')); } catch (e) { /* sin almacenamiento */ }
   const o = await J.opciones();
   if (o && o.online) Object.assign(op, o.online);
+  if (!op.desbloqueadoDeFabrica) { op.desbloqueado = true; op.desbloqueadoDeFabrica = true; guardarOpciones(); }
 }
 function guardarOpciones() {
   try { localStorage.setItem('piu_online', JSON.stringify(op)); } catch (e) { /* sin almacenamiento */ }
@@ -243,7 +248,11 @@ function actualizarSala(e) {
   for (const d of e.desafios) if (!d.mio && d.paquete && !paquetes.has(d.paquete.pq)) bajarPaquete(d);
   // (mejora 11) una del disco: su musica y su video se bajan mientras se espera que acepten
   for (const d of e.desafios) if (!d.paquete) precalentar(d.cancion);
-  if (e.partida && !antes && (pantalla === 'sala' || pantalla === 'esperando' || pantalla === 'elegir')) empezarPartida(e.partida);
+  // (21/10) VERSUS COMPLETO y cruces del TORNEO: entre cancion y cancion se esta en la pantalla de la serie (y al
+  // terminar se ve su resultado una vez)
+  sala.serie = e.serie || null; sala.torneo = e.torneo || null;
+  if (sala.serie && (pantalla === 'sala' || pantalla === 'torneo') && (sala.serie.estado !== 'terminada' || !seriesVistas.has(sala.serie.id))) { pantalla = 'serie'; confirmarSalida = 0; }
+  if (e.partida && !antes && (pantalla === 'sala' || pantalla === 'esperando' || pantalla === 'elegir' || pantalla === 'serie' || pantalla === 'torneo')) empezarPartida(e.partida);
   if (pantalla === 'esperando' && !e.partida && !e.desafios.some(d => d.mio)) { pantalla = 'sala'; avisar('No aceptaron el desafio (o se vencio)'); }
   pruebaAutomatica();
 }
@@ -282,7 +291,7 @@ function empezarPartida(p) {
 // los deja un dia, .htaccess) y cuando arranca la partida el juego los lee de ahi, sin esperar la red.
 const calientes = new Set();
 function precalentar(n) {
-  if (calientes.has(n) || !(n > 0 && n < 82)) return;
+  if (calientes.has(n) || !(n > 0 && n < 82) || Archivos.propio) return;   // (con el disco propio ya esta todo aca)
   calientes.add(n);
   for (const a of [`audio/${nn(n)}.aud`, `bga/${nn(n)}.dat`]) fetch(DISCO + a).then((r) => r.arrayBuffer()).catch(() => calientes.delete(n));
 }
@@ -382,8 +391,9 @@ export function onlineListo() {
   if (!sala.yo || !sala.partida) return;
   api({ accion: 'listo', ...credencial() }).then(actualizarSala).catch(() => {});
 }
-function empezarEleccion(r) {
-  elegido = { rival: r, eleccion: null };
+// tipo: 'una' o 'versus' (desafio nuevo), o 'serie' (la cancion que me toca elegir en una serie ya empezada)
+function empezarEleccion(r, tipo = 'una') {
+  elegido = { rival: r, eleccion: null, tipo, serie: tipo === 'serie' };
   pantalla = 'eligiendo'; eleccionVisible = false;
   J.arrancar({ eleccion: { controles: op.controles }, desbloqueado: op.desbloqueado });
 }
@@ -394,7 +404,7 @@ export function eleccionHecha(m) {
   if (m.cancion >= 82) datosPropia(m.cancion).then((c) => { if (elegido.eleccion) elegido.eleccion.nombre = c.nombre + ' (PROPIA)'; }).catch(() => {});
   J.terminar();
   // si metio codigos en la seleccion, arrancan con esos; si no, con los que uso la ultima vez
-  abrirMods('desafiar', {}, m.opciones || m.skin ? deBits(m.opciones, m.skin) : null);
+  abrirMods(elegido.serie ? 'serie' : 'desafiar', {}, m.opciones || m.skin ? deBits(m.opciones, m.skin) : null);
 }
 // ---------- modificadores: las opciones del jugador [0x1CFB0C] (JUEGO_REGLAS 3.5) y la skin de flechas [0x2AC088] ----------
 const FILAS_MODS = ['velocidad', 'vanish', 'mirror', 'random', 'banda', 'azar', 'skin', 'listo'];
@@ -425,11 +435,18 @@ function cambiarMod(f, paso) {
 function confirmarMods() {
   op.mods = { ...mods }; guardarOpciones();
   if (modsDestino === 'solo') { empezarSolo(op.nick); return; }
+  if (modsDestino === 'cancion') { pantalla = 'oculto'; J.modsCancion(aBits(mods), mods.skin | 0); return; }   // el juego sigue con estos
+  if (modsDestino === 'serie') {          // la cancion de esta ronda de la serie: arranca para los dos
+    const e = elegido.eleccion;
+    pantalla = 'serie';
+    api({ accion: 'serie_elegir', ...credencial(), cancion: e.cancion, modo: e.modo, cmd: e.cmd, banderas: e.banderas, espera: op.cuenta }).then(actualizarSala).catch(er => avisar(er.message, 5));
+    return;
+  }
   if (modsDestino === 'desafiar') {
     const e = elegido.eleccion;
     // una propia primero se sube (subirPropia); despues va el desafio con su paquete
     (e.cancion >= 82 ? subirPropia(e) : Promise.resolve(null))
-      .then((pq) => api({ accion: 'desafiar', ...credencial(), a: elegido.rival.id, cancion: e.cancion, modo: e.modo, cmd: e.cmd, banderas: e.banderas, espera: op.cuenta, ...(pq ? { paquete: pq.pq, meta: pq.meta } : {}) }))
+      .then((pq) => api({ accion: 'desafiar', ...credencial(), a: elegido.rival.id, cancion: e.cancion, modo: e.modo, cmd: e.cmd, banderas: e.banderas, espera: op.cuenta, tipo: elegido.tipo === 'versus' ? 'versus' : 'una', ...(pq ? { paquete: pq.pq, meta: pq.meta } : {}) }))
       .then(r => { actualizarSala(r); pantalla = 'esperando'; }).catch(er => { avisar(er.message, 5); pantalla = 'sala'; });
     pantalla = 'esperando';
   } else {
@@ -452,13 +469,14 @@ function teclaMods(k) {
   else if (k === 'Escape') {
     if (modsDestino === 'aceptar') api({ accion: 'responder', ...credencial(), desafio: modsDatos.desafio.id, acepta: false }).then(actualizarSala).catch(() => {});
     if (modsDestino === 'solo') { pantalla = 'menu'; cursor = 0; return; }
-    pantalla = 'sala';
+    if (modsDestino === 'cancion') { pantalla = 'oculto'; J.modsCancion(null); return; }   // sin cambios: la cancion arranca igual
+    pantalla = modsDestino === 'serie' ? 'serie' : 'sala';
   }
 }
 function dibujarMods(t) {
   caja(80, 26, 480, 428, 0.88);
   texto(x, 'MODIFICADORES', 320, 36, 3, 'amarillo', true);
-  const sub = modsDestino === 'solo' ? `JUGAR SOLO COMO ${op.nick}` : modsDestino === 'desafiar' && elegido.eleccion ? `${elegido.eleccion.nombre || nombreDe(elegido.eleccion.cancion)} - ${elegido.eleccion.modo} - VS ${elegido.rival.nick}`
+  const sub = modsDestino === 'solo' ? `JUGAR SOLO COMO ${op.nick}` : modsDestino === 'cancion' ? `${nombreDe(modsDatos.cancion)} - ${modsDatos.modo}` : (modsDestino === 'desafiar' || modsDestino === 'serie') && elegido.eleccion ? `${elegido.eleccion.nombre || nombreDe(elegido.eleccion.cancion)} - ${elegido.eleccion.modo} - VS ${elegido.rival.nick}`
     : modsDatos.desafio ? `${modsDatos.desafio.nick} TE DESAFIA: ${nombreCon(modsDatos.desafio)} - ${modsDatos.desafio.modo}` : '';
   texto(x, sub.slice(0, 56), 320, 82, 1, 'celeste', true);
   const valor = (f) => f === 'velocidad' ? `X${mods.velocidad}` : f === 'vanish' ? ['NO', 'VANISH', 'SIN FLECHAS'][mods.vanish]
@@ -466,7 +484,7 @@ function dibujarMods(t) {
   FILAS_MODS.forEach((f, i) => {
     const y = 108 + i * 36, sel = i === cursor;
     barra(sel ? 'oro' : 'violeta', 100, y - 6, 440, 30, sel ? 0.85 : 0.3);
-    if (f === 'listo') { texto(x, modsDestino === 'aceptar' ? 'LISTO: ACEPTAR' : modsDestino === 'solo' ? 'LISTO: JUGAR' : 'LISTO: DESAFIAR', 320, y, 2, sel ? 'amarillo' : 'verde', true); return; }
+    if (f === 'listo') { texto(x, modsDestino === 'aceptar' ? 'LISTO: ACEPTAR' : modsDestino === 'solo' || modsDestino === 'serie' || modsDestino === 'cancion' ? 'LISTO: JUGAR' : 'LISTO: DESAFIAR', 320, y, 2, sel ? 'amarillo' : 'verde', true); return; }
     texto(x, NOMBRE_MODS[f], 116, y, 2, sel ? 'amarillo' : 'blanco');
     // (21/10) la skin con su dibujo, no con un numero
     if (f === 'skin' && iconoSkin(mods.skin, 470, y - 4, 26)) { if (sel) { texto(x, '<', 440, y, 2, 'amarillo'); texto(x, '>', 504, y, 2, 'amarillo'); } return; }
@@ -556,7 +574,8 @@ function terminarPartida(m) {
   setTimeout(sondear, 600); setTimeout(sondear, 1600);
 }
 function volverASala() {
-  api({ accion: 'volver', ...credencial() }).then(actualizarSala).catch(() => {});
+  // (con la partida que se deja: en una serie, la siguiente ya puede haber empezado y esa no se toca)
+  api({ accion: 'volver', ...credencial(), ...(sala.partida && sala.partida.id ? { partida: sala.partida.id } : {}) }).then(actualizarSala).catch(() => {});
   sala.partida = null; pantalla = 'sala'; cursor = 0;
 }
 export function abandonar() {   // Esc en medio de la partida
@@ -614,15 +633,18 @@ function tecla(e) {
       else if (k === 'Escape' || k === 'Backspace') api({ accion: 'responder', ...credencial(), desafio: d.id, acepta: false }).then(actualizarSala).catch(() => {});
       return true;
     }
+    // (21/10) la primera fila es el TORNEO; despues, los jugadores
     if (ARRIBA.includes(k)) cursor = Math.max(0, cursor - 1);
-    else if (ABAJO.includes(k)) cursor = Math.min(Math.max(0, otros.length - 1), cursor + 1);
+    else if (ABAJO.includes(k)) cursor = Math.min(otros.length, cursor + 1);
     else if (k === 'KeyT' || k === 'Tab') { escribiendo = true; entrada.value = ''; entrada.maxLength = 120; entrada.focus(); }
     else if (k === 'KeyR') { pantalla = 'ranking'; pedirRanking(); }
     else if (OK.includes(k)) {
-      const r = otros[cursor];
+      if (cursor === 0) { pantalla = 'torneo'; cursorT = 0; return true; }
+      const r = otros[cursor - 1];
       if (!r) avisar('Todavia no hay nadie mas en la sala');
-      else if (r.estado !== 'sala') { if (r.partida) empezarMirar(r); else avisar(`${r.nick} esta jugando`); }   // (mejora 17) mirar su partida
-      else empezarEleccion(r);
+      else if (r.estado !== 'sala') { if (r.partida) empezarMirar(r); else avisar(`${r.nick} ${r.estado === 'serie' ? 'esta en una serie' : 'esta jugando'}`); }   // (mejora 17) mirar su partida
+      else if (r.torneo || (sala.torneo && sala.torneo.vivo)) avisar('Durante el torneo no hay desafios sueltos');
+      else { elegido = { rival: r }; cursorTipo = 0; pantalla = 'tipo'; }      // UNA CANCION o VERSUS COMPLETO
     } else if (k === 'Escape') { api({ accion: 'salir', ...credencial() }).catch(() => {}); sala.yo = null; pantalla = 'menu'; cursor = 1; }
     return true;
   }
@@ -639,6 +661,7 @@ function tecla(e) {
     return true;
   }
   if (pantalla === 'mods') { teclaMods(k); return true; }
+  if (pantalla === 'tipo' || pantalla === 'serie' || pantalla === 'torneo' || pantalla === 'crearTorneo') { teclaSerieTorneo(k); return true; }
   if (pantalla === 'calibrar') { teclaCalibrar(k, e); return true; }
   if (pantalla === 'teclas') { teclaTeclas(e); return true; }
   if (pantalla === 'avatar') { teclaAvatar(k); return true; }
@@ -673,14 +696,14 @@ function elegirOpcion() {
     else if (f === 'pin') { if (!op.nick) { avisar('Primero elegi tu nombre'); return; } destinoNick = 'pin'; pantalla = 'nick'; entrada.value = ''; entrada.maxLength = 8; entrada.focus(); return; }
     else if (f === 'paneles') { op.panelesDos = !op.panelesDos; J.paneles(op.panelesDos); }
     else if (f === 'tamano') { op.tamanoPads = TAMANOS[(TAMANOS.indexOf(op.tamanoPads) + 1) % TAMANOS.length] || 1; J.tactil.tamano(op.tamanoPads); }
-    else if (f === 'vibrar') { op.vibrar = !op.vibrar; J.tactil.vibrar(op.vibrar); if (op.vibrar && navigator.vibrate) navigator.vibrate(30); }
+    else if (f === 'vibrar') { op.vibrar = !op.vibrar; J.tactil.vibrar(op.vibrar); if (op.vibrar) vibrarAhora(30); }
     else if (f === 'usb') { abrirUsb(); return; }
     else if (f === 'calibrar') { abrirCalibrar(); return; }
     else if (f === 'teclas') { abrirTeclas(); return; }
     else if (f === 'volumen') { op.volumen = Math.round(op.volumen * 10) >= 10 ? 0 : Math.min(1, Math.round(op.volumen * 10 + 1) / 10); J.volumen(op.volumen); }
     else if (f === 'fondo') op.fondo = FONDOS[(FONDOS.indexOf(op.fondo) + 1) % FONDOS.length];
     else if (f === 'cuenta') op.cuenta = CUENTAS[(CUENTAS.indexOf(op.cuenta) + 1) % CUENTAS.length];
-    else if (f === 'panelmods') op.panelMods = !op.panelMods;
+    else if (f === 'panelmods') op.panelMods = { no: 'inicio', inicio: 'cancion', cancion: false }[modoMods()];
     else if (f === 'carril') op.carril = op.carril === 'centro' ? 'lugar' : 'centro';
     else if (f === 'rival') op.vistaRival = { juego: 'datos', datos: 'no', no: 'juego' }[op.vistaRival] || 'datos';
     else if (f === 'intro') op.intro = !op.intro;
@@ -728,7 +751,7 @@ const AYUDA_OPCIONES = { sincorte: 'EN SOLO, LA CANCION NO SE CORTA CON 50 MISS 
   fondo: 'EL VIDEO DE LA CANCION: MAS OSCURO, O SOLO SU CARATULA (ALIVIA AL APARATO)',
   teclas: 'ELEGIR LA TECLA DE CADA PANEL, JUGADOR 1 Y 2 (CENTRO = EMPEZAR)',
   pantalla: '4:3 COMO LA CABINA (A LOS COSTADOS, EL JUEGO BORROSO) O ESTIRADO A TODO EL MONITOR',
-  panelmods: 'EN SOLO, ANTES DE JUGAR: VELOCIDAD, VANISH, MIRROR, SKIN... (EN VEZ DE LOS CODIGOS)',
+  panelmods: 'EN SOLO: VELOCIDAD, VANISH, MIRROR, SKIN... AL EMPEZAR, O DESPUES DE ELEGIR CADA CANCION',
   rival: 'EN EL ONLINE: SUS FLECHAS Y LO QUE PISA, SOLO SU PUNTAJE, O NADA',
   carril: 'JUGANDO DE A UNO: LAS FLECHAS EN EL MEDIO DE LA PANTALLA (NO EN EL ONLINE)',
   volumen: 'LA MUSICA DEL JUEGO (CENTRO O IZQ/DER = CAMBIAR)',
@@ -904,15 +927,27 @@ function cancelarTexto() {
 }
 // ---------- modo solo con ranking ----------
 // con PANEL DE MODIFICADORES (OPCIONES, 21/10) primero se eligen; si no, directo a jugar
-function jugarSolo() { if (op.panelMods) abrirMods('solo'); else empezarSolo(op.nick); }
+// OPCIONES > MODIFICADORES (21/10 y 30/10): NO (los codigos del juego), AL EMPEZAR (una vez, antes de jugar solo) o EN
+// CADA CANCION (despues de elegirla en la seleccion, antes de que arranque: trabajador.js instalarModsPorCancion).
+// (antes era SI/NO: el SI de entonces es AL EMPEZAR)
+const modoMods = () => (op.panelMods === true ? 'inicio' : ['inicio', 'cancion'].includes(op.panelMods) ? op.panelMods : 'no');
+const NOMBRE_MODO_MODS = { no: 'NO', inicio: 'AL EMPEZAR', cancion: 'EN CADA CANCION' };
+function jugarSolo() { if (modoMods() === 'inicio') abrirMods('solo'); else empezarSolo(op.nick); }
 function empezarSolo(nick) {
   soloNick = nick; ruleta = null; soloEtapas = []; sesionFin = null;
   pantalla = 'oculto';
   api({ accion: 'ranking' }).then(r => { ranking = r; rankingSolo = r.solo; }).catch(() => {});
   J.arrancar({ solo: { nick }, desbloqueado: op.desbloqueado, sinCorte: op.sinCorte, atraccion: { intro: op.intro && !introVista, demo: op.demo, sonido: op.demoSonido },
-    modsSolo: op.panelMods ? { opciones: aBits(op.mods), skin: op.mods.skin | 0 } : null });
+    modsSolo: modoMods() === 'inicio' ? { opciones: aBits(op.mods), skin: op.mods.skin | 0 } : null, modsCancion: modoMods() === 'cancion' });
   introVista = true;
 }
+// el juego (modo solo, EN CADA CANCION) confirmo una cancion y espera: el panel, con los codigos que haya metido en la
+// seleccion o, si no metio ninguno, los de la ultima vez
+export function modsCancion(m) {
+  abrirMods('cancion', { cancion: m.cancion, modo: modoDe(m.banderas) }, m.opciones || m.skin ? deBits(m.opciones, m.skin) : null);
+}
+// el juego esta frenado esperando un panel del menu: los paneles tactiles y los mandos van al menu (principal.js)
+export const panelAbierto = () => pantalla === 'mods' && modsDestino === 'cancion';
 const nickJugador = (j) => (j === 2 ? soloNick.slice(0, 13) + ' 2P' : soloNick);   // el 2.o jugador, con el numerico
 // lo llama principal.js con lo que avisa el juego (trabajador.js, seguirSolo)
 export function ruletaSolo(m) { ruleta = m.cancion ? m : null; }
@@ -996,8 +1031,12 @@ function dibujar() {
     else if (pantalla === 'teclas') dibujarTeclas(t);
     else if (pantalla === 'avatar') dibujarElegirAvatar(t);
     else if (pantalla === 'mirando') dibujarMirando(t);
+    else if (pantalla === 'tipo') dibujarTipo(t);
+    else if (pantalla === 'serie') dibujarSerie(t);
+    else if (pantalla === 'torneo') dibujarTorneo(t);
+    else if (pantalla === 'crearTorneo') dibujarCrearTorneo(t);
     x.restore();
-    if (pantalla === 'sala' || pantalla === 'esperando' || pantalla === 'elegir' || pantalla === 'ranking' || pantalla === 'mods' || pantalla === 'resultado') nieve(0.35);
+    if (['sala', 'esperando', 'elegir', 'ranking', 'mods', 'resultado', 'tipo', 'serie', 'torneo', 'crearTorneo'].includes(pantalla)) nieve(0.35);
   }
   if (mensaje && performance.now() < mensajeHasta) {
     x.fillStyle = 'rgba(0,0,0,.8)'; x.fillRect(0, 444, 640, 30);
@@ -1078,7 +1117,7 @@ function dibujarMenu(t, vivo) {
     : pantalla === 'opciones' ? FILAS_OPCIONES.map((f) => ({ nombre: `TU NOMBRE: ${op.nick || '-'}`, pin: `CLAVE DEL NOMBRE: ${op.pin ? 'PUESTA' : 'SIN CLAVE'}`, avatar: `AVATAR: ${op.avatar ? 'ELEGIDO' : 'NINGUNO'}`, controles: `CONTROLES: ${CORTO_CONTROLES[op.controles]}`, paneles: `PANELES: ${op.panelesDos ? 'DOS' : 'UNO'}`,
       tamano: `TAMANO DE PANELES: ${Math.round(op.tamanoPads * 100)}%`, vibrar: `VIBRAR AL PISAR: ${si(op.vibrar)}`,
       usb: `MANDO USB: ${op.usb ? 'APRENDIDO' : 'COMUN'}${J.mando.hay().length ? ' (CONECTADO)' : ''}`, calibrar: `CALIBRAR: ${op.desfase > 0 ? '+' : ''}${op.desfase} MS`,
-      fondo: `FONDO: ${nombreFondo(op.fondo)}`, cuenta: `CUENTA DEL ONLINE: ${op.cuenta} S`, panelmods: `PANEL DE MODIFICADORES: ${si(op.panelMods)}`,
+      fondo: `FONDO: ${nombreFondo(op.fondo)}`, cuenta: `CUENTA DEL ONLINE: ${op.cuenta} S`, panelmods: `MODIFICADORES: ${NOMBRE_MODO_MODS[modoMods()]}`,
       carril: `FLECHAS DE UNO SOLO: ${op.carril === 'centro' ? 'AL CENTRO' : 'EN SU LUGAR'}`,
       rival: `RIVAL EN PANTALLA: ${{ juego: 'COMO EL JUEGO', datos: 'SOLO DATOS', no: 'NO' }[op.vistaRival] || 'COMO EL JUEGO'}`,
       teclas: `TECLAS: ${op.teclas ? 'PROPIAS' : 'DE FABRICA'}`, pantalla: `PANTALLA: ${op.pantalla === 'estirar' ? 'ESTIRAR' : '4:3 ORIGINAL'}`, volumen: `VOLUMEN: ${Math.round(op.volumen * 100)}%`,
@@ -1120,13 +1159,18 @@ function dibujarSala(t) {
   caja(16, 62, 250, 340);
   texto(x, 'JUGADORES', 28, 70, 2, 'celeste');
   const otros = sala.jugadores.filter(j => j.id !== sala.yo.id);
-  if (!otros.length) texto(x, 'ESPERANDO A ALGUIEN...', 28, 108, 1, 'gris');
-  otros.slice(0, 9).forEach((j, i) => {
-    const y = 104 + i * 32, sel = i === cursor;
+  // (21/10) la primera fila: el TORNEO (armarlo, anotarse o ver las llaves)
+  const to = sala.torneo;
+  barra(cursor === 0 ? 'oro' : 'violeta', 20, 98, 242, 30, cursor === 0 ? 0.9 : 0.55);
+  texto(x, 'MODO TORNEO', 30, 105, 1.5, cursor === 0 ? 'amarillo' : 'blanco');
+  texto(x, !to ? 'ARMAR' : to.estado === 'anotando' ? `${to.anotados.length} ANOT.` : to.estado === 'jugando' ? 'EN JUEGO' : 'TERMINO', 178, 108, 1, !to ? 'gris' : to.estado === 'anotando' ? 'verde' : 'celeste');
+  if (!otros.length) texto(x, 'ESPERANDO A ALGUIEN...', 28, 140, 1, 'gris');
+  otros.slice(0, 8).forEach((j, i) => {
+    const y = 136 + i * 32, sel = i + 1 === cursor;
     barra(sel ? 'oro' : j.estado === 'sala' ? 'azul' : 'rojo', 20, y - 6, 242, 30, sel ? 0.9 : 0.55);
     const conAvatar = dibujarAvatar(j.avatar, 24, y - 3, 26);
     texto(x, j.nick.slice(0, conAvatar ? 8 : 10), conAvatar ? 54 : 32, y, 2, 'blanco');
-    texto(x, j.estado === 'sala' ? 'LIBRE' : sel && j.partida ? 'MIRAR' : 'JUGANDO', 194, y + 4, 1, j.estado === 'sala' ? 'verde' : 'rojo');
+    texto(x, j.estado === 'sala' ? (j.torneo ? 'TORNEO' : 'LIBRE') : sel && j.partida ? 'MIRAR' : j.estado === 'serie' ? 'SERIE' : 'JUGANDO', 194, y + 4, 1, j.estado === 'sala' ? 'verde' : 'rojo');
   });
   // chat
   caja(278, 62, 346, 340);
@@ -1145,7 +1189,7 @@ function dibujarSala(t) {
     caja(80, 150, 480, 150, 0.85);
     const d = sala.desafios.find(d => d.mio);
     texto(x, 'ESPERANDO QUE ACEPTE', 320, 170, 2, 'amarillo', true);
-    if (d) { texto(x, d.nick, 320, 210, 3, 'celeste', true); texto(x, `${nombreCon(d)} - ${d.modo}`, 320, 256, 1, 'blanco', true); }
+    if (d) { texto(x, d.nick, 320, 210, 3, 'celeste', true); texto(x, `${nombreCon(d)} - ${d.modo}${d.tipo === 'versus' ? ' - VERSUS COMPLETO' : ''}`, 320, 256, 1, 'blanco', true); }
     else if (subida) texto(x, `SUBIENDO TU CANCION ${Math.round(subida.progreso * 100)}%`, 320, 230, 2, 'celeste', true);
     texto(x, 'ESC = CANCELAR', 320, 280, 1, 'gris', true);
   }
@@ -1154,7 +1198,7 @@ function dibujarSala(t) {
 function dibujarDesafio(d, t) {
   caja(60, 110, 520, 270, 0.92);
   cartel(x, 'BATTLE', 320, 145, 300);
-  texto(x, `${d.nick} TE DESAFIA`, 320, 182, 2, 'amarillo', true);
+  texto(x, d.tipo === 'versus' ? `${d.nick}: VERSUS COMPLETO (4 CANCIONES, 2 CADA UNO)` : `${d.nick} TE DESAFIA`, 320, 182, d.tipo === 'versus' ? 1 : 2, 'amarillo', true);
   const portada = portadaDe(d.cancion, d.paquete);
   if (portada) x.drawImage(portada, 90, 212, 160, 120);
   texto(x, nombreCon(d).slice(0, 18), 270, 232, 2, 'blanco'); cartel(x, d.modo, 410, 290, 200);
@@ -1162,6 +1206,174 @@ function dibujarDesafio(d, t) {
   const est = d.paquete && paquetes.get(d.paquete.pq);
   if (d.paquete) texto(x, !est || est.estado === 'bajando' ? `CANCION PROPIA: RECIBIENDO ${Math.round((est ? est.progreso : 0) * 100)}%` : est.estado === 'listo' ? 'CANCION PROPIA: RECIBIDA Y REVISADA' : 'NO PASO LA REVISION: ' + est.error.toUpperCase().slice(0, 30), 320, 334, 1, !est || est.estado === 'bajando' ? 'celeste' : est.estado === 'listo' ? 'verde' : 'rojo', true);
   texto(x, 'ENTER = ACEPTAR    ESC = NO', 320, 350, 2, Math.floor(t * 3) % 2 ? 'celeste' : 'blanco', true);
+}
+// ---------- VERSUS COMPLETO y TORNEO (Charles 21/10: "modo una cancion y modo versus completo donde los dos eligen dos
+// cada uno, y un modo torneo donde la gente se apunta, se le asigna un orden y asi hasta que quede uno") ----------
+// El salon (api.php) lleva las series: cada ronda la elige uno (el que desafio, el otro, y asi) y gana el que suma mas.
+// Los cruces del torneo tambien son series (de una cancion o versus completo). Entre cancion y cancion: pantalla 'serie'.
+const seriesVistas = new Set();          // las terminadas cuyo resultado ya se vio
+let confirmarSalida = 0, cursorTipo = 0, cursorT = 0, cursorC = 2;
+const crear = { orden: 0, formato: 0 };
+const ORDENES = ['ranking', 'azar', 'llegada'], NOMBRE_ORDEN = { ranking: 'POR RANKING', azar: 'AL AZAR', llegada: 'POR LLEGADA' };
+const FORMATOS = ['una', 'versus'], NOMBRE_FORMATO = { una: 'UNA CANCION', versus: 'VERSUS COMPLETO (4)' };
+const pedirSala = (cuerpo) => api({ ...cuerpo, ...credencial(), chatDesde: sala.chatDesde }).then(actualizarSala).catch(er => avisar(er.message, 4));
+function salirSerie() {
+  if (sala.serie) seriesVistas.add(sala.serie.id);
+  pedirSala({ accion: 'serie_salir' });
+  sala.serie = null; pantalla = 'sala'; cursor = 0;
+}
+function filasTorneo() {
+  const t = sala.torneo;
+  if (!t || t.estado === 'terminado') return ['armar', 'volver'];
+  if (t.estado === 'anotando') return [t.anotado ? 'desanotarme' : 'anotarme', ...(t.soyCreador ? ['empezar'] : []), 'volver'];
+  return [...(t.vivo ? ['abandonar'] : []), 'volver'];
+}
+function teclaSerieTorneo(k) {
+  const sube = ARRIBA.includes(k), baja = ABAJO.includes(k);
+  const izq = ['ArrowLeft', 'KeyZ', 'KeyM', 'Numpad1'].includes(k), der = ['ArrowRight', 'KeyC', 'Period', 'Numpad3'].includes(k);
+  if (pantalla === 'tipo') {
+    if (sube || baja || izq || der) cursorTipo = 1 - cursorTipo;
+    else if (OK.includes(k)) empezarEleccion(elegido.rival, cursorTipo ? 'versus' : 'una');
+    else if (k === 'Escape') pantalla = 'sala';
+    return;
+  }
+  if (pantalla === 'serie') {
+    const s = sala.serie;
+    if (!s) { pantalla = 'sala'; return; }
+    if (s.estado === 'terminada') { if (OK.includes(k) || k === 'Escape') salirSerie(); return; }
+    if (OK.includes(k) && s.meToca) {
+      if (!s.rivalListo) avisar(`Espera que ${s.rival} vuelva del resultado`);
+      else empezarEleccion({ id: s.rivalId, nick: s.rival }, 'serie');
+    } else if (k === 'Escape') {
+      if (performance.now() - confirmarSalida < 3000) salirSerie();
+      else { confirmarSalida = performance.now(); avisar('ESC otra vez = abandonar (gana el otro)', 3); }
+    }
+    return;
+  }
+  if (pantalla === 'crearTorneo') {
+    if (sube) cursorC = (cursorC + 2) % 3; else if (baja) cursorC = (cursorC + 1) % 3;
+    else if ((izq || der || OK.includes(k)) && cursorC === 0) crear.orden = (crear.orden + (izq ? 2 : 1)) % 3;
+    else if ((izq || der || OK.includes(k)) && cursorC === 1) crear.formato = 1 - crear.formato;
+    else if (OK.includes(k)) { pedirSala({ accion: 'torneo_crear', orden: ORDENES[crear.orden], formato: FORMATOS[crear.formato] }); pantalla = 'torneo'; cursorT = 0; }
+    else if (k === 'Escape') pantalla = 'torneo';
+    return;
+  }
+  // torneo
+  const filas = filasTorneo();
+  if (sube) cursorT = (cursorT + filas.length - 1) % filas.length;
+  else if (baja) cursorT = (cursorT + 1) % filas.length;
+  else if (k === 'Escape') { pantalla = 'sala'; cursor = 0; }
+  else if (OK.includes(k)) {
+    const f = filas[Math.min(cursorT, filas.length - 1)];
+    if (f === 'volver') { pantalla = 'sala'; cursor = 0; }
+    else if (f === 'armar') { pantalla = 'crearTorneo'; cursorC = 2; }
+    else if (f === 'anotarme') pedirSala({ accion: 'torneo_anotarse' });
+    else if (f === 'desanotarme') pedirSala({ accion: 'torneo_salir' });
+    else if (f === 'empezar') pedirSala({ accion: 'torneo_empezar' });
+    else if (f === 'abandonar') {
+      if (performance.now() - confirmarSalida < 3000) { pedirSala({ accion: 'torneo_salir' }); confirmarSalida = 0; }
+      else { confirmarSalida = performance.now(); avisar('ENTER otra vez = salir del torneo', 3); }
+    }
+  }
+}
+function dibujarTipo(t) {
+  caja(70, 90, 500, 300, 0.9);
+  texto(x, `DESAFIO A ${elegido.rival.nick}`, 320, 104, 2, 'amarillo', true);
+  const opciones = [['UNA CANCION', 'ELEGIS VOS LA CANCION', 'GANA EL QUE HACE MAS PUNTOS'], ['VERSUS COMPLETO', '4 CANCIONES: CADA UNO ELIGE 2', 'SE SUMAN LOS PUNTOS DE LAS 4']];
+  opciones.forEach(([nombre, l1, l2], i) => {
+    const y = 150 + i * 100, sel = i === cursorTipo;
+    barra(sel ? 'oro' : 'violeta', 100, y - 8, 440, 84, sel ? 0.85 : 0.35);
+    texto(x, nombre, 320, y, 3, sel ? 'amarillo' : 'blanco', true);
+    texto(x, l1, 320, y + 38, 1, 'celeste', true); texto(x, l2, 320, y + 54, 1, 'gris', true);
+  });
+  texto(x, esTactil ? 'ARRIBA/ABAJO = ELEGIR   CENTRO = SEGUIR   ATRAS = VOLVER' : 'FLECHAS = ELEGIR   ENTER = SEGUIR   ESC = VOLVER', 320, 366, 1, 'gris', true);
+}
+function dibujarSerie(t) {
+  const s = sala.serie; if (!s) return;
+  caja(30, 20, 580, 420, 0.88);
+  texto(x, s.torneo ? 'TORNEO' : 'VERSUS COMPLETO', 320, 30, 3, 'amarillo', true);
+  texto(x, `${s.yo}  VS  ${s.rival}`, 320, 70, 2, 'celeste', true);
+  // una fila por cancion: quien la eligio, cual y los puntos de cada uno
+  for (let i = 0; i < s.rondas; i++) {
+    const h = s.historial[i], y = 104 + i * 40, actual = i === s.ronda - 1 && s.estado !== 'terminada';
+    barra(actual ? 'oro' : h ? 'azul' : 'violeta', 44, y - 6, 552, 32, actual ? 0.8 : 0.4);
+    texto(x, `${i + 1}`, 56, y, 2, 'amarillo');
+    if (h) {
+      texto(x, `${nombreDe(h.cancion)} ${h.modo}`.slice(0, 28), 84, y, 1, 'blanco');
+      texto(x, h.mia ? 'LA ELEGISTE VOS' : `LA ELIGIO ${s.rival}`.slice(0, 28), 84, y + 14, 1, 'gris');
+      texto(x, String(h.yo), 470, y + 4, 1, h.yo >= h.rival ? 'verde' : 'blanco');
+      texto(x, String(h.rival), 540, y + 4, 1, h.rival > h.yo ? 'rojo' : 'gris');
+    } else texto(x, actual ? (s.meToca ? 'TE TOCA ELEGIR' : `ELIGE ${s.rival}`) : '-', 84, y + 4, 1, actual ? 'celeste' : 'gris');
+  }
+  // totales con los numeros cromados
+  const yt = 104 + s.rondas * 40 + 6;
+  texto(x, 'TOTAL', 84, yt + 10, 2, 'amarillo');
+  numerosCromo(String(s.totales.yo).padStart(7, '0'), 400, yt, 30);
+  numerosCromo(String(s.totales.rival).padStart(7, '0'), 600, yt, 30);
+  texto(x, 'VOS', 330, yt + 34, 1, 'celeste'); texto(x, s.rival.slice(0, 10), 530, yt + 34, 1, 'rojo');
+  const parpadeo = Math.floor(t * 3) % 2;
+  if (s.estado === 'terminada') {
+    x.drawImage(s.gane ? R.gano : R.perdio, 0, s.gane ? 51 : 63, 256, s.gane ? 153 : 129, 250, 330, 140, s.gane ? 84 : 70);
+    texto(x, esTactil ? 'CENTRO = VOLVER AL SALON' : 'ENTER = VOLVER AL SALON', 320, 420, 1, 'gris', true);
+  } else if (s.estado === 'eligiendo' && s.meToca) {
+    texto(x, s.rivalListo ? (esTactil ? 'CENTRO = ELEGIR LA CANCION' : 'ENTER = ELEGIR LA CANCION') : `ESPERANDO QUE ${s.rival} VUELVA DEL RESULTADO`, 320, 392, 2, parpadeo ? 'amarillo' : 'blanco', true);
+    texto(x, esTactil ? 'ATRAS DOS VECES = ABANDONAR' : 'ESC DOS VECES = ABANDONAR', 320, 420, 1, 'gris', true);
+  } else {
+    texto(x, s.estado === 'eligiendo' ? `ESPERANDO QUE ${s.rival} ELIJA${'...'.slice(0, 1 + Math.floor(t * 2.5) % 3)}` : 'ARRANCANDO...', 320, 392, 2, 'celeste', true);
+    texto(x, esTactil ? 'ATRAS DOS VECES = ABANDONAR' : 'ESC DOS VECES = ABANDONAR', 320, 420, 1, 'gris', true);
+  }
+}
+function dibujarTorneo(t) {
+  const to = sala.torneo, filas = filasTorneo();
+  caja(16, 14, 608, 452, 0.88);
+  texto(x, 'TORNEO', 320, 22, 3, 'amarillo', true);
+  if (!to) texto(x, 'NO HAY NINGUN TORNEO ARMADO', 320, 120, 2, 'blanco', true);
+  else {
+    texto(x, `${NOMBRE_FORMATO[to.formato]} POR CRUCE - LLAVES ${NOMBRE_ORDEN[to.orden]} - ARMO ${to.creador}`.slice(0, 74), 320, 58, 1, 'celeste', true);
+    if (to.estado === 'anotando') {
+      texto(x, `ANOTADOS: ${to.anotados.length}`, 320, 82, 2, 'blanco', true);
+      to.anotados.slice(0, 16).forEach((n, i) => texto(x, n, i < 8 ? 120 : 340, 112 + (i % 8) * 24, 2, n === (sala.yo && sala.yo.nick) ? 'amarillo' : 'blanco'));
+    } else dibujarLlaves(to, t);
+    if (to.estado === 'terminado' && to.campeon) {
+      barra('oro', 120, 330, 400, 40, 0.9);
+      texto(x, `CAMPEON: ${to.campeon}`, 320, 340, 2, Math.floor(t * 3) % 2 ? 'amarillo' : 'blanco', true);
+    }
+  }
+  const nombres = { armar: 'ARMAR UN TORNEO', volver: 'VOLVER AL SALON', anotarme: 'ANOTARME', desanotarme: to && to.soyCreador ? 'CANCELAR EL TORNEO' : 'SALIR DE LA LISTA', empezar: 'EMPEZAR EL TORNEO', abandonar: 'SALIR DEL TORNEO' };
+  filas.forEach((f, i) => {
+    const y = 380 + i * 26 - (filas.length - 2) * 13, sel = i === Math.min(cursorT, filas.length - 1);
+    barra(sel ? 'oro' : 'violeta', 200, y - 5, 240, 24, sel ? 0.85 : 0.35);
+    texto(x, nombres[f], 320, y, 1, sel ? 'amarillo' : 'blanco', true);
+  });
+}
+// las llaves: una columna por ronda, cada cruce con sus dos nombres (el que paso en amarillo, el que se jugando titila)
+function dibujarLlaves(to, t) {
+  const rondas = to.rondas, total = Math.max(1, Math.round(Math.log2(Math.max(2, (rondas[0] || []).length * 2))));
+  const ancho = 588 / total, alto = 240;
+  for (let r = 0; r < rondas.length; r++) {
+    const cruces = rondas[r], paso = alto / cruces.length;
+    cruces.forEach((m, i) => {
+      if (m.a === null && m.b === null) return;
+      const x0 = 26 + r * ancho, y0 = 80 + i * paso + paso / 2 - 17;
+      x.fillStyle = m.jugando ? `rgba(255,210,63,${0.15 + 0.15 * (Math.floor(t * 3) % 2)})` : 'rgba(255,255,255,0.06)';
+      x.fillRect(x0, y0, ancho - 10, 34);
+      const nombre = (n, y) => { if (n === null) { texto(x, '-', x0 + 4, y, 1, 'gris'); return; } texto(x, n.slice(0, Math.floor((ancho - 18) / 8)), x0 + 4, y, 1, m.ganador ? (m.ganador === n ? 'amarillo' : 'gris') : 'blanco'); };
+      nombre(m.a, y0 + 3); nombre(m.b, y0 + 18);
+    });
+  }
+}
+function dibujarCrearTorneo(t) {
+  caja(80, 90, 480, 300, 0.9);
+  texto(x, 'ARMAR UN TORNEO', 320, 104, 3, 'amarillo', true);
+  const filas = [['LLAVES', NOMBRE_ORDEN[ORDENES[crear.orden]], 'EL ORDEN DE LOS CRUCES (LOS MEJORES SE CRUZAN AL FINAL)'], ['CADA CRUCE', NOMBRE_FORMATO[FORMATOS[crear.formato]], 'UNA CANCION, O CUATRO (CADA UNO ELIGE DOS)'], ['ARMARLO', '', 'DESPUES LA GENTE SE ANOTA Y VOS LO EMPEZAS']];
+  filas.forEach(([n, v, ayuda], i) => {
+    const y = 160 + i * 64, sel = i === cursorC;
+    barra(sel ? 'oro' : 'violeta', 100, y - 8, 440, 50, sel ? 0.85 : 0.35);
+    if (v) { texto(x, n, 116, y, 2, sel ? 'amarillo' : 'blanco'); texto(x, v, 524 - v.length * 8, y + 4, 1, 'celeste'); }
+    else texto(x, n, 320, y, 2, sel ? 'amarillo' : 'verde', true);
+    texto(x, ayuda, 320, y + 24, 1, 'gris', true);
+  });
+  texto(x, esTactil ? 'ARRIBA/ABAJO = MOVER   IZQ/DER = CAMBIAR   ATRAS = VOLVER' : 'FLECHAS = MOVER Y CAMBIAR   ENTER = ARMAR   ESC = VOLVER', 320, 368, 1, 'gris', true);
 }
 function dibujarElegir(t) {
   texto(x, `DESAFIO A ${elegido.rival.nick}`, 320, 14, 2, 'amarillo', true);
@@ -1201,6 +1413,8 @@ function dibujarResultado(t) {
   const termino = r && r.terminado;
   caja(30, 30, 580, 400, 0.75);
   texto(x, 'RESULTADO', 320, 44, 3, 'amarillo', true);
+  // en una serie: en que cancion va y como viene la suma (la de esta cancion entra cuando terminan los dos)
+  if (sala.serie && sala.serie.rondas > 1) texto(x, `CANCION ${sala.serie.historial.length || sala.serie.ronda} DE ${sala.serie.rondas} - SUMA ${sala.serie.totales.yo} A ${sala.serie.totales.rival}`, 320, 78, 1, 'celeste', true);
   const fila = (nick, m, y, color) => {
     barra(color, 44, y - 8, 420, 92, 0.45);
     texto(x, nick, 60, y, 2, 'celeste');
@@ -1601,7 +1815,7 @@ export async function iniciarMenu(juego) {
 // la pagina avisa que el juego (modo solo) se cerro: volver al menu
 export function juegoCerrado() {
   if (pantalla === 'probando') { practicaActual = null; pantalla = 'editor'; volverDePrueba(); return; }   // Esc en la prueba del editor
-  if (pantalla === 'eligiendo') { pantalla = 'sala'; return; }     // Esc en la seleccion del desafio: vuelve al salon
+  if (pantalla === 'eligiendo') { pantalla = elegido.serie ? 'serie' : 'sala'; return; }     // Esc en la seleccion del desafio: vuelve al salon (o a la serie)
   if (pantalla === 'oculto') { sesionSolo(); pantalla = 'menu'; cursor = 0; ruleta = null; }   // ATRAS: al menu principal
 }
-export const estadoMenu = () => ({ pantalla, ruleta, sala: { yo: sala.yo && sala.yo.nick, jugadores: sala.jugadores.length, partida: !!sala.partida }, resultado });
+export const estadoMenu = () => ({ pantalla, ruleta, sala: { yo: sala.yo && sala.yo.nick, jugadores: sala.jugadores.length, partida: !!sala.partida, serie: sala.serie, torneo: sala.torneo }, resultado });
