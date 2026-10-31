@@ -1,9 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Pump It Up Extra para Android: el juego en GeckoView, servido por la app desde http://127.0.0.1 (usesCleartextTraffic).
-     INTERNET: ranking y online del hosting. VIBRATE: los paneles vibran al pisar (OPCIONES). -->
+<!-- Pump It Up Extra para Android: el juego servido por la app desde http://127.0.0.1 (usesCleartextTraffic), en una
+     pestaña de Chrome si hay (Juego.java, 30/10: 60 cuadros parejos) o en GeckoView si no.
+     INTERNET: ranking y online del hosting. VIBRATE: los paneles vibran al pisar (OPCIONES).
+     FOREGROUND_SERVICE: Sosten.java mantiene vivo el servidor mientras Chrome esta encima. queries: encontrar Chrome. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <queries>
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+    </queries>
     <application
         android:label="Pump It Up Extra"
         android:icon="@mipmap/icono"
@@ -11,10 +20,11 @@
         android:hardwareAccelerated="true"
         android:largeHeap="true"
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <!-- singleTop (no singleTask): al volver por el icono, la pestaña de Chrome de arriba queda como estaba -->
         <activity
             android:name=".Juego"
             android:exported="true"
-            android:launchMode="singleTask"
+            android:launchMode="singleTop"
             android:screenOrientation="fullUser"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density">
             <intent-filter>
@@ -22,5 +32,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".Sosten"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Sirve el juego (127.0.0.1) a la pestaña de Chrome mientras se juega" />
+        </service>
     </application>
 </manifest>

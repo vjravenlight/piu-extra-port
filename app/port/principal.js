@@ -22,7 +22,11 @@ for (let i = 0; i < 14; i++) cajaLuces.appendChild(document.createElement('i'));
 // de cada lado (Charles, 19/10: con 1,3 pegado a la izquierda "no se ve centrado"). 1,1 es lo maximo sin cortar la
 // primera columna de flechas del jugador 1, que arranca a 36 px del borde de los 640. En los menus se ve entero.
 let gl = null, escala = 1, jugandoEnVertical = false, zoomJuego = 1;
+// (30/10, Charles: "en vertical quiero poder hacer zoom in o zoom out hasta ajustar") jugando en vertical, dos dedos
+// sobre la imagen la acercan o la alejan, de 1 (entera) a 1,5; queda guardado en este aparato. De fabrica, 1,1
 const ZOOM_VERTICAL = 1.1;
+let zoomVertical = ZOOM_VERTICAL;
+try { const z = parseFloat(localStorage.getItem('piu_zoom_vertical')); if (z >= 1 && z <= 1.5) zoomVertical = z; } catch (e) { /* sin almacenamiento */ }
 // (21/10, "que todo se adapte bien a la resolucion, 4:3, 16:9 o las que fueren") en PC el cuadro se achica tambien por
 // debajo de 640 x 480 (antes, en una ventana chica, se cortaba); con PANTALLA: ESTIRAR ocupa toda la ventana. A los
 // costados de una pantalla ancha va una copia borrosa del juego (fondoLados), como en el celular.
@@ -39,7 +43,7 @@ function ajustar() {
   if (!T.esTactil && modoPantalla === 'estirar') { w = vw; h = vh; }
   else if (!T.esTactil) { const k = Math.min(vw / 640, vh / 480); w = 640 * k; h = 480 * k; }
   else if (vh > vw) {
-    zoom = jugandoEnVertical ? ZOOM_VERTICAL : 1;
+    zoom = jugandoEnVertical ? zoomVertical : 1;
     w = vw * zoom; h = w * 0.75;
     if (h > vh * 0.6) { h = vh * 0.6; w = h * 4 / 3; zoom = Math.max(1, w / vw); }
   }
@@ -53,6 +57,32 @@ function ajustar() {
 }
 ajustar();
 addEventListener('resize', ajustar);
+// el pellizco: solo con dos dedos sobre la imagen del juego (los paneles estan abajo y no cuentan)
+const dedos = new Map();
+let pellizco = null;
+const distancia = () => { const [a, b] = [...dedos.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]); };
+addEventListener('pointerdown', (e) => {
+  if (!T.esTactil || !jugandoEnVertical || e.pointerType !== 'touch') return;
+  const r = capas[0].getBoundingClientRect();
+  if (e.clientY < r.top || e.clientY > r.bottom) return;
+  dedos.set(e.pointerId, [e.clientX, e.clientY]);
+  if (dedos.size === 2) pellizco = { d: Math.max(20, distancia()), z: zoomVertical };
+});
+addEventListener('pointermove', (e) => {
+  if (!dedos.has(e.pointerId)) return;
+  dedos.set(e.pointerId, [e.clientX, e.clientY]);
+  if (!pellizco || dedos.size !== 2) return;
+  const z = Math.round(Math.max(1, Math.min(1.5, pellizco.z * distancia() / pellizco.d)) * 100) / 100;
+  if (z !== zoomVertical) { zoomVertical = z; ajustar(); }
+});
+const levantarDedo = (e) => {
+  if (!dedos.delete(e.pointerId) || !pellizco || dedos.size >= 2) return;
+  pellizco = null;
+  try { localStorage.setItem('piu_zoom_vertical', String(zoomVertical)); } catch (er) { /* sin almacenamiento */ }
+  avisar(`ZOOM ${Math.round(zoomVertical * 100)}% (DOS DEDOS SOBRE EL JUEGO)`);
+};
+addEventListener('pointerup', levantarDedo);
+addEventListener('pointercancel', levantarDedo);
 
 // ---------- memoria compartida ----------
 if (!crossOriginIsolated) { estado.textContent = 'Falta el aislamiento (COOP/COEP): abrilo con JUGAR.cmd'; throw new Error('sin crossOriginIsolated'); }

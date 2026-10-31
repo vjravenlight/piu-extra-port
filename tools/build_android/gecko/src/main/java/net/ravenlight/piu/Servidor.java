@@ -42,9 +42,17 @@ class Servidor extends Thread {
             // cada 5 s, los cuadros por segundo y la pantalla al registro del telefono (adb logcat | GeckoConsole): para medir
             + "setInterval(function(){if(window.__port){var t=(window.__port.ultimos||[]).filter(function(l){return /tiron/.test(l);}).slice(-2).join(' | ');"
             + "fetch('/medida?c='+window.__port.cuadrosSeg+'&p='+window.__port.menu().pantalla+(t?'&t='+encodeURIComponent(t):'')).catch(function(){});}},5000);"
-            + "window.piuBuild={android:true,salir:function(){fetch('/salir').catch(function(){});},pantallaCompleta:function(){},estaCompleta:function(){return true;},"
+            // (30/10, Charles: "arreglalo") en la pestaña de Chrome (Juego.java) la pantalla completa es la de la pagina
+            // (el primer toque la prende y el siguiente la recupera). Atras: con pantalla completa la saca Chrome; sin ella
+            // vuelve en el historial, y eso hace de Esc como en GeckoView (en el menu principal cierra la app)
+            + "var enChrome=/Chrome\\//.test(navigator.userAgent);"
+            + "function esc(){dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}));setTimeout(function(){dispatchEvent(new KeyboardEvent('keyup',{code:'Escape',key:'Escape',bubbles:true}));},80);}"
+            + "if(enChrome){history.pushState({piu:1},'');addEventListener('popstate',function(){history.pushState({piu:1},'');esc();});}"
+            + "window.piuBuild={android:true,chrome:enChrome,salir:function(){fetch('/salir').catch(function(){});},"
+            + "pantallaCompleta:function(si){if(!enChrome)return;try{if(si&&!document.fullscreenElement)document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(function(){});}catch(e){}},"
+            + "estaCompleta:function(){return enChrome?!!document.fullscreenElement:true;},"
             // (30/10) vibrar: el motor de Firefox ya no tiene navigator.vibrate; lo hace el telefono (/vibrar)
-            + "vibrar:function(ms){fetch('/vibrar?ms='+(ms|0)).catch(function(){});}};})();</script>";
+            + "vibrar:function(ms){if(enChrome&&navigator.vibrate){navigator.vibrate(ms|0);return;}fetch('/vibrar?ms='+(ms|0)).catch(function(){});}};})();</script>";
     // el vibrador del telefono (lo pone Juego): los paneles vibran al pisar (OPCIONES > VIBRAR AL PISAR)
     android.os.Vibrator vibrador;
     private static final Pattern EDICION = Pattern.compile("^[0-9]{2}_([nhx][12]|db)\\.not$");

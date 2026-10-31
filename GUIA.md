@@ -147,6 +147,8 @@ En la misma wifi: https://192.168.0.10:8790/port/
 
 - En **OPCIONES** se cambian tu nombre y su clave (se escribe dos veces; anotala, porque no se puede recuperar), se cierra la sesión, se elige con qué jugás (JUEGO CON), las teclas, alfombras y joysticks USB (MANDO USB), el desfase del sonido (CALIBRAR), el volumen, el fondo y más.
 - En el celular aparecen los paneles en pantalla.
+- En el celular en vertical, mientras jugás, poné dos dedos sobre la imagen del juego para acercarla o alejarla (de 100 a 150 %). Queda guardado.
+- La APK abre el juego en una pestaña de Chrome si el celular lo tiene, porque así anda a 60 cuadros parejos. Si no lo tiene, usa su propio motor. La música arranca con el primer toque.
 
 ---
 

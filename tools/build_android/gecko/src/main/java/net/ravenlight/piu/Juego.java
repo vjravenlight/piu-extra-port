@@ -32,15 +32,78 @@ public class Juego extends Activity {
     private static GeckoRuntime motor;              // uno solo por proceso (Gecko no deja crear otro)
     private GeckoView vista;
     private GeckoSession sesion;
-    private Servidor servidor;
+    // el servidor es uno por proceso: con Chrome encima esta ventana queda detras y el servidor tiene que seguir andando
+    private static Servidor servidor;
+    private static Juego actual;
+    // (30/10, Charles: "arreglalo") medido en el Nubia con SurfaceFlinger: GeckoView entrega 52-54 cuadros por segundo
+    // con saltos (38-43 en el menu) y Chrome 60 parejos. Si hay un navegador de Chrome (o hecho con su motor), el juego
+    // se abre en una pestaña suya a pantalla completa, servido igual desde la app; si no, en GeckoView como antes.
+    private boolean conChrome = false, chromeEncima = false, reabrir = false;
+    private String url;
 
     @Override
     protected void onCreate(Bundle estado) {
         super.onCreate(estado);
+        actual = this;
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        servidor = new Servidor(getAssets(), getFilesDir(), new Runnable() { public void run() { runOnUiThread(new Runnable() { public void run() { finishAndRemoveTask(); } }); } });
-        servidor.vibrador = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
-        servidor.start();
+        if (servidor == null) {
+            servidor = new Servidor(getAssets(), getFilesDir(), new Runnable() { public void run() { final Juego j = actual; if (j != null) j.runOnUiThread(new Runnable() { public void run() { j.cerrar(); } }); } });
+            servidor.vibrador = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+            servidor.start();
+        }
+        url = "http://127.0.0.1:" + servidor.puerto() + "/port/";
+        String chrome = buscarChrome();
+        if (chrome != null) {
+            conChrome = true;
+            setContentView(new View(this));
+            getWindow().getDecorView().setBackgroundColor(0xFF000000);
+            Sosten.prender(this);
+            abrirEnChrome(chrome);
+            return;
+        }
+        usarGecko();
+    }
+
+    // los navegadores con el motor de Chrome que abren pestañas para otra app (Custom Tabs); Firefox no (es Gecko)
+    private static final String[] CHROMES = { "com.android.chrome", "com.chrome.beta", "com.chrome.dev", "com.sec.android.app.sbrowser", "com.microsoft.emmx", "com.brave.browser" };
+    private String buscarChrome() {
+        try {
+            java.util.List<android.content.pm.ResolveInfo> l = getPackageManager().queryIntentServices(new Intent("android.support.customtabs.action.CustomTabsService"), 0);
+            for (String p : CHROMES) for (android.content.pm.ResolveInfo r : l) if (r.serviceInfo != null && p.equals(r.serviceInfo.packageName)) return p;
+        } catch (Exception e) { Log.w("PIU", "sin lista de navegadores: " + e); }
+        return null;
+    }
+
+    private void abrirEnChrome(String paquete) {
+        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(paquete);
+        Bundle b = new Bundle();
+        b.putBinder("android.support.customtabs.extra.SESSION", null);     // esto la hace pestaña de la app (Custom Tab)
+        i.putExtras(b);
+        i.putExtra("android.support.customtabs.extra.TOOLBAR_COLOR", 0xFF000000);
+        i.putExtra("android.support.customtabs.extra.TITLE_VISIBILITY", 0);
+        i.putExtra("android.support.customtabs.extra.ENABLE_URLBAR_HIDING", true);
+        i.putExtra("androidx.browser.customtabs.extra.SHARE_STATE", 2);
+        i.putExtra("org.chromium.chrome.browser.customtabs.EXTRA_DISABLE_DOWNLOAD_BUTTON", true);
+        i.putExtra("org.chromium.chrome.browser.customtabs.EXTRA_DISABLE_STAR_BUTTON", true);
+        Log.w("PIU", "abriendo " + url + " en " + paquete);
+        try { startActivity(i); }
+        catch (Exception e) { Log.w("PIU", "Chrome no abrio: " + e); conChrome = false; Sosten.apagar(this); usarGecko(); }
+    }
+
+    // SALIR (o Atras en el menu principal): se cierra todo, la pestaña de Chrome incluida (esta en la misma tarea)
+    void cerrar() {
+        Sosten.apagar(this);
+        if (servidor != null) { servidor.parar(); servidor = null; }
+        finishAndRemoveTask();
+    }
+
+    @Override
+    protected void onNewIntent(Intent i) { super.onNewIntent(i); if (conChrome) reabrir = true; }
+
+    @Override
+    protected void onStop() { super.onStop(); if (conChrome) chromeEncima = true; }
+
+    private void usarGecko() {
         if (motor == null) {
             GeckoRuntimeSettings.Builder ajustes = new GeckoRuntimeSettings.Builder()
                     .consoleOutput(true)                       // la consola de la pagina al registro (adb logcat)
@@ -72,7 +135,6 @@ public class Juego extends Activity {
         vista.setSession(sesion);
         setContentView(vista);
         pantallaCompleta();
-        String url = "http://127.0.0.1:" + servidor.puerto() + "/port/";
         Log.w("PIU", "abriendo " + url);
         sesion.loadUri(url);
     }
@@ -135,6 +197,7 @@ public class Juego extends Activity {
     @Override
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
+        if (vista == null) { cerrar(); return; }
         long t = android.os.SystemClock.uptimeMillis();
         vista.dispatchKeyEvent(new KeyEvent(t, t, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE, 0));
         vista.dispatchKeyEvent(new KeyEvent(t, t + 80, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ESCAPE, 0));
@@ -144,8 +207,22 @@ public class Juego extends Activity {
     protected void onPause() { super.onPause(); if (sesion != null) sesion.setActive(false); }
 
     @Override
-    protected void onResume() { super.onResume(); if (sesion != null) sesion.setActive(true); pantallaCompleta(); }
+    protected void onResume() {
+        super.onResume();
+        actual = this;
+        if (sesion != null) sesion.setActive(true);
+        pantallaCompleta();
+        // con Chrome: si se volvio a esta ventana es porque la pestaña se cerro (Atras de mas). Tocando el icono otra vez
+        // (onNewIntent) se abre de nuevo; si no, se cierra la app
+        if (conChrome && reabrir) { reabrir = false; chromeEncima = false; String p = buscarChrome(); if (p != null) abrirEnChrome(p); }
+        else if (conChrome && chromeEncima) cerrar();
+    }
 
     @Override
-    protected void onDestroy() { if (sesion != null) sesion.close(); if (servidor != null) servidor.parar(); super.onDestroy(); }
+    protected void onDestroy() {
+        if (sesion != null) sesion.close();
+        if (!conChrome && servidor != null) { servidor.parar(); servidor = null; }
+        if (actual == this) actual = null;
+        super.onDestroy();
+    }
 }

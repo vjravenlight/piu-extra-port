@@ -38,7 +38,7 @@ export function vibrarAhora(ms) {
     else if (navigator.vibrate) navigator.vibrate(ms);
   } catch (e) { /* sin vibrador */ }
 }
-let capa, fondos = [], botones = [], imagenes = null, alPad = () => {}, alTecla = () => {};
+let capa, fondos = [], marcos = [], botones = [], imagenes = null, alPad = () => {}, alTecla = () => {};
 const apretados = new Map();   // puntero -> id del pad que pisa
 const estadoPad = {};          // id -> apretado
 
@@ -70,11 +70,17 @@ function crear() {
   capa = document.createElement('div');
   capa.id = 'tactil';
   capa.style.cssText = 'position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none;pointer-events:none;';
-  // dos fondos (abajo, o izquierda y derecha) con el video del juego estirado y borroso
+  // dos fondos (abajo, o izquierda y derecha) con el video del juego estirado y borroso. (30/10, Charles: "se come un
+  // poco el costado y esta un borde difuminado") cada uno va adentro de un marco que lo corta justo en el borde del
+  // juego (antes se pasaba 24 px por encima), con un degradé oscuro que arranca en ese borde
   for (let i = 0; i < 2; i++) {
+    const m = document.createElement('div');
+    m.style.cssText = 'position:absolute;overflow:hidden;pointer-events:none;';
     const f = document.createElement('canvas'); f.width = 160; f.height = 120;
-    f.style.cssText = 'position:absolute;filter:blur(10px) brightness(.55) saturate(1.3);pointer-events:none;';
-    capa.appendChild(f); fondos.push(f);
+    f.style.cssText = 'position:absolute;left:-24px;top:-24px;width:calc(100% + 48px);height:calc(100% + 48px);filter:blur(10px) brightness(.55) saturate(1.3);pointer-events:none;';
+    const d = document.createElement('div');
+    d.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+    m.append(f, d); capa.appendChild(m); fondos.push(f); marcos.push(m);
   }
   for (const p of PADS) for (const lado of [0, 1]) {
     if (!p.centro && lado === 1) continue;   // el centro va repetido en los dos costados (horizontal)
@@ -140,6 +146,14 @@ function tocar(e) {
 }
 function soltar(e) { if (!apretados.has(e.pointerId)) return; apretados.delete(e.pointerId); actualizarPads(); }
 
+// un fondo borroso en su lugar (x, y, w, h = el espacio que deja el juego); hacia = de que lado esta el juego, para
+// el degradé ('der', 'izq' o 'arriba')
+function fondo(i, x, y, w, h, hacia) {
+  const m = marcos[i];
+  Object.assign(m.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px', display: w > 8 && h > 8 ? '' : 'none' });
+  const dir = { der: 'to right', izq: 'to left', arriba: 'to top' }[hacia];
+  m.lastChild.style.background = `linear-gradient(${dir}, rgba(0,0,0,0) 45%, rgba(0,0,0,.6))`;
+}
 // ubica todo segun el cuadro del juego (rect, en px de la ventana) y la orientacion
 export function ubicar(rect, vw, vh) {
   ultimoLugar = [rect, vw, vh];
@@ -148,13 +162,11 @@ export function ubicar(rect, vw, vh) {
   for (const p of PADS2) p.lienzo.style.display = 'none';
   if (dos) return ubicarDos(rect, vw, vh, vertical);
   const pon = (el, x, y, t) => { el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.width = el.style.height = t + 'px'; el.style.display = ''; };
-  // el fondo borroso se pasa 24 px de cada lado: si no, el desenfoque deja bordes oscuros
-  const fondo = (f, x, y, w, h) => Object.assign(f.style, { left: (x - 24) + 'px', top: (y - 24) + 'px', width: (w + 48) + 'px', height: (h + 48) + 'px', display: w > 8 && h > 8 ? '' : 'none' });
   capa.style.overflow = 'hidden';
   if (vertical) {
     const top = rect.y + rect.h, alto = vh - top, ancho = vw;
-    fondo(fondos[0], 0, top, vw, alto);
-    fondos[1].style.display = 'none';
+    fondo(0, 0, top, vw, alto, 'arriba');
+    marcos[1].style.display = 'none';
     // cruz en el espacio de abajo, juntos como los paneles de la cabina, arrimados al juego. 20/10 (Charles: "estan un
     // poco separados, mas grandes y mas juntos"): ~15 % mas grandes y los centros a 0,75 del tamano (antes 0,9):
     // en diagonal quedan pegados sin pisarse (la zona de toque es un circulo de 0,52)
@@ -167,8 +179,8 @@ export function ubicar(rect, vw, vh) {
     botones[2].style.left = (vw - 100) + 'px'; botones[2].style.top = (vh - 40) + 'px';
   } else {
     const izq = rect.x, der = vw - rect.x - rect.w;
-    fondo(fondos[0], 0, 0, izq, vh);
-    fondo(fondos[1], rect.x + rect.w, 0, der, vh);
+    fondo(0, 0, 0, izq, vh, 'der');
+    fondo(1, rect.x + rect.w, 0, der, vh, 'izq');
     // si los costados son angostos (tablet casi 4:3), los paneles se apoyan sobre el borde del juego
     // (20/10: mas grandes y las de arriba y abajo lo mas cerca del centro que se puede sin que las zonas de toque se
     // pisen: el centro esta corrido 0,55 del tamano hacia adentro, asi que van a 0,8 de alto de el; mas adentro taparia la
@@ -193,12 +205,11 @@ export function ubicar(rect, vw, vh) {
 // costado (en un celular acostado quedan chicas: es para tablets)
 function ubicarDos(rect, vw, vh, vertical) {
   const pon = (el, x, y, t) => { el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.width = el.style.height = t + 'px'; el.style.display = ''; };
-  const fondo = (f, x, y, w, h) => Object.assign(f.style, { left: (x - 24) + 'px', top: (y - 24) + 'px', width: (w + 48) + 'px', height: (h + 48) + 'px', display: w > 8 && h > 8 ? '' : 'none' });
   const pos = { ui: [-1, -1], ud: [1, -1], c: [0, 0], di: [-1, 1], dd: [1, 1] };
   const cruz = (lista, cx, cy, t) => { const paso = t * 0.75; for (const p of lista) { const [i, j] = pos[p.base]; pon(p.lienzo, cx + i * paso - t / 2, cy + j * paso - t / 2, t); if (p.lienzo2) p.lienzo2.style.display = 'none'; } };
   if (vertical) {
     const top = rect.y + rect.h, alto = vh - top;
-    fondo(fondos[0], 0, top, vw, alto); fondos[1].style.display = 'none';
+    fondo(0, 0, top, vw, alto, 'arriba'); marcos[1].style.display = 'none';
     const t = Math.min(vw / 5.2, (alto - 52) / 2.55, 160) * tamano, cy = top + 44 + t * 0.75 + t / 2 + Math.max(0, (alto - 44 - 2.5 * t) * 0.25);
     cruz(PADS, vw * 0.25, cy, t); cruz(PADS2, vw * 0.75, cy, t);
     botones[0].style.left = '10px'; botones[0].style.top = (top + 8) + 'px';
@@ -206,7 +217,7 @@ function ubicarDos(rect, vw, vh, vertical) {
     botones[2].style.left = (vw - 100) + 'px'; botones[2].style.top = (vh - 40) + 'px';
   } else {
     const izq = rect.x, der = vw - rect.x - rect.w;
-    fondo(fondos[0], 0, 0, izq, vh); fondo(fondos[1], rect.x + rect.w, 0, der, vh);
+    fondo(0, 0, 0, izq, vh, 'der'); fondo(1, rect.x + rect.w, 0, der, vh, 'izq');
     const lado = Math.min(izq, der), t = Math.max(40, Math.min(lado / 2.55, (vh - 92) / 2.5)) * tamano;
     cruz(PADS, izq / 2, vh / 2, t); cruz(PADS2, vw - der / 2, vh / 2, t);
     botones[0].style.left = '8px'; botones[0].style.top = '8px';
@@ -218,7 +229,7 @@ function ubicarDos(rect, vw, vh, vertical) {
 // copia el cuadro actual (juego o menu) a los fondos borrosos
 export function pintarFondo(fuente) {
   if (!capa || !fuente || !fuente.width) return;
-  for (const f of fondos) if (f.style.display !== 'none') { try { f.getContext('2d').drawImage(fuente, 0, 0, f.width, f.height); } catch (e) { /* sin cuadro */ } }
+  for (let i = 0; i < fondos.length; i++) if (marcos[i].style.display !== 'none') { const f = fondos[i]; try { f.getContext('2d').drawImage(fuente, 0, 0, f.width, f.height); } catch (e) { /* sin cuadro */ } }
 }
 // que botones extra se ven: CHAT solo en el salon, MONEDA solo jugando solo
 export function mostrarBotones({ chat, moneda }) {
