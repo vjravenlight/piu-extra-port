@@ -10,7 +10,7 @@
   if (pant === 'nick' && R.n % 2 === 0) { const i = document.getElementById('escribir'); i.value = 'Ana'; i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true })); }
   else if (pant === 'menu' && R.n % 3 === 0) { tecla('ArrowDown'); setTimeout(() => tecla('Enter'), 400); }
   else if (R.fase === 'sala' && pant === 'sala' && to && to.estado === 'jugando' && R.n >= 3) { tecla('Enter'); R.fase = 'torneo'; R.n = 0; }
-  else if (R.fase === 'torneo' && pant === 'torneo' && R.n >= 5) { tecla('Escape'); R.fase = 'sala2'; R.n = 0; }
+  else if (R.fase === 'torneo' && pant === 'torneo' && R.n >= 20) { tecla('Escape'); R.fase = 'sala2'; R.n = 0; }
   else if (R.fase === 'sala2' && pant === 'sala' && R.n >= 2) { for (let i = 0; i < 6; i++) setTimeout(() => tecla('ArrowDown'), i * 200); setTimeout(() => tecla('Enter'), 1500); R.fase = 'tipo'; R.n = 0; }
   return JSON.stringify({ fase: R.fase, pant, torneo: to ? to.estado : null, jugadores: m.sala ? m.sala.jugadores : 0 });
 })()

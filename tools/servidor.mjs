@@ -20,6 +20,7 @@ import crypto from 'node:crypto';
 import { exec, spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { certificadoPropio } from './certificado.mjs';
+import { qrEnTexto } from './qr.mjs';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const proyecto = path.join(aqui, '..');
@@ -283,11 +284,19 @@ async function abrirTunel(puerto) {
     let visto = false;
     const mirar = (d) => {
       const m = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/.exec(d.toString());
-      if (m && !visto) { visto = true; console.log(`\n  POR INTERNET:     ${m[0]}/port/\n  (pasale esa direccion a quien quieras; cambia cada vez que se abre el servidor)\n`); }
+      if (m && !visto) { visto = true; console.log(`\n  POR INTERNET:     ${m[0]}/port/\n  (pasale esa direccion a quien quieras; cambia cada vez que se abre el servidor)\n`); mostrarQR(m[0] + '/port/', 'POR INTERNET'); }
     };
     p.stdout.on('data', mirar); p.stderr.on('data', mirar);
     p.on('exit', (c) => { if (!visto) console.log('  El tunel no arranco (codigo ' + c + '). La red local sigue andando.'); });
   } catch (e) { console.log('  No pude abrir el tunel: ' + e.message + '. La red local sigue andando.'); }
+}
+
+// (30/10) la direccion tambien como QR (tools\qr.mjs): los celulares entran apuntando la camara
+function mostrarQR(url, titulo) {
+  try {
+    console.log(`  ${titulo}: apunta la camara del celular aca`);
+    console.log(qrEnTexto(url).split('\n').map((l) => '  ' + l).join('\n') + '\n');
+  } catch (e) { /* direccion demasiado larga: queda la de texto */ }
 }
 
 // ---------- arrancar ----------
@@ -308,6 +317,9 @@ function listo(p) {
     console.log('  Si Windows pregunta por el Firewall, tocar "Permitir acceso".');
     console.log('  Para apagarlo, cerrar esta ventana.');
     console.log('  ===============================================================\n');
+    // (30/10) el QR de la wifi: la de la red de casa (192.168...) si hay varias
+    const ips = ipsDeRed(), ip = ips.find((x) => x.startsWith('192.168.')) || ips[0];
+    if (ip) mostrarQR(`${esquema}://${ip}:${p}/port/`, 'EN LA MISMA WIFI');
     if (tunel) abrirTunel(p);
   }
   if (!process.env.PIU_NO_ABRIR) exec(process.platform === 'win32' ? `cmd /c start "" "${local}"` : `${process.platform === 'darwin' ? 'open' : 'xdg-open'} "${local}"`);

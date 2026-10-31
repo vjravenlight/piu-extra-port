@@ -9,11 +9,13 @@ const api = async (c) => { for (let i = 0; ; i++) { try { return await (await fe
 for (let i = 0; i < 300; i++) { try { if ((await api({ accion: 'ranking' })).mejores) break; } catch (e) { /* todavia no */ } await espera(2000); }
 log('salon listo');
 const nicks = ['Beto', 'Cris', 'Dani', 'Eli', 'Fede', 'Gabi'], j = {};
-const cred = (x) => ({ id: x.id, clave: x.clave });
+// con que juega cada uno (30/10: el salon lo muestra al lado del nombre)
+const APARATO = { Beto: 'plataforma', Cris: 'tactil', Dani: 'teclado', Eli: 'plataforma', Fede: 'tactil', Gabi: 'teclado' };
+const cred = (x) => ({ id: x.id, clave: x.clave, aparato: APARATO[x.nick] });
 let empezado = false;
 for (let vuelta = 0; vuelta < 1500; vuelta++) {
   // los que no estan (o los sacaron), adentro otra vez
-  for (const n of nicks) if (!j[n]) { const r = await api({ accion: 'entrar', nick: n }); if (r.id) { j[n] = r; log('entro', n); } else log('no entro', n, r.error); }
+  for (const n of nicks) if (!j[n]) { const r = await api({ accion: 'entrar', nick: n, aparato: APARATO[n] }); if (r.id) { j[n] = r; log('entro', n); } else log('no entro', n, r.error); }
   const estados = await Promise.all(nicks.map((n) => (j[n] ? api({ accion: 'estado', ...cred(j[n]) }) : Promise.resolve({ error: 'afuera' }))));
   estados.forEach((e, k) => { if (e.error) { if (j[nicks[k]]) log('lo sacaron', nicks[k], e.error); j[nicks[k]] = null; } });
   const e = estados.find((x) => !x.error);
