@@ -107,6 +107,8 @@ async function conseguirPhp() {
     if (suma(archivo) !== zip.sha256) throw new Error('el PHP bajado no coincide con su suma oficial');
     const x = spawnSync('powershell', ['-NoProfile', '-Command', `Expand-Archive -LiteralPath '${archivo}' -DestinationPath '${path.join(herramientas, 'php')}' -Force`], { stdio: 'inherit' });
     fs.rmSync(tmp, { recursive: true, force: true });
+    // (30/10) el zip viene sin php.ini: sin el, mbstring (nombres con Ñ y tildes) no esta prendido
+    if (x.status === 0) fs.writeFileSync(path.join(herramientas, 'php', 'php.ini'), 'extension_dir = "ext"\r\nextension = mbstring\r\n');
     return x.status === 0 && fs.existsSync(phpPropio) ? phpPropio : null;
   } catch (e) { console.log('  No pude bajar PHP: ' + e.message); return null; }
 }

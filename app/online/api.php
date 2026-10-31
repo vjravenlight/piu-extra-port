@@ -52,7 +52,11 @@ function texto($v, int $max): string {
     return preg_match('/^.{0,' . $max . '}/us', $s, $m) ? $m[0] : '';
 }
 function largo(string $s): int { return (int)preg_match_all('/./us', $s); }
-function minusculas(string $s): string { return function_exists('mb_strtolower') ? mb_strtolower($s) : strtolower($s); }
+// (30/10) sin mbstring (el PHP portatil sin php.ini) strtolower no toca la Ñ ni las tildes: "ÑANDU" era otro nombre que
+// "ñandu" y se salteaba la clave. Asi las mayusculas con tilde de los nombres pasan igual a minuscula
+const MINUSCULAS = ['Á' => 'á', 'É' => 'é', 'Í' => 'í', 'Ó' => 'ó', 'Ú' => 'ú', 'Ü' => 'ü', 'Ñ' => 'ñ', 'À' => 'à', 'È' => 'è', 'Ì' => 'ì',
+    'Ò' => 'ò', 'Ù' => 'ù', 'Â' => 'â', 'Ê' => 'ê', 'Î' => 'î', 'Ô' => 'ô', 'Û' => 'û', 'Ä' => 'ä', 'Ë' => 'ë', 'Ï' => 'ï', 'Ö' => 'ö', 'Ç' => 'ç', 'Ã' => 'ã', 'Õ' => 'õ'];
+function minusculas(string $s): string { return function_exists('mb_strtolower') ? mb_strtolower($s) : strtr(strtolower($s), MINUSCULAS); }
 require __DIR__ . '/filtro.php';         // malas palabras: tapadas en el chat, prohibidas en los nombres
 
 // ---------- seguridad (Charles 21/10: "que el online mejore y refuerces todo, mejor seguridad tambien") ----------
