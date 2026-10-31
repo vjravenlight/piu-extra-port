@@ -96,6 +96,22 @@ function teñir(img, color) {
   x.drawImage(img, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = color; x.fillRect(0, 0, img.width, img.height);
   return c;
 }
+// (31/10, Charles: "hay un cuadrado negro en las luces") las luces del titulo son fotos con el fondo casi negro y opaco.
+// Con 'lighter' se suman bien sobre lo que ya hay en ESTA capa, pero la capa del menu se apoya sobre el juego de forma
+// comun y ese casi negro lo tapaba a medias: un cuadrado oscuro. Aca el negro pasa a transparente (alfa = brillo), asi
+// la luz solo suma, en la capa y encima del juego.
+function negroATransparente(img) {
+  const c = new OffscreenCanvas(img.width, img.height), x = c.getContext('2d');
+  x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, img.width, img.height), p = d.data;
+  for (let i = 0; i < p.length; i += 4) {
+    const k = p[i + 3] / 255, r = p[i] * k, g = p[i + 1] * k, b = p[i + 2] * k, a = Math.max(r, g, b);
+    if (a < 1) { p[i] = p[i + 1] = p[i + 2] = p[i + 3] = 0; continue; }
+    p[i] = (r * 255) / a; p[i + 1] = (g * 255) / a; p[i + 2] = (b * 255) / a; p[i + 3] = a;
+  }
+  x.putImageData(d, 0, 0);
+  return c;
+}
 async function cargarRecursos() {
   if (R.listo) return;
   const datos = await traer(VOLCADOS + 'datos_0x130000.bin'), e = datos.subarray(0x13bf90 - 0x130000, 0x13bf90 - 0x130000 + 1024);
@@ -103,8 +119,8 @@ async function cargarRecursos() {
   const [t, s, g, o, nv] = await Promise.all(['TITLE.DAT', 'SELECT.DAT', 'GRADE.DAT', '00.DAT', 'SNOW.DAT'].map(paquete));
   R.fondo = armar640(await Promise.all(['BG11', 'BG12', 'BG13', 'BG14', 'BG15'].map(n => t.png(n + '.PNG'))));
   // nieve (SNOW.DAT: un copo de 32x32) y destellos de la pantalla de titulo (LIGHT01 grande, LIGHT05/25 de a 4 chicos)
-  R.copo = await nv.png('SNOW.PNG');
-  [R.destello, R.destellos1, R.destellos2] = await Promise.all(['LIGHT01', 'LIGHT05', 'LIGHT25'].map(n => t.png(n + '.PNG')));
+  R.copo = negroATransparente(await nv.png('SNOW.PNG'));
+  [R.destello, R.destellos1, R.destellos2] = (await Promise.all(['LIGHT01', 'LIGHT05', 'LIGHT25'].map(n => t.png(n + '.PNG')))).map(negroATransparente);
   R.logo = armar640(await Promise.all(['LG1', 'LG2', 'LG3', 'LG4', 'LG5'].map(n => t.png(n + '.PNG'))));
   [R.modo1, R.modo2, R.marco, R.boton, R.flechas] = await Promise.all(['MODE1', 'MODE2', 'GLOW', 'SHIFT', 'ARR'].map(n => s.png(n + '.PNG')));
   // para el ranking (20/10, "como el juego original"): las barras de color y los nombres de modo de la seleccion y
@@ -1137,17 +1153,19 @@ function nieve(cantidad = 1) {
   x.restore();
 }
 function destellos(t) {
+  // (31/10) base: la transparencia con que se esta dibujando (el titulo armado se desvanece cuando aparece el de verdad)
+  const base = x.globalAlpha;
   x.save(); x.globalCompositeOperation = 'lighter';
   // dos destellos grandes que respiran detras del logo, como en la pantalla de titulo
   for (const [cx, cy, fase] of [[150, 70, 0], [500, 150, 2.1]]) {
     const k = 0.75 + 0.25 * Math.sin(t * 1.3 + fase), tam = 230 * k;
-    x.globalAlpha = 0.55 * k; x.drawImage(R.destello, cx - tam / 2, cy - tam / 2, tam, tam);
+    x.globalAlpha = base * 0.55 * k; x.drawImage(R.destello, cx - tam / 2, cy - tam / 2, tam, tam);
   }
   // los chicos titilan y viajan despacio
   for (let i = 0; i < 6; i++) {
     const hoja = i % 2 ? R.destellos2 : R.destellos1, celda = i % 4;
     const cx = (90 + i * 97 + t * (8 + i * 3)) % 680 - 20, cy = 40 + ((i * 131) % 380);
-    x.globalAlpha = 0.35 + 0.35 * Math.sin(t * (1.7 + i * 0.3) + i);
+    x.globalAlpha = base * (0.35 + 0.35 * Math.sin(t * (1.7 + i * 0.3) + i));
     x.drawImage(hoja, (celda % 2) * 128, Math.floor(celda / 2) * 128, 128, 128, cx - 40, cy - 40, 80, 80);
   }
   x.restore();

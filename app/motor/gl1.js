@@ -138,7 +138,7 @@ export class GL1 {
     const w = this.w, m = { [E.GL_BLEND]: w.BLEND, [E.GL_DEPTH_TEST]: w.DEPTH_TEST, [E.GL_CULL_FACE]: w.CULL_FACE, [E.GL_SCISSOR_TEST]: w.SCISSOR_TEST, [E.GL_DITHER]: w.DITHER, [E.GL_POLYGON_OFFSET_FILL]: w.POLYGON_OFFSET_FILL };
     if (m[cap] !== undefined) on ? w.enable(m[cap]) : w.disable(m[cap]);
   }
-  glBlendFunc(s, d) { this._cambia(); this.w.blendFunc(s, d); }          // los numeros de OpenGL y WebGL coinciden
+  glBlendFunc(s, d) { this._cambia(); this.mezcla = s + '/' + d; this.w.blendFunc(s, d); }          // los numeros de OpenGL y WebGL coinciden
   glAlphaFunc(f, ref) { this._cambia(); this.alfaFunc = f; this.alfaRef = Math.min(1, Math.max(0, ref)); }
   glDepthFunc(f) { this._cambia(); this.w.depthFunc(f); }
   glDepthMask(b) { this._cambia(); this.w.depthMask(!!b); }
@@ -360,6 +360,13 @@ export class GL1 {
     if (!this.nLote) return;
     const w = this.w, u = this.u, to = this._texObj();
     const usaTex = this.activos.has(E.GL_TEXTURE_2D) && !!to;
+    // pruebas (31/10): globalThis.__glEspia = new Map() anota cada lote (textura, formato, mezcla, alfa del color);
+    // globalThis.__glSaltar = new Set([ids]) no dibuja esas texturas. En el juego normal no existen
+    if (globalThis.__glEspia) {
+      const k = `tex=${usaTex ? this.texActual : '-'} fmt=${to ? to.fmt : '-'} ${to ? to.w + 'x' + to.h : ''} blend=${this.activos.has(E.GL_BLEND) ? this.mezcla || '1/0' : 'no'} modo=${this.texModo.toString(16)} alfa=${this.lote[7].toFixed(2)} n=${this.nLote} en=${(this.lote[0] / (this.lote[3] || 1)).toFixed(1)},${(this.lote[1] / (this.lote[3] || 1)).toFixed(1)}`;
+      globalThis.__glEspia.set(k, (globalThis.__glEspia.get(k) || 0) + 1);
+    }
+    if (globalThis.__glSaltar && usaTex && globalThis.__glSaltar.has(this.texActual)) { this.nLote = 0; return; }
     w.uniform1f(u.uUsaTex, usaTex ? 1 : 0);
     w.uniform1i(u.uTex, 0);
     w.uniform1i(u.uModo, TEX_MODO[this.texModo] ?? 0);

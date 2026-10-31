@@ -55,9 +55,31 @@ const verVariables = () => verLista.map(([d, t]) => ` [0x${d.toString(16)}]=${t 
 // huella de todas las texturas subidas (FNV-1a), para comprobar que un cambio no altera ni un pixel
 let huella = 0x811c9dc5 | 0, texturas = 0, bytesTex = 0;
 process.on('exit', () => console.log(`texturas: ${texturas} (${bytesTex} bytes), huella 0x${(huella >>> 0).toString(16)}`));
+// PIU_ESTADOS_GL=cuadro: desde ese cuadro, cada combinacion de estado con que se dibuja (mezcla, prueba de alfa, modo de
+// textura, formato y tamano de la textura, alfa del color) y cuantas veces; se muestra al final (31/10: los cuadrados
+// oscuros alrededor de los destellos del titulo)
+const egl = process.env.PIU_ESTADOS_GL ? { desde: +process.env.PIU_ESTADOS_GL, on: new Set(), bf: 'ONE/ZERO', te: 0x2100, tex: 0, fmts: new Map(), combos: new Map(), alfa: 1, af: '' } : null;
+const hx = (v) => '0x' + (v >>> 0).toString(16);
+function anotarDibujo(como) {
+  if (!egl || G.estadoGL.cuadros < egl.desde) return;
+  const k = `${como} blend=${egl.on.has(0x0BE2) ? egl.bf : 'no'} alfaTest=${egl.on.has(0x0BC0) ? egl.af : 'no'} tex=${egl.on.has(0x0DE1) ? `#${egl.tex} ` + (egl.fmts.get(egl.tex) || '?') : 'no'} env=${hx(egl.te)} colorA=${egl.alfa.toFixed(2)}`;
+  egl.combos.set(k, (egl.combos.get(k) || 0) + 1);
+}
+if (egl) process.on('exit', () => { console.log('--- estados de dibujo desde el cuadro ' + egl.desde); for (const [k, n] of [...egl.combos].sort((a, b) => b[1] - a[1])) console.log(`  ${String(n).padStart(6)}  ${k}`); });
 const doble = new Proxy({
   glGenTextures: (n) => Array.from({ length: n }, () => sigTex++),
+  ...(egl ? {
+    glEnable: (c) => egl.on.add(c), glDisable: (c) => egl.on.delete(c),
+    glBlendFunc: (s, d) => { egl.bf = `${hx(s)}/${hx(d)}`; }, glAlphaFunc: (f, r) => { egl.af = `${hx(f)}>${(+r).toFixed(2)}`; },
+    glTexEnvi: (t, p, v) => { if (p === 0x2200) egl.te = v; }, glTexEnvf: (t, p, v) => { if (p === 0x2200) egl.te = v; },
+    glBindTexture: (t, id) => { egl.tex = id; },
+    glColor4f: (r, g, b, a) => { egl.alfa = +a; }, glColor4ub: (r, g, b, a) => { egl.alfa = a / 255; }, glColor3f: () => { egl.alfa = 1; }, glColor3ub: () => { egl.alfa = 1; },
+    glBegin: (m) => anotarDibujo('begin' + m), glDrawArrays: (m) => anotarDibujo('arrays' + m), glDrawElements: (m) => anotarDibujo('elements' + m),
+  } : {}),
   glTexImage2D: (...a) => {
+    if (egl && a[1] === 0) egl.fmts.set(egl.tex, `int=${hx(a[2])} fmt=${hx(a[6])} tipo=${hx(a[7])} ${a[3]}x${a[4]}`);
+    // PIU_VOLCAR_TEX=carpeta: cada textura RGBA o RGB de 8 bits (nivel 0) en crudo, con su numero y tamano en el nombre
+    if (process.env.PIU_VOLCAR_TEX && a[1] === 0 && (a[6] === 0x1908 || a[6] === 0x1907) && a[7] === 0x1401 && a[8]) fs.writeFileSync(path.join(process.env.PIU_VOLCAR_TEX, `tex${String(texturas).padStart(3, '0')}_${egl ? egl.tex : 0}_${a[3]}x${a[4]}.${a[6] === 0x1908 ? 'rgba' : 'rgb'}`), a[8]);
     const d = a[8]; texturas++;
     if (d) { bytesTex += d.length; for (let i = 0; i < d.length; i++) huella = Math.imul(huella ^ d[i], 16777619); }
   },
