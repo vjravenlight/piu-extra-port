@@ -8,7 +8,9 @@ $electron = Join-Path $base '..\..\3_Apps-VJ\raven-vj-plus\node_modules\electron
 Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue   # VSCode la deja puesta y Electron arrancaria como Node
 $env:PIU_NO_ABRIR = '1'
 $env:PIU_GUARDADO = Join-Path $Salida 'guardado'   # la EEPROM de la prueba va aparte: no pisa las opciones guardadas de verdad
-$srv = Start-Process -FilePath $node -ArgumentList @("`"$base\tools\servidor.mjs`"", '8799') -PassThru -WindowStyle Hidden
+# PIU_SALON=ravenlight: el salon y el ranking de verdad (ravenlight.net) en vez del PHP local
+$extra = @(); if ($env:PIU_SALON) { $extra = @("--salon=$env:PIU_SALON") }
+$srv = Start-Process -FilePath $node -ArgumentList (@("`"$base\tools\servidor.mjs`"", '8799') + $extra) -PassThru -WindowStyle Hidden
 Start-Sleep -Seconds 2
 try {
     $env:PIU_URL = 'http://localhost:8799' + $Pagina; $env:PIU_SEGUNDOS = "$Segundos"; $env:PIU_SALIDA = $Salida; $env:PIU_TECLAS = $Teclas

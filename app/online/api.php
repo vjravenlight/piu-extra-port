@@ -25,6 +25,9 @@ const CANCIONES = [8, 12, 13, 15, 19, 23, 58, 60, 67, 9, 10, 11, 22, 40, 42, 44,
 const MODOS = ['NORMAL', 'HARD', 'CRAZY', 'DOUBLE', 'REMIX'];
 const CANCIONES_VERSUS = 4;    // versus completo: cada uno elige dos
 const TORNEO_MAX = 16;         // anotados como mucho en un torneo
+// con que juega cada uno (OPCIONES > JUEGO CON, o lo que detecta el juego): lo ven los demas y vale para los torneos de un control
+const APARATOS = ['teclado', 'plataforma', 'tactil'];
+const NOMBRE_APARATO = ['teclado' => 'con teclado', 'plataforma' => 'con plataforma o mando USB', 'tactil' => 'con celu o tablet', '' => 'sin decir con que'];
 const VENCE_ELEGIR = 180;      // s para elegir la cancion que toca en una serie (si no, pierde)
 
 $dir = getenv('PIU_ONLINE_DATOS') ?: (__DIR__ . '/datos');   // las pruebas usan su propia carpeta
@@ -457,7 +460,8 @@ if ($accion === 'entrar') {
     if (count($sala['jugadores']) >= 300) { flock($candado, LOCK_UN); error('el salon esta lleno: proba en un rato'); }
     foreach ($sala['jugadores'] as $j) if (minusculas($j['nick']) === minusculas($nick)) { flock($candado, LOCK_UN); error('ese nickname ya esta en la sala'); }
     $id = bin2hex(random_bytes(6)); $clave = bin2hex(random_bytes(12));
-    $sala['jugadores'][$id] = ['nick' => $nick, 'clave' => $clave, 'visto' => $ahora, 'estado' => 'sala', 'partida' => null, 'avatar' => avatarLimpio($p['avatar'] ?? null)];
+    $sala['jugadores'][$id] = ['nick' => $nick, 'clave' => $clave, 'visto' => $ahora, 'estado' => 'sala', 'partida' => null, 'avatar' => avatarLimpio($p['avatar'] ?? null),
+        'aparato' => in_array($p['aparato'] ?? '', APARATOS, true) ? $p['aparato'] : null];
     $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => "$nick entro a la sala", 't' => $ahora];
     $guardar();
     responder(['id' => $id, 'clave' => $clave, 'nick' => $nick]);
@@ -468,6 +472,7 @@ $id = (string)($p['id'] ?? '');
 if (!isset($sala['jugadores'][$id]) || !hash_equals($sala['jugadores'][$id]['clave'], (string)($p['clave'] ?? ''))) { flock($candado, LOCK_UN); error('no estas en la sala', 401); }
 $yo = &$sala['jugadores'][$id];
 $yo['visto'] = $ahora;
+if (in_array($p['aparato'] ?? '', APARATOS, true)) $yo['aparato'] = $p['aparato'];   // si cambia (enchufo un mando, OPCIONES)
 $mirada = null;
 
 switch ($accion) {
@@ -609,9 +614,12 @@ switch ($accion) {
         $t = $sala['torneo'];
         if ($t && $t['estado'] !== 'terminado') error('ya hay un torneo armado');
         if ($yo['estado'] !== 'sala') error('primero termina lo que estas jugando');
+        // (30/10, Charles) CONTROLES: con cualquiera o todos con el mismo (lo que dice cada uno en OPCIONES > JUEGO CON)
+        $control = in_array($p['control'] ?? '', APARATOS, true) ? $p['control'] : 'libre';
+        if ($control !== 'libre' && ($yo['aparato'] ?? null) !== $control) error('vos jugas ' . NOMBRE_APARATO[$yo['aparato'] ?? ''] . ': este torneo seria solo ' . NOMBRE_APARATO[$control]);
         $sala['torneo'] = ['id' => bin2hex(random_bytes(4)), 'creador' => $id, 'estado' => 'anotando', 't' => $ahora,
             'orden' => in_array($p['orden'] ?? '', ['ranking', 'azar', 'llegada'], true) ? $p['orden'] : 'ranking',
-            'formato' => ($p['formato'] ?? '') === 'versus' ? 'versus' : 'una',
+            'formato' => ($p['formato'] ?? '') === 'versus' ? 'versus' : 'una', 'control' => $control,
             'anotados' => [$id => $yo['nick']], 'nicks' => [$id => $yo['nick']], 'eliminados' => [], 'rondas' => [], 'campeon' => null];
         $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => $yo['nick'] . ' armo un TORNEO: anotense (arriba de la lista de jugadores)', 't' => $ahora];
         break;
@@ -620,6 +628,8 @@ switch ($accion) {
         $t = $sala['torneo'];
         if (!$t || $t['estado'] !== 'anotando') error('no hay un torneo para anotarse');
         if (count($t['anotados']) >= TORNEO_MAX && !isset($t['anotados'][$id])) error('el torneo esta lleno (' . TORNEO_MAX . ')');
+        $control = $t['control'] ?? 'libre';
+        if ($control !== 'libre' && ($yo['aparato'] ?? null) !== $control) error('este torneo es solo ' . NOMBRE_APARATO[$control] . ' (OPCIONES > JUEGO CON)');
         $sala['torneo']['anotados'][$id] = $yo['nick']; $sala['torneo']['nicks'][$id] = $yo['nick'];
         break;
 
@@ -666,7 +676,7 @@ switch ($accion) {
 // respuesta comun: la sala vista por este jugador
 $desde = (int)($p['chatDesde'] ?? 0);
 $jugadores = [];
-foreach ($sala['jugadores'] as $jid => $j) $jugadores[] = ['id' => $jid, 'nick' => $j['nick'], 'estado' => $j['estado'], 'partida' => $j['estado'] === 'jugando' ? $j['partida'] : null, 'avatar' => $j['avatar'] ?? null, 'torneo' => enTorneo($sala, $jid)];
+foreach ($sala['jugadores'] as $jid => $j) $jugadores[] = ['id' => $jid, 'nick' => $j['nick'], 'estado' => $j['estado'], 'partida' => $j['estado'] === 'jugando' ? $j['partida'] : null, 'avatar' => $j['avatar'] ?? null, 'torneo' => enTorneo($sala, $jid), 'aparato' => $j['aparato'] ?? null];
 // cuantos miran cada partida (los que preguntaron en los ultimos 5 s)
 foreach ($sala['partidas'] as $k => $pa) {
     $m = 0;
@@ -694,7 +704,7 @@ $torneo = null;
 if ($sala['torneo']) {
     $t = $sala['torneo'];
     $nick = fn($j) => $j === null ? null : ($t['nicks'][$j] ?? '?');
-    $torneo = ['estado' => $t['estado'], 'orden' => $t['orden'], 'formato' => $t['formato'], 'creador' => $nick($t['creador']), 'soyCreador' => $t['creador'] === $id,
+    $torneo = ['estado' => $t['estado'], 'orden' => $t['orden'], 'formato' => $t['formato'], 'control' => $t['control'] ?? 'libre','creador' => $nick($t['creador']), 'soyCreador' => $t['creador'] === $id,
         'anotados' => array_values($t['anotados']), 'anotado' => isset($t['anotados'][$id]), 'vivo' => enTorneo($sala, $id), 'campeon' => $t['campeon'],
         'rondas' => array_map(fn($r) => array_map(fn($m) => ['a' => $nick($m['a']), 'b' => $nick($m['b']), 'ganador' => $nick($m['ganador']), 'jugando' => !empty($m['serie']) && empty($m['ganador'])], $r), $t['rondas'])];
 }

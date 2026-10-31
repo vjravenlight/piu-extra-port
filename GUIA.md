@@ -145,7 +145,7 @@ En la misma wifi: https://192.168.0.10:8790/port/
 | **F1 / F2** | TEST / SERVICE (el menú de servicio de la cabina) |
 | **F11** o doble clic | pantalla completa |
 
-- En **OPCIONES** se cambian tu nombre y su clave, las teclas, alfombras y joysticks USB (MANDO USB), el desfase del sonido (CALIBRAR), el volumen, el fondo y más.
+- En **OPCIONES** se cambian tu nombre y su clave (se escribe dos veces; anotala, porque no se puede recuperar), se cierra la sesión, se elige con qué jugás (JUEGO CON), las teclas, alfombras y joysticks USB (MANDO USB), el desfase del sonido (CALIBRAR), el volumen, el fondo y más.
 - En el celular aparecen los paneles en pantalla.
 
 ---
@@ -153,6 +153,14 @@ En la misma wifi: https://192.168.0.10:8790/port/
 ## 7. Online: una canción, versus completo y torneo
 
 Entrá a **ONLINE** desde el menú principal. El nombre se pide una sola vez y después se cambia en OPCIONES.
+
+### Con qué juega cada uno
+
+Al lado de cada nombre dice con qué juega: **TECLADO**, **PLATAF.** (plataforma, alfombra o mando USB) o **TACTIL** (celular o tablet). Arriba a la derecha dice con qué jugás vos.
+
+- Lo detecta el juego solo. Si usaste o tenés enchufado un mando USB, es plataforma. Si no, con pantalla táctil es celular. Si no, teclado.
+- Si no acierta, cambialo en **OPCIONES > JUEGO CON**.
+- Es lo que dice cada aparato. Sirve para elegir contra quién jugar, pero no es una prueba.
 
 ### Desafiar a alguien
 
@@ -174,7 +182,9 @@ La primera fila de la lista es **TORNEO**.
 1. **Armar:** elegís cómo se ordenan las llaves y qué se juega en cada cruce, y tocás **ARMARLO**.
    - Las llaves pueden ir **por ranking** (los mejores se cruzan al final), **al azar** o **por llegada**.
    - Cada cruce puede ser **una canción** o **versus completo**.
+   - **CONTROLES:** con **cualquiera**, o **solo teclado**, **solo plataforma** o **solo celu/tablet**. Se ve arriba del torneo.
 2. **Anotarse:** los demás entran a TORNEO y tocan **ANOTARME**. Entran hasta 16 jugadores.
+   - Si el torneo es de un solo control, sólo se anota quien juega con ese control (OPCIONES > JUEGO CON).
 3. **Empezar:** el que lo armó toca **EMPEZAR EL TORNEO** cuando ya hay al menos 2 anotados.
    - Si no son 4, 8 o 16, los primeros pasan sin jugar.
 4. **Jugar:** cuando te toca, el juego te lleva solo a tu cruce. Elige primero el mejor ubicado.

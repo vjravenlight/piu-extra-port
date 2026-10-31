@@ -434,7 +434,7 @@ Menu.iniciarMenu({ arrancar, terminar, audio, opciones: () => opcionesListas, gu
   hayFondo: () => modoFondo && performance.now() - ultimoCuadroFondo < 1000 });
 // detras de los menus corre la pantalla de titulo de verdad; cuando no hay juego andando y se esta en un menu, se prende
 // ('cargando' tambien: el juego tarda unos segundos en llegar a su titulo, mejor que empiece a la par del menu)
-const MENUS = ['cargando', 'menu', 'controles', 'opciones', 'usb', 'teclas', 'avatar', 'mods', 'editor', 'nick', 'sala', 'esperando', 'elegir', 'ranking', 'resultado', 'tipo', 'serie', 'torneo', 'crearTorneo'];
+const MENUS = ['cargando', 'menu', 'controles', 'opciones', 'usb', 'teclas', 'avatar', 'mods', 'editor', 'nick', 'sala', 'esperando', 'elegir', 'ranking', 'resultado', 'tipo', 'serie', 'torneo', 'crearTorneo', 'claveLista'];
 setInterval(() => { if (!trabajador && MENUS.includes(Menu.estadoMenu().pantalla) && !new URLSearchParams(location.search).has('sinfondo')) arrancar({ fondo: true }); }, 500);
 
 // ---------- telemetria: si el juego se cae o se traba, un reporte corto al servidor del salon ----------
@@ -465,13 +465,13 @@ const TECLA_MENU = [{ 1: 'KeyQ', 2: 'KeyE', 4: 'KeyS', 8: 'KeyZ', 16: 'KeyC' }, 
 M.iniciarMandos({
   avisar,
   // (en el online cada uno es el jugador 1 en su PC: el 2.o mando solo cuenta en DOUBLE, que usa los dos pads, o en VERSUS del editor)
-  alPad: (jugador, bit, on) => { audio(); if (trabajador && !modoFondo && !Menu.panelAbierto()) anotar(enOnline && !(cfgActual.online.dos || cfgActual.online.modo === 'DOUBLE') ? 0 : jugador, bit, on); else if (on) { const k = TECLA_MENU[jugador][bit]; teclaFalsa(k, true); setTimeout(() => teclaFalsa(k, false), 80); } },
-  alBoton: (code) => { audio(); teclaFalsa(code, true); setTimeout(() => teclaFalsa(code, false), 80); },
+  alPad: (jugador, bit, on) => { audio(); if (on) Menu.usado('plataforma'); if (trabajador && !modoFondo && !Menu.panelAbierto()) anotar(enOnline && !(cfgActual.online.dos || cfgActual.online.modo === 'DOUBLE') ? 0 : jugador, bit, on); else if (on) { const k = TECLA_MENU[jugador][bit]; teclaFalsa(k, true); setTimeout(() => teclaFalsa(k, false), 80); } },
+  alBoton: (code) => { audio(); Menu.usado('plataforma'); teclaFalsa(code, true); setTimeout(() => teclaFalsa(code, false), 80); },
 });
 T.iniciarTactil({
   // (con el juego frenado en un panel del menu, los paneles son del menu: MODIFICADORES antes de la cancion)
-  alPad: (p, on) => { audio(); if (trabajador && !modoFondo && !Menu.panelAbierto()) anotar(p.jugador || 0, p.bit, on); else if (on) teclaFalsa(p.tecla, true); },
-  alTecla: (code) => { audio(); teclaFalsa(code, true); setTimeout(() => teclaFalsa(code, false), 120); },
+  alPad: (p, on) => { audio(); if (on) Menu.usado('tactil'); if (trabajador && !modoFondo && !Menu.panelAbierto()) anotar(p.jugador || 0, p.bit, on); else if (on) teclaFalsa(p.tecla, true); },
+  alTecla: (code) => { audio(); Menu.usado('tactil'); teclaFalsa(code, true); setTimeout(() => teclaFalsa(code, false), 120); },
 }).then((si) => {
   if (!si) return;
   ajustar();

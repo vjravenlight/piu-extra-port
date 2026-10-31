@@ -164,7 +164,7 @@ let pantalla = 'cargando', cursor = 0, cursor2 = 0, mensaje = '', mensajeHasta =
 // (30/10, Charles: "que de por si quede todo desbloqueado") desbloqueado: true de fabrica (cargarOpciones lo prende
 // una vez tambien a los que lo tenian guardado en NO; despues cada uno lo cambia en OPCIONES)
 const op = { nick: '', controles: 'izquierda', intro: true, demo: true, demoSonido: true, panelesDos: false, desbloqueado: true, sinCorte: false,
-  tamanoPads: 1, vibrar: true, usb: null, desfase: 0, fondo: 0, cuenta: 5, teclas: null, volumen: 1, panelMods: false, pin: '', vistaRival: 'juego', carril: 'lugar', avatar: null, pantalla: 'original',
+  tamanoPads: 1, vibrar: true, usb: null, desfase: 0, fondo: 0, cuenta: 5, teclas: null, volumen: 1, panelMods: false, pin: '', vistaRival: 'juego', carril: 'lugar', avatar: null, pantalla: 'original', aparato: 'auto',
   mods: { velocidad: 1, vanish: 0, mirror: false, random: false, banda: false, azar: false, skin: 0 } };
 let introVista = false;            // la intro del modo solo, una sola vez por visita
 const sala = { yo: null, jugadores: [], chat: [], desafios: [], partida: null, chatDesde: 0, desfase: 0, sondeo: 0, errores: 0, serie: null, torneo: null };
@@ -226,7 +226,7 @@ async function sondear() {
   if (!sala.yo || consultando) return;          // una consulta por vez (en un celular lento no se apilan)
   consultando = true;
   try {
-    const e = await api(pantalla === 'mirando' ? { accion: 'mirar', ...credencial(), partida: mirar.id, chatDesde: sala.chatDesde } : { accion: 'estado', ...credencial(), chatDesde: sala.chatDesde });
+    const e = await api(pantalla === 'mirando' ? { accion: 'mirar', ...credencial(), partida: mirar.id, chatDesde: sala.chatDesde } : { accion: 'estado', ...credencial(), chatDesde: sala.chatDesde, aparato: miAparato() });
     sala.errores = 0;
     if (pantalla === 'mirando' && e.mirada) mirar.datos = e.mirada;
     actualizarSala(e);
@@ -604,6 +604,7 @@ function tecla(e) {
     return false;                                          // el teclado de verdad va al <input>
   }
   e.preventDefault();
+  if (pantalla === 'claveLista') { if (OK.includes(k) || k === 'Escape') volverDeClave('Clave registrada'); return true; }
   const listas = { menu: MENU.length, controles: CONTROLES.length, opciones: FILAS_OPCIONES.length };
   if (pantalla === 'menu' || pantalla === 'controles' || pantalla === 'opciones') {
     // pads de arriba (↖ ↗) suben, los de abajo (↙ ↘) bajan; el centro elige
@@ -675,7 +676,10 @@ function tecla(e) {
   if (pantalla === 'resultado') { if ((OK.includes(k) || k === 'Escape') && performance.now() - resultado.desde > 1500) volverASala(); return true; }
   if (pantalla === 'ranking') {
     const izq = ['ArrowLeft', 'KeyZ', 'KeyM', 'Numpad1', 'KeyQ', 'KeyU', 'Numpad7'], der = ['ArrowRight', 'KeyC', 'Period', 'Numpad3', 'KeyE', 'KeyO', 'Numpad9'];
-    if (izq.includes(k)) paginaRanking = (paginaRanking + PAGINAS_RANKING.length - 1) % PAGINAS_RANKING.length;
+    // MEJOR DE CADA CANCION: arriba (y los paneles de arriba ↖ ↗) pasan de pagina; abajo (↙ ↘), de tabla
+    if (paginaRanking === 1 && ['ArrowUp', 'KeyQ', 'KeyU', 'Numpad7'].includes(k)) subPaginaRanking--;
+    else if (paginaRanking === 1 && ['ArrowDown', 'KeyE', 'KeyO', 'Numpad9'].includes(k)) subPaginaRanking++;
+    else if (izq.includes(k)) paginaRanking = (paginaRanking + PAGINAS_RANKING.length - 1) % PAGINAS_RANKING.length;
     else if (der.includes(k)) paginaRanking = (paginaRanking + 1) % PAGINAS_RANKING.length;
     else if (k === 'Escape' || OK.includes(k) || k === 'KeyR') { pantalla = sala.yo ? 'sala' : 'menu'; sesionFin = null; }
     return true;
@@ -693,7 +697,9 @@ function elegirOpcion() {
     else if (f === 'nombre') { destinoNick = 'cambiar'; pedirNick(); return; }
     else if (f === 'avatar') { abrirAvatar(); return; }
     else if (f === 'pantalla') { op.pantalla = op.pantalla === 'estirar' ? 'original' : 'estirar'; J.pantalla(op.pantalla); }
-    else if (f === 'pin') { if (!op.nick) { avisar('Primero elegi tu nombre'); return; } destinoNick = 'pin'; pantalla = 'nick'; entrada.value = ''; entrada.maxLength = 8; entrada.focus(); return; }
+    else if (f === 'aparato') op.aparato = APARATOS[(APARATOS.indexOf(op.aparato) + 1) % APARATOS.length];
+    else if (f === 'pin') { if (!op.nick) { avisar('Primero elegi tu nombre'); return; } empezarClave(); return; }
+    else if (f === 'sesion') { if (!op.nick) { avisar('No hay ningun nombre en este aparato'); return; } if (performance.now() - confirmarSalida < 3000) { confirmarSalida = 0; cerrarSesion(); } else { confirmarSalida = performance.now(); avisar(op.pin ? 'Otra vez = cerrar (acordate de tu clave)' : 'Otra vez = cerrar sesion', 3); } return; }
     else if (f === 'paneles') { op.panelesDos = !op.panelesDos; J.paneles(op.panelesDos); }
     else if (f === 'tamano') { op.tamanoPads = TAMANOS[(TAMANOS.indexOf(op.tamanoPads) + 1) % TAMANOS.length] || 1; J.tactil.tamano(op.tamanoPads); }
     else if (f === 'vibrar') { op.vibrar = !op.vibrar; J.tactil.vibrar(op.vibrar); if (op.vibrar) vibrarAhora(30); }
@@ -735,17 +741,33 @@ const CORTO_CONTROLES = { izquierda: 'IZQUIERDA', derecha: 'DERECHA', numerico: 
 // OPCIONES (20/10): intro, demo y su sonido son del modo solo (trabajador.js, seguirAtraccion); PANELES solo en
 // celulares y tablets (tactil.js: uno o dos juegos de paneles, el segundo para DOUBLE)
 // (mejoras 10 y 16, 21/10: MANDO USB en todos; TAMANO DE PANELES y VIBRAR en el celular)
-const FILAS_OPCIONES = ['nombre', 'pin', 'avatar', 'controles', ...(esTactil ? ['paneles', 'tamano', 'vibrar'] : ['teclas', 'pantalla']), 'usb', 'calibrar', 'volumen', 'fondo', 'carril', 'panelmods', 'cuenta', 'rival', 'intro', 'demo', 'sonido', 'desbloqueado', 'sincorte', 'volver'];
+const FILAS_OPCIONES = ['nombre', 'pin', 'sesion', 'avatar', 'aparato', 'controles',...(esTactil ? ['paneles', 'tamano', 'vibrar'] : ['teclas', 'pantalla']), 'usb', 'calibrar', 'volumen', 'fondo', 'carril', 'panelmods', 'cuenta', 'rival', 'intro', 'demo', 'sonido', 'desbloqueado', 'sincorte', 'volver'];
 const TAMANOS = [0.8, 0.9, 1, 1.1, 1.2, 1.3];
+// (30/10, Charles: "necesito saber si al juego lo estan jugando desde una pc, celular, o que cosa... no es lo mismo jugar
+// teclado que plataforma o celular") JUEGO CON: lo ven los demas en el salon, el desafio y el torneo. AUTOMATICO: si se uso
+// (o hay enchufado) un mando USB es PLATAFORMA; si no, la pantalla tactil es CELU/TABLET; si no, TECLADO (el teclado no
+// cuenta como uso: con el se escribe el nombre y el chat)
+const APARATOS = ['auto', 'teclado', 'plataforma', 'tactil'];
+const NOMBRE_APARATO = { teclado: 'TECLADO', plataforma: 'PLATAFORMA O MANDO USB', tactil: 'CELU O TABLET' };
+const CORTO_APARATO = { teclado: 'TECLADO', plataforma: 'PLATAF.', tactil: 'TACTIL' };
+const usados = new Set();
+export function usado(tipo) { usados.add(tipo); }
+function aparatoAuto() { return usados.has('plataforma') || J.mando.hay().length ? 'plataforma' : usados.has('tactil') || esTactil ? 'tactil' : 'teclado'; }
+const miAparato = () => (APARATOS.includes(op.aparato) && op.aparato !== 'auto' ? op.aparato : aparatoAuto());
+// el torneo (quien lo arma elige): con cualquier control o con uno solo
+const CONTROLES_TORNEO = ['libre', 'teclado', 'plataforma', 'tactil'];
+const NOMBRE_CONTROL_TORNEO = { libre: 'CUALQUIERA', teclado: 'SOLO TECLADO', plataforma: 'SOLO PLATAFORMA', tactil: 'SOLO CELU/TABLET' };
+const reglaTorneo = (c) => (!c || c === 'libre' ? 'SE JUEGA CON CUALQUIER CONTROL' : `SOLO CON ${NOMBRE_APARATO[c]}`);
 // (21/10) FONDO: el video de la cancion normal, atenuado o SIN VIDEO (la caratula); CUENTA: segundos antes de arrancar el
 // online, desde que los dos cargaron (la del que desafia es la que vale)
 const FONDOS = [0, 0.25, 0.5, 0.75, 'titulo'], CUENTAS = [3, 5, 8, 10];
 const nombreFondo = (f) => (f === 'titulo' ? 'SIN VIDEO' : f ? `ATENUADO ${Math.round(f * 100)}%` : 'NORMAL');
-const AYUDA_OPCIONES = { sincorte: 'EN SOLO, LA CANCION NO SE CORTA CON 50 MISS (EN ONLINE NUNCA)', desbloqueado: 'LAS OCULTAS DE CRAZY Y LOS PASOS EXTRA DESDE EL PRINCIPIO', controles: 'CON QUE PARTE DEL TECLADO SE JUEGA EL ONLINE', paneles: 'DOS JUEGOS DE PANELES PARA JUGAR DOUBLE',
+const AYUDA_OPCIONES = { sesion: 'ESTE APARATO SE OLVIDA DE TU NOMBRE (CON TU CLAVE VOLVES A ENTRAR)', sincorte: 'EN SOLO, LA CANCION NO SE CORTA CON 50 MISS (EN ONLINE NUNCA)', desbloqueado: 'LAS OCULTAS DE CRAZY Y LOS PASOS EXTRA DESDE EL PRINCIPIO', controles: 'CON QUE PARTE DEL TECLADO SE JUEGA EL ONLINE', paneles: 'DOS JUEGOS DE PANELES PARA JUGAR DOUBLE',
   tamano: 'MAS GRANDES O MAS CHICOS (SE VE AL TOQUE)', vibrar: 'EL CELULAR VIBRA UN POQUITO EN CADA PISADA',
   nombre: 'CON EL QUE JUGAS EN SOLO, ONLINE Y RANKING (SE PIDE UNA SOLA VEZ)',
-  pin: 'CON CLAVE, NADIE MAS PUEDE USAR TU NOMBRE (EN OTRO APARATO, PONELA ACA)',
+  pin: 'OPCIONAL: CON CLAVE NADIE MAS USA TU NOMBRE EN EL RANKING (EN OTRO APARATO, PONELA ACA)',
   avatar: 'UNA FLECHA DEL JUEGO QUE TE REPRESENTA: PERFIL, SALON Y ONLINE',
+  aparato: 'LO VEN LOS DEMAS EN EL ONLINE (Y CUENTA PARA LOS TORNEOS DE UN SOLO CONTROL)',
   usb: 'ALFOMBRA, JOYSTICK O GAMEPAD: CENTRO = PISAR CADA PANEL PARA APRENDERLO',
   calibrar: 'FLECHAS FUERA DE TIEMPO: CENTRO = TOCAR AL RITMO; IZQ/DER = DE A 5 MS',
   fondo: 'EL VIDEO DE LA CANCION: MAS OSCURO, O SOLO SU CARATULA (ALIVIA AL APARATO)',
@@ -887,9 +909,14 @@ function dibujarUsb(t) {
   texto(x, 'ESC = CANCELAR   B = VOLVER A LA DISTRIBUCION COMUN', 320, 414, 1, 'gris', true);
 }
 // lo escrito en el <input> escondido: el nickname o un mensaje del chat
+const BOTON_OK = [220, 366, 200, 36];      // el boton CONFIRMAR / ENTENDIDO (en el lienzo de 640x480)
+let confirmadoHace = 0;
 function confirmarTexto() {
+  // (el boton, el Enter, el "Ir" y el submit del formulario pueden llegar juntos: uno solo vale)
+  if (performance.now() - confirmadoHace < 400) return;
+  confirmadoHace = performance.now();
   const v = entrada.value.trim();
-  if (pantalla === 'nick' && destinoNick === 'pin') { ponerClave(v); return; }
+  if (pantalla === 'nick' && destinoNick === 'pin') { pasoClave(v); return; }
   if (pantalla === 'nick') {
     if (v.length < 2) avisar('Minimo 2 letras');
     else if (destinoNick === 'solo' || destinoNick === 'cambiar') {
@@ -904,25 +931,63 @@ function confirmarTexto() {
   }
   else if (escribiendo) { if (v) api({ accion: 'chat', ...credencial(), texto: v }).then(actualizarSala).catch(() => {}); escribiendo = false; entrada.blur(); }
 }
-// CLAVE DEL NOMBRE (21/10): poner una (si el nombre no tenia), entrar con la que ya tiene (otro aparato), cambiarla
-// (si aca ya estaba puesta) o sacarla (vacia). La guarda api.php (datos/nombres.json, con password_hash).
-async function ponerClave(v) {
-  entrada.blur();
-  const volver = (s) => { pantalla = 'opciones'; cursor = FILAS_OPCIONES.indexOf('pin'); if (s) avisar(s, 5); };
-  if (v !== '' && !/^\d{4,8}$/.test(v)) { avisar('La clave son de 4 a 8 numeros'); return; }
+// CLAVE DEL NOMBRE (21/10; 30/10, Charles: "que pida la clave 2 veces y quede registrado, que no la olvide, que se
+// pueda desloguear desde opciones; eso si quieren registrar ranking"). Opcional. La guarda api.php (datos/nombres.json,
+// con password_hash):
+// - el nombre ya tiene clave (otro aparato) y es esta -> se entra con una sola vez;
+// - clave nueva (el nombre no tenia, o se cambia la de este aparato) -> se pide dos veces y se avisa que no la olvide;
+// - vacia, si habia -> se saca.
+let pinPaso = 1, pinPrimero = '', claveEnCamino = false;     // (mientras contesta el servidor, otro CONFIRMAR no cuenta)
+function empezarClave() { pinPaso = 1; pinPrimero = ''; destinoNick = 'pin'; pantalla = 'nick'; entrada.value = ''; entrada.maxLength = 8; entrada.inputMode = 'numeric'; entrada.focus(); }
+const volverDeClave = (s) => { entrada.blur(); entrada.inputMode = 'text'; pantalla = 'opciones'; cursor = FILAS_OPCIONES.indexOf('pin'); if (s) avisar(s, 5); };
+async function pasoClave(v) {
+  if (claveEnCamino) return;
+  claveEnCamino = true;
+  try { await pasoClaveSinRepetir(v); } finally { claveEnCamino = false; }
+}
+async function pasoClaveSinRepetir(v) {
   try {
-    if (v === '') { await api({ accion: 'proteger', nick: op.nick, pin: op.pin, pinNuevo: '' }); op.pin = ''; guardarOpciones(); return volver('Tu nombre quedo sin clave'); }
-    let r = null;
-    try { r = await api({ accion: 'nombre', nick: op.nick, pin: v }); } catch (er) { if (er.codigo !== 403) throw er; }
-    if (r && r.protegido) { op.pin = v; guardarOpciones(); return volver('Clave aceptada: en este aparato ya podes usar tu nombre'); }
-    // sin clave todavia: se le pone; con otra clave: se cambia (hace falta la de antes, guardada en este aparato)
-    await api({ accion: 'proteger', nick: op.nick, pin: op.pin, pinNuevo: v });
-    op.pin = v; guardarOpciones(); volver(r ? `${op.nick} quedo protegido con clave` : 'Clave cambiada');
-  } catch (er) { volver(er.codigo === 403 ? 'Esa no es la clave de ese nombre' : er.message); }
+    if (pinPaso === 2) {
+      if (v !== pinPrimero) { avisar('No coinciden: escribila de nuevo', 4); empezarClave(); return; }
+      entrada.blur();
+      // si el salon no contesta (lento o sin señal) se queda en este paso para tocar CONFIRMAR otra vez; si la vez
+      // anterior la grabo igual, la clave de antes ya no sirve (403) y se mira si la nueva es la que quedo
+      try { await api({ accion: 'proteger', nick: op.nick, pin: op.pin, pinNuevo: v }); }
+      catch (er) {
+        let quedo = false;
+        if (er.codigo === 403) { try { quedo = !!(await api({ accion: 'nombre', nick: op.nick, pin: v })).protegido; } catch (e2) { /* no */ } }
+        if (!quedo) { avisar('No se pudo guardar (' + er.message + '): toca CONFIRMAR otra vez', 6); entrada.value = v; entrada.focus(); return; }
+      }
+      op.pin = v; guardarOpciones(); entrada.inputMode = 'text';
+      pantalla = 'claveLista';                       // que la anote: no se recupera
+      return;
+    }
+    if (v === '') {
+      if (!op.pin) return volverDeClave();
+      await api({ accion: 'proteger', nick: op.nick, pin: op.pin, pinNuevo: '' }); op.pin = ''; guardarOpciones();
+      return volverDeClave('Tu nombre quedo sin clave');
+    }
+    if (!/^\d{4,8}$/.test(v)) { avisar('La clave son de 4 a 8 numeros'); return; }
+    if (op.pin && v === op.pin) return volverDeClave('Esa ya es tu clave');
+    if (!op.pin) {
+      // el nombre ya tiene clave en otro aparato? con la correcta se entra; con otra, no
+      let r = null;
+      try { r = await api({ accion: 'nombre', nick: op.nick, pin: v }); } catch (er) { if (er.codigo === 403) return volverDeClave('Ese nombre ya tiene otra clave'); throw er; }
+      if (r && r.protegido) { op.pin = v; guardarOpciones(); return volverDeClave('Clave aceptada: en este aparato ya podes usar tu nombre'); }
+    }
+    pinPrimero = v; pinPaso = 2; entrada.value = ''; entrada.focus();        // ahora, otra vez
+  } catch (er) { volverDeClave(er.message); }
+}
+// CERRAR SESION (30/10): este aparato se olvida del nombre y de la clave (en el servidor quedan: con la clave se vuelve
+// a entrar desde cualquier lado)
+function cerrarSesion() {
+  if (sala.yo) { api({ accion: 'salir', ...credencial() }).catch(() => {}); sala.yo = null; }
+  op.nick = ''; op.pin = ''; soloNick = ''; perfil = null; guardarOpciones();
+  avisar('Listo: la proxima vez te pide el nombre', 4);
 }
 function cancelarTexto() {
   entrada.blur();
-  if (pantalla === 'nick' && destinoNick === 'pin') { pantalla = 'opciones'; return; }
+  if (pantalla === 'nick' && destinoNick === 'pin') { volverDeClave(); return; }
   if (pantalla === 'nick') { if (destinoNick === 'cambiar') { pantalla = 'opciones'; cursor = 0; } else { pantalla = 'menu'; cursor = destinoNick === 'solo' ? 0 : 1; } } else escribiendo = false;
 }
 // ---------- modo solo con ranking ----------
@@ -975,7 +1040,7 @@ export function sesionSolo() {
 function pedirNick() { pantalla = 'nick'; entrada.value = op.nick || ''; entrada.maxLength = 16; entrada.focus(); }
 async function entrarSala(nick) {
   try {
-    const r = await api({ accion: 'entrar', nick, pin: op.pin, avatar: op.avatar });
+    const r = await api({ accion: 'entrar', nick, pin: op.pin, avatar: op.avatar, aparato: miAparato() });
     sala.yo = r; sala.chat = []; sala.chatDesde = 0; cursor = 0;
     op.nick = r.nick; guardarOpciones();
     pantalla = 'sala'; sondear();
@@ -1001,7 +1066,7 @@ function dibujar() {
   const t = performance.now() / 1000;
   // detras corre la pantalla de titulo de verdad (principal.js, el juego en modo fondo): el menu se dibuja encima,
   // transparente. Mientras arranca (o si no hay), el fondo armado con los mosaicos del titulo.
-  const vivo = J.hayFondo(), deMenu = ['menu', 'controles', 'opciones', 'nick'].includes(pantalla);
+  const vivo = J.hayFondo(), deMenu = ['menu', 'controles', 'opciones', 'nick', 'claveLista'].includes(pantalla);
   if (vivo && !vivoDesde) vivoDesde = performance.now(); else if (!vivo) vivoDesde = 0;
   if (pantalla === 'cuenta') { dibujarCuenta(t); }
   else {
@@ -1019,7 +1084,7 @@ function dibujar() {
     if (pantalla !== cambio.pantalla) { cambio.pantalla = pantalla; cambio.desde = performance.now(); }
     const e = Math.min(1, (performance.now() - cambio.desde) / 260), ee = 1 - Math.pow(1 - e, 3);
     x.save(); x.globalAlpha = ee; x.translate(0, (1 - ee) * 18);
-    if (pantalla === 'menu' || pantalla === 'controles' || pantalla === 'opciones' || pantalla === 'nick') dibujarMenu(t, vivo);
+    if (pantalla === 'menu' || pantalla === 'controles' || pantalla === 'opciones' || pantalla === 'nick' || pantalla === 'claveLista') dibujarMenu(t, vivo);
     else if (pantalla === 'sala' || pantalla === 'esperando') dibujarSala(t);
     else if (pantalla === 'elegir') dibujarElegir(t);
     else if (pantalla === 'resultado') dibujarResultado(t);
@@ -1105,16 +1170,32 @@ function dibujarMenu(t, vivo) {
     x.fillStyle = g; x.fillRect(0, 250, 640, 230);
   }
   if (pantalla === 'nick') {
-    caja(110, 290, 420, 120);
-    texto(x, destinoNick === 'pin' ? 'CLAVE DEL NOMBRE (4 A 8 NUMEROS; VACIA = SACARLA)' : destinoNick === 'solo' || destinoNick === 'cambiar' ? 'TU NOMBRE PARA EL RANKING' : 'TU NICKNAME', 320, 302, destinoNick === 'pin' ? 1.2 : 2, 'celeste', true);
-    texto(x, (destinoNick === 'pin' ? '*'.repeat((entrada.value || '').length) : (entrada.value || '')) + (Math.floor(t * 2) % 2 ? '_' : ' '), 320, 340, 3, 'amarillo', true);
-    texto(x, esTactil ? 'CENTRO O "IR" = ENTRAR   ATRAS = VOLVER' : 'ENTER = ENTRAR   ESC = VOLVER', 320, 390, 1, 'gris', true);
-    if (esTactil && document.activeElement !== entrada) texto(x, 'TOCA ACA PARA ESCRIBIR', 320, 418, 1, 'celeste', true);
+    caja(110, 270, 420, 160);
+    const pin = destinoNick === 'pin';
+    texto(x, pin ? (pinPaso === 2 ? 'REPETI LA CLAVE' : op.pin ? 'CLAVE NUEVA (VACIA = SACARLA)' : 'ELEGI UNA CLAVE (4 A 8 NUMEROS)') : destinoNick === 'solo' || destinoNick === 'cambiar' ? 'TU NOMBRE PARA EL RANKING' : 'TU NICKNAME', 320, 280, pin ? 1.5 : 2, 'celeste', true);
+    if (pin) texto(x, pinPaso === 2 ? 'PARA ESTAR SEGUROS DE QUE QUEDO BIEN' : 'OPCIONAL: QUE NADIE USE TU NOMBRE EN EL RANKING', 320, 304, 1, 'gris', true);
+    texto(x, (pin ? '*'.repeat((entrada.value || '').length) : (entrada.value || '')) + (Math.floor(t * 2) % 2 ? '_' : ' '), 320, 326, 3, 'amarillo', true);
+    // (30/10) el boton para tocar: en algunos telefonos la tecla "Ir" del teclado no llega a la pagina
+    barra('oro', BOTON_OK[0], BOTON_OK[1], BOTON_OK[2], BOTON_OK[3], 0.9);
+    texto(x, 'CONFIRMAR', 320, BOTON_OK[1] + 8, 2, 'amarillo', true);
+    texto(x, esTactil ? 'TOCA CONFIRMAR (O "IR")   ATRAS = VOLVER' : 'ENTER = CONFIRMAR   ESC = VOLVER', 320, 414, 1, 'gris', true);
+    if (esTactil && document.activeElement !== entrada) texto(x, 'TOCA LA CLAVE PARA ESCRIBIR', 320, 440, 1, 'celeste', true);
+    return;
+  }
+  if (pantalla === 'claveLista') {      // la clave quedo registrada: que no se la olvide
+    caja(70, 250, 500, 200, 0.95);
+    texto(x, 'TU CLAVE QUEDO REGISTRADA', 320, 264, 2, 'verde', true);
+    texto(x, 'ANOTALA O ACORDATELA: SIN ELLA', 320, 308, 1.5, 'amarillo', true);
+    texto(x, 'NO PODES USAR TU NOMBRE EN OTRO', 320, 334, 1.5, 'amarillo', true);
+    texto(x, 'APARATO, Y NO SE PUEDE RECUPERAR', 320, 360, 1.5, 'amarillo', true);
+    barra('oro', BOTON_OK[0], 396, BOTON_OK[2], BOTON_OK[3], 0.9);
+    texto(x, 'ENTENDIDO', 320, 404, 2, 'amarillo', true);
     return;
   }
   const si = (v) => (v ? 'SI' : 'NO');
   const items = pantalla === 'menu' ? MENU.map((m) => NOMBRE_MENU[m])
-    : pantalla === 'opciones' ? FILAS_OPCIONES.map((f) => ({ nombre: `TU NOMBRE: ${op.nick || '-'}`, pin: `CLAVE DEL NOMBRE: ${op.pin ? 'PUESTA' : 'SIN CLAVE'}`, avatar: `AVATAR: ${op.avatar ? 'ELEGIDO' : 'NINGUNO'}`, controles: `CONTROLES: ${CORTO_CONTROLES[op.controles]}`, paneles: `PANELES: ${op.panelesDos ? 'DOS' : 'UNO'}`,
+    : pantalla === 'opciones' ? FILAS_OPCIONES.map((f) => ({ nombre: `TU NOMBRE: ${op.nick || '-'}`, pin: `CLAVE DEL NOMBRE: ${op.pin ? 'REGISTRADA' : 'SIN CLAVE'}`, sesion: op.nick ? `CERRAR SESION (${op.nick})`.slice(0, 30) : 'CERRAR SESION', avatar: `AVATAR: ${op.avatar ? 'ELEGIDO' : 'NINGUNO'}`,
+      aparato: `JUEGO CON: ${op.aparato === 'auto' || !op.aparato ? `AUTO (${CORTO_APARATO[aparatoAuto()]})` : { teclado: 'TECLADO', plataforma: 'PLATAFORMA', tactil: 'CELU/TABLET' }[op.aparato]}`, controles: `CONTROLES: ${CORTO_CONTROLES[op.controles]}`, paneles: `PANELES: ${op.panelesDos ? 'DOS' : 'UNO'}`,
       tamano: `TAMANO DE PANELES: ${Math.round(op.tamanoPads * 100)}%`, vibrar: `VIBRAR AL PISAR: ${si(op.vibrar)}`,
       usb: `MANDO USB: ${op.usb ? 'APRENDIDO' : 'COMUN'}${J.mando.hay().length ? ' (CONECTADO)' : ''}`, calibrar: `CALIBRAR: ${op.desfase > 0 ? '+' : ''}${op.desfase} MS`,
       fondo: `FONDO: ${nombreFondo(op.fondo)}`, cuenta: `CUENTA DEL ONLINE: ${op.cuenta} S`, panelmods: `MODIFICADORES: ${NOMBRE_MODO_MODS[modoMods()]}`,
@@ -1170,8 +1251,12 @@ function dibujarSala(t) {
     barra(sel ? 'oro' : j.estado === 'sala' ? 'azul' : 'rojo', 20, y - 6, 242, 30, sel ? 0.9 : 0.55);
     const conAvatar = dibujarAvatar(j.avatar, 24, y - 3, 26);
     texto(x, j.nick.slice(0, conAvatar ? 8 : 10), conAvatar ? 54 : 32, y, 2, 'blanco');
-    texto(x, j.estado === 'sala' ? (j.torneo ? 'TORNEO' : 'LIBRE') : sel && j.partida ? 'MIRAR' : j.estado === 'serie' ? 'SERIE' : 'JUGANDO', 194, y + 4, 1, j.estado === 'sala' ? 'verde' : 'rojo');
+    const est = j.estado === 'sala' ? (j.torneo ? 'TORNEO' : 'LIBRE') : sel && j.partida ? 'MIRAR' : j.estado === 'serie' ? 'SERIE' : 'JUGANDO';
+    if (CORTO_APARATO[j.aparato]) { texto(x, est, 194, y - 1, 1, j.estado === 'sala' ? 'verde' : 'rojo'); texto(x, CORTO_APARATO[j.aparato], 194, y + 11, 1, 'celeste'); }
+    else texto(x, est, 194, y + 4, 1, j.estado === 'sala' ? 'verde' : 'rojo');
   });
+  // con que juega uno mismo (asi sabe lo que ven los demas)
+  texto(x, `JUGAS CON ${NOMBRE_APARATO[miAparato()]}`, 620 - `JUGAS CON ${NOMBRE_APARATO[miAparato()]}`.length * 8, 44, 1, 'gris');
   // chat
   caja(278, 62, 346, 340);
   texto(x, 'CHAT', 290, 70, 2, 'celeste');
@@ -1199,6 +1284,8 @@ function dibujarDesafio(d, t) {
   caja(60, 110, 520, 270, 0.92);
   cartel(x, 'BATTLE', 320, 145, 300);
   texto(x, d.tipo === 'versus' ? `${d.nick}: VERSUS COMPLETO (4 CANCIONES, 2 CADA UNO)` : `${d.nick} TE DESAFIA`, 320, 182, d.tipo === 'versus' ? 1 : 2, 'amarillo', true);
+  const suyo = (sala.jugadores.find((j) => j.id === d.de) || {}).aparato;
+  if (NOMBRE_APARATO[suyo]) texto(x, `JUEGA CON ${NOMBRE_APARATO[suyo]}`, 320, 200, 1, 'celeste', true);
   const portada = portadaDe(d.cancion, d.paquete);
   if (portada) x.drawImage(portada, 90, 212, 160, 120);
   texto(x, nombreCon(d).slice(0, 18), 270, 232, 2, 'blanco'); cartel(x, d.modo, 410, 290, 200);
@@ -1212,11 +1299,11 @@ function dibujarDesafio(d, t) {
 // El salon (api.php) lleva las series: cada ronda la elige uno (el que desafio, el otro, y asi) y gana el que suma mas.
 // Los cruces del torneo tambien son series (de una cancion o versus completo). Entre cancion y cancion: pantalla 'serie'.
 const seriesVistas = new Set();          // las terminadas cuyo resultado ya se vio
-let confirmarSalida = 0, cursorTipo = 0, cursorT = 0, cursorC = 2;
-const crear = { orden: 0, formato: 0 };
+let confirmarSalida = 0, cursorTipo = 0, cursorT = 0, cursorC = 3;
+const crear = { orden: 0, formato: 0, control: 0 };
 const ORDENES = ['ranking', 'azar', 'llegada'], NOMBRE_ORDEN = { ranking: 'POR RANKING', azar: 'AL AZAR', llegada: 'POR LLEGADA' };
 const FORMATOS = ['una', 'versus'], NOMBRE_FORMATO = { una: 'UNA CANCION', versus: 'VERSUS COMPLETO (4)' };
-const pedirSala = (cuerpo) => api({ ...cuerpo, ...credencial(), chatDesde: sala.chatDesde }).then(actualizarSala).catch(er => avisar(er.message, 4));
+const pedirSala = (cuerpo) => api({ ...cuerpo, ...credencial(), chatDesde: sala.chatDesde, aparato: miAparato() }).then(actualizarSala).catch(er => avisar(er.message, 4));
 function salirSerie() {
   if (sala.serie) seriesVistas.add(sala.serie.id);
   pedirSala({ accion: 'serie_salir' });
@@ -1251,10 +1338,11 @@ function teclaSerieTorneo(k) {
     return;
   }
   if (pantalla === 'crearTorneo') {
-    if (sube) cursorC = (cursorC + 2) % 3; else if (baja) cursorC = (cursorC + 1) % 3;
+    if (sube) cursorC = (cursorC + 3) % 4; else if (baja) cursorC = (cursorC + 1) % 4;
     else if ((izq || der || OK.includes(k)) && cursorC === 0) crear.orden = (crear.orden + (izq ? 2 : 1)) % 3;
     else if ((izq || der || OK.includes(k)) && cursorC === 1) crear.formato = 1 - crear.formato;
-    else if (OK.includes(k)) { pedirSala({ accion: 'torneo_crear', orden: ORDENES[crear.orden], formato: FORMATOS[crear.formato] }); pantalla = 'torneo'; cursorT = 0; }
+    else if ((izq || der || OK.includes(k)) && cursorC === 2) crear.control = (crear.control + (izq ? 3 : 1)) % 4;
+    else if (OK.includes(k)) { pedirSala({ accion: 'torneo_crear', orden: ORDENES[crear.orden], formato: FORMATOS[crear.formato], control: CONTROLES_TORNEO[crear.control] }); pantalla = 'torneo'; cursorT = 0; }
     else if (k === 'Escape') pantalla = 'torneo';
     return;
   }
@@ -1266,7 +1354,7 @@ function teclaSerieTorneo(k) {
   else if (OK.includes(k)) {
     const f = filas[Math.min(cursorT, filas.length - 1)];
     if (f === 'volver') { pantalla = 'sala'; cursor = 0; }
-    else if (f === 'armar') { pantalla = 'crearTorneo'; cursorC = 2; }
+    else if (f === 'armar') { pantalla = 'crearTorneo'; cursorC = 3; }
     else if (f === 'anotarme') pedirSala({ accion: 'torneo_anotarse' });
     else if (f === 'desanotarme') pedirSala({ accion: 'torneo_salir' });
     else if (f === 'empezar') pedirSala({ accion: 'torneo_empezar' });
@@ -1279,6 +1367,8 @@ function teclaSerieTorneo(k) {
 function dibujarTipo(t) {
   caja(70, 90, 500, 300, 0.9);
   texto(x, `DESAFIO A ${elegido.rival.nick}`, 320, 104, 2, 'amarillo', true);
+  const suyo = (sala.jugadores.find((j) => j.id === elegido.rival.id) || {}).aparato;
+  if (NOMBRE_APARATO[suyo]) texto(x, `JUEGA CON ${NOMBRE_APARATO[suyo]}`, 320, 128, 1, 'celeste', true);
   const opciones = [['UNA CANCION', 'ELEGIS VOS LA CANCION', 'GANA EL QUE HACE MAS PUNTOS'], ['VERSUS COMPLETO', '4 CANCIONES: CADA UNO ELIGE 2', 'SE SUMAN LOS PUNTOS DE LAS 4']];
   opciones.forEach(([nombre, l1, l2], i) => {
     const y = 150 + i * 100, sel = i === cursorTipo;
@@ -1329,10 +1419,15 @@ function dibujarTorneo(t) {
   texto(x, 'TORNEO', 320, 22, 3, 'amarillo', true);
   if (!to) texto(x, 'NO HAY NINGUN TORNEO ARMADO', 320, 120, 2, 'blanco', true);
   else {
-    texto(x, `${NOMBRE_FORMATO[to.formato]} POR CRUCE - LLAVES ${NOMBRE_ORDEN[to.orden]} - ARMO ${to.creador}`.slice(0, 74), 320, 58, 1, 'celeste', true);
+    texto(x, `${NOMBRE_FORMATO[to.formato]} POR CRUCE - LLAVES ${NOMBRE_ORDEN[to.orden]} - ARMO ${to.creador}`.slice(0, 74), 320, 60, 1, 'celeste', true);
+    texto(x, reglaTorneo(to.control), 320, 74, 1, to.control && to.control !== 'libre' ? 'amarillo' : 'verde', true);
     if (to.estado === 'anotando') {
-      texto(x, `ANOTADOS: ${to.anotados.length}`, 320, 82, 2, 'blanco', true);
-      to.anotados.slice(0, 16).forEach((n, i) => texto(x, n, i < 8 ? 120 : 340, 112 + (i % 8) * 24, 2, n === (sala.yo && sala.yo.nick) ? 'amarillo' : 'blanco'));
+      texto(x, `ANOTADOS: ${to.anotados.length}`, 320, 92, 2, 'blanco', true);
+      to.anotados.slice(0, 16).forEach((n, i) => {
+        const xx = i < 8 ? 100 : 340, yy = 120 + (i % 8) * 24, ap = (sala.jugadores.find((j) => j.nick === n) || {}).aparato;
+        texto(x, n, xx, yy, 2, n === (sala.yo && sala.yo.nick) ? 'amarillo' : 'blanco');
+        if (CORTO_APARATO[ap] && n.length <= 11) texto(x, CORTO_APARATO[ap], xx + n.length * 16 + 8, yy + 4, 1, 'celeste');
+      });
     } else dibujarLlaves(to, t);
     if (to.estado === 'terminado' && to.campeon) {
       barra('oro', 120, 330, 400, 40, 0.9);
@@ -1349,12 +1444,12 @@ function dibujarTorneo(t) {
 // las llaves: una columna por ronda, cada cruce con sus dos nombres (el que paso en amarillo, el que se jugando titila)
 function dibujarLlaves(to, t) {
   const rondas = to.rondas, total = Math.max(1, Math.round(Math.log2(Math.max(2, (rondas[0] || []).length * 2))));
-  const ancho = 588 / total, alto = 240;
+  const ancho = 588 / total, alto = 232;
   for (let r = 0; r < rondas.length; r++) {
     const cruces = rondas[r], paso = alto / cruces.length;
     cruces.forEach((m, i) => {
       if (m.a === null && m.b === null) return;
-      const x0 = 26 + r * ancho, y0 = 80 + i * paso + paso / 2 - 17;
+      const x0 = 26 + r * ancho, y0 = 88 + i * paso + paso / 2 - 17;
       x.fillStyle = m.jugando ? `rgba(255,210,63,${0.15 + 0.15 * (Math.floor(t * 3) % 2)})` : 'rgba(255,255,255,0.06)';
       x.fillRect(x0, y0, ancho - 10, 34);
       const nombre = (n, y) => { if (n === null) { texto(x, '-', x0 + 4, y, 1, 'gris'); return; } texto(x, n.slice(0, Math.floor((ancho - 18) / 8)), x0 + 4, y, 1, m.ganador ? (m.ganador === n ? 'amarillo' : 'gris') : 'blanco'); };
@@ -1365,10 +1460,11 @@ function dibujarLlaves(to, t) {
 function dibujarCrearTorneo(t) {
   caja(80, 90, 480, 300, 0.9);
   texto(x, 'ARMAR UN TORNEO', 320, 104, 3, 'amarillo', true);
-  const filas = [['LLAVES', NOMBRE_ORDEN[ORDENES[crear.orden]], 'EL ORDEN DE LOS CRUCES (LOS MEJORES SE CRUZAN AL FINAL)'], ['CADA CRUCE', NOMBRE_FORMATO[FORMATOS[crear.formato]], 'UNA CANCION, O CUATRO (CADA UNO ELIGE DOS)'], ['ARMARLO', '', 'DESPUES LA GENTE SE ANOTA Y VOS LO EMPEZAS']];
+  const filas = [['LLAVES', NOMBRE_ORDEN[ORDENES[crear.orden]], 'EL ORDEN DE LOS CRUCES (LOS MEJORES SE CRUZAN AL FINAL)'], ['CADA CRUCE', NOMBRE_FORMATO[FORMATOS[crear.formato]], 'UNA CANCION, O CUATRO (CADA UNO ELIGE DOS)'],
+    ['CONTROLES', NOMBRE_CONTROL_TORNEO[CONTROLES_TORNEO[crear.control]], 'CUALQUIERA, O TODOS CON EL MISMO CONTROL'], ['ARMARLO', '', 'DESPUES LA GENTE SE ANOTA Y VOS LO EMPEZAS']];
   filas.forEach(([n, v, ayuda], i) => {
-    const y = 160 + i * 64, sel = i === cursorC;
-    barra(sel ? 'oro' : 'violeta', 100, y - 8, 440, 50, sel ? 0.85 : 0.35);
+    const y = 148 + i * 54, sel = i === cursorC;
+    barra(sel ? 'oro' : 'violeta', 100, y - 8, 440, 46, sel ? 0.85 : 0.35);
     if (v) { texto(x, n, 116, y, 2, sel ? 'amarillo' : 'blanco'); texto(x, v, 524 - v.length * 8, y + 4, 1, 'celeste'); }
     else texto(x, n, 320, y, 2, sel ? 'amarillo' : 'verde', true);
     texto(x, ayuda, 320, y + 24, 1, 'gris', true);
@@ -1444,6 +1540,7 @@ function dibujarResultado(t) {
 // el titulo de fondo con sus destellos y la nieve, las barras de color de la seleccion (SELECT.DAT BAR1-3), los
 // numeros cromados de la pantalla de resultado (GRADE.DAT NUM), los nombres de modo (MODENAME) y los botones SHIFT.
 // Las filas entran deslizandose una tras otra y un brillo pasa por las tres primeras.
+let subPaginaRanking = 0;
 const PAGINAS_RANKING = ['MEJORES 20 SESIONES (SOLO)', 'MEJOR DE CADA CANCION', 'ONLINE: PARTIDAS GANADAS', 'ESTA SEMANA (SOLO)', 'CANCION DEL DIA', 'TU PERFIL'];
 let perfil = null;
 // (mejora 14) el perfil del nombre con el que se juega: lo que junta api.php (anotarPerfil) en solo y en el online
@@ -1563,23 +1660,30 @@ function dibujarRanking(t) {
       if (i < 3 && ent >= 1) brillo(px, py, w, h);
     });
   } else {
+    // (30/10) con todas las canciones ya no entran: las que tienen puntaje, de la mejor a la peor, de a 16 por pagina
+    // (ARRIBA/ABAJO). Antes iban las 32 de la demo en filas de 20 px y los renglones se pisaban.
     const mejores = [...Object.entries((solo && solo.canciones) || {}), ...Object.entries((ranking && ranking.mejores) || {})];
-    const filas = Math.ceil(CANCIONES.length / 2), alto = Math.min(38, Math.floor(330 / filas));
-    CANCIONES.forEach((c, i) => {
-      const px = i < filas ? 22 : 328, py = 90 + (i % filas) * alto, w = 290;
-      const top = mejores.filter(([k]) => +k.split(' ')[0] === c.n).map(([k, l]) => ({ modo: k.split(' ')[1], ...(l[0] || {}) })).filter(e => e.nick).sort((a, b) => b.puntaje - a.puntaje)[0];
-      const ent = fila(i, px, py, w, alto - 2, top ? 'azul' : 'violeta', top ? 0.6 : 0.35), dx = -(1 - ent) * 340;
+    const porCancion = new Map();
+    for (const [k, l] of mejores) {
+      const n = +k.split(' ')[0], e = { n, modo: k.split(' ')[1], ...(l[0] || {}) };
+      if (e.nick && (!porCancion.has(n) || e.puntaje > porCancion.get(n).puntaje)) porCancion.set(n, e);
+    }
+    const lista = [...porCancion.values()].sort((a, b) => b.puntaje - a.puntaje), POR = 16, alto = 40;
+    const paginas = Math.max(1, Math.ceil(lista.length / POR)); subPaginaRanking = ((subPaginaRanking % paginas) + paginas) % paginas;
+    if (!lista.length) texto(x, 'SIN PUNTAJES TODAVIA', 320, 220, 2, 'gris', true);
+    lista.slice(subPaginaRanking * POR, (subPaginaRanking + 1) * POR).forEach((top, i) => {
+      const px = i < POR / 2 ? 22 : 328, py = 90 + (i % (POR / 2)) * alto, w = 290;
+      const ent = fila(i, px, py, w, alto - 3, 'azul', 0.6), dx = -(1 - ent) * 340;
       if (ent < 0.05) return;
       x.save(); x.globalAlpha = ent;
-      if (R.caratulas[c.n]) x.drawImage(R.caratulas[c.n], px + dx + 4, py + 1, 34, alto - 4);
-      texto(x, c.nombre.slice(0, 29), px + dx + 44, py + 1, 1, 'blanco');
-      if (top) {
-        texto(x, String(top.nick).slice(0, 12), px + dx + 44, py + 15, 1, 'amarillo');
-        numerosCromo(String(top.puntaje), px + dx + 222, py + 14, 13);
-        nombreModo(top.modo, px + dx + 258, py + 16, 8);
-      } else texto(x, 'SIN PUNTAJES TODAVIA', px + dx + 44, py + 15, 1, 'gris');
+      if (R.caratulas[top.n]) x.drawImage(R.caratulas[top.n], px + dx + 4, py + 2, 40, alto - 7);
+      texto(x, nombreDe(top.n).slice(0, 28), px + dx + 50, py + 3, 1, 'blanco');
+      texto(x, String(top.nick).slice(0, 12), px + dx + 50, py + 20, 1, 'amarillo');
+      numerosCromo(String(top.puntaje), px + dx + 222, py + 18, 14);
+      nombreModo(top.modo, px + dx + 258, py + 20, 8);
       x.restore();
     });
+    if (paginas > 1) texto(x, `PAGINA ${subPaginaRanking + 1} DE ${paginas}   ${esTactil ? 'PANELES DE ARRIBA' : 'ARRIBA/ABAJO'} = MAS`, 320, 426, 1, 'celeste', true);
   }
   texto(x, esTactil ? 'FLECHAS = OTRA TABLA   CENTRO O ATRAS = VOLVER' : 'IZQ/DER = OTRA TABLA   ENTER O ESC = VOLVER', 320, 452, 1, 'gris', true);
 }
@@ -1790,10 +1894,16 @@ export async function iniciarMenu(juego) {
     else if (e.key === 'Escape' || e.code === 'Escape') { e.preventDefault(); cancelarTexto(); }
   });
   if (entrada.form) entrada.form.addEventListener('submit', (e) => { e.preventDefault(); confirmarTexto(); });
-  // tocar el cuadro del juego vuelve a abrir el teclado del celular si se cerro
+  // (30/10) algunos teclados de celular mandan el Enter solo al soltar
+  entrada.addEventListener('keyup', (e) => { if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); confirmarTexto(); } });
+  // tocar el cuadro del juego vuelve a abrir el teclado del celular si se cerro; tocar CONFIRMAR / ENTENDIDO, confirma
   addEventListener('click', (e) => {
-    if ((pantalla !== 'nick' && !escribiendo) || document.activeElement === entrada) return;
     const r = lienzo.getBoundingClientRect();
+    const cx = (e.clientX - r.left) / r.width * 640, cy = (e.clientY - r.top) / r.height * 480;
+    const enBoton = (y) => cx >= BOTON_OK[0] && cx <= BOTON_OK[0] + BOTON_OK[2] && cy >= y - 6 && cy <= y + BOTON_OK[3] + 6;
+    if (pantalla === 'claveLista' && enBoton(396)) { volverDeClave('Clave registrada'); return; }
+    if (pantalla === 'nick' && enBoton(BOTON_OK[1])) { confirmarTexto(); return; }
+    if ((pantalla !== 'nick' && !escribiendo) || document.activeElement === entrada) return;
     if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) entrada.focus();
   });
   addEventListener('keydown', (e) => { if (tecla(e)) e.stopImmediatePropagation(); }, true);
@@ -1818,4 +1928,4 @@ export function juegoCerrado() {
   if (pantalla === 'eligiendo') { pantalla = elegido.serie ? 'serie' : 'sala'; return; }     // Esc en la seleccion del desafio: vuelve al salon (o a la serie)
   if (pantalla === 'oculto') { sesionSolo(); pantalla = 'menu'; cursor = 0; ruleta = null; }   // ATRAS: al menu principal
 }
-export const estadoMenu = () => ({ pantalla, ruleta, sala: { yo: sala.yo && sala.yo.nick, jugadores: sala.jugadores.length, partida: !!sala.partida, serie: sala.serie, torneo: sala.torneo }, resultado });
+export const estadoMenu = () => ({ pantalla, ruleta, clave: { paso: pinPaso, enCamino: claveEnCamino }, sala: { yo: sala.yo && sala.yo.nick, jugadores: sala.jugadores.length, partida: !!sala.partida, serie: sala.serie, torneo: sala.torneo }, resultado });
