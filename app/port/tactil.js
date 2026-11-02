@@ -131,7 +131,7 @@ function actualizarPads() {
     const on = ahora.has(p.id);
     if (!!estadoPad[p.id] !== on) {
       estadoPad[p.id] = on; alPad(p, on);
-      if (on && vibrar) vibrarAhora(12); dibujarPad(p); if (p.lienzo2) { const l = p.lienzo; p.lienzo = p.lienzo2; dibujarPad(p); p.lienzo = l; }
+      if (on && vibrar) vibrarAhora(25); dibujarPad(p);   // (02/11) 12 ms casi no se sentia en muchos telefonos if (p.lienzo2) { const l = p.lienzo; p.lienzo = p.lienzo2; dibujarPad(p); p.lienzo = l; }
     }
   }
 }

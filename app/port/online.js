@@ -1229,15 +1229,21 @@ function dibujarMenu(t, vivo) {
   if (desde > 0) texto(x, '^', 320, y0 - 20, 1, 'celeste', true);
   if (desde + VIS < items.length) texto(x, 'v', 320, y0 + n * paso - 6, 1, 'celeste', true);
   // cada opcion en su franja; la elegida con el marco celeste, en amarillo, con las bolitas de SHIFT a los costados
+  // (02/11, Charles: "el cuadrado... no se adapta a los que son mas largos") la franja y el marco a la medida del texto:
+  // las puntas del marco quedan como estan y se estira el medio; las bolitas van a los costados del marco
   vistos.forEach((s, k) => {
-    const i = desde + k, y = y0 + k * paso, sel = i === cursor;
-    const g = x.createLinearGradient(140, 0, 500, 0);
+    const i = desde + k, y = y0 + k * paso, sel = i === cursor, ancho = String(s).length * 8 * esc;
+    const fw = Math.min(636, Math.max(360, ancho + 100)), fx = 320 - fw / 2;
+    const g = x.createLinearGradient(fx, 0, fx + fw, 0);
     g.addColorStop(0, 'rgba(0,0,40,0)'); g.addColorStop(0.5, sel ? 'rgba(10,30,90,.85)' : 'rgba(0,0,40,.6)'); g.addColorStop(1, 'rgba(0,0,40,0)');
-    x.fillStyle = g; x.fillRect(140, y - 6, 360, 30);
+    x.fillStyle = g; x.fillRect(fx, y - 6, fw, 30);
     if (sel) {
-      x.drawImage(R.marco, 0, 29, 256, 197, 170, y - 8, 300, 33);
+      const mw = Math.min(572, Math.max(300, ancho + 48)), mx = 320 - mw / 2, punta = 48, puntaD = 56;
+      x.drawImage(R.marco, 0, 29, punta, 197, mx, y - 8, puntaD, 33);
+      x.drawImage(R.marco, punta, 29, 256 - 2 * punta, 197, mx + puntaD, y - 8, mw - 2 * puntaD, 33);
+      x.drawImage(R.marco, 256 - punta, 29, punta, 197, mx + mw - puntaD, y - 8, puntaD, 33);
       const b = 4 * Math.sin(t * 6);
-      x.drawImage(R.boton, 192, 0, 32, 32, 136 + b, y - 5, 26, 26); x.drawImage(R.boton, 192, 0, 32, 32, 478 - b, y - 5, 26, 26);
+      x.drawImage(R.boton, 192, 0, 32, 32, mx - 34 + b, y - 5, 26, 26); x.drawImage(R.boton, 192, 0, 32, 32, mx + mw + 8 - b, y - 5, 26, 26);
     }
     texto(x, s, 320, y, esc, sel ? 'amarillo' : 'blanco', true);
   });

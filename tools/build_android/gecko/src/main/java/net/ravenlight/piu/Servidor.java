@@ -40,18 +40,19 @@ class Servidor extends Thread {
             + "addEventListener('error',function(e){window.__errores.push((e.message||e.type)+' '+(e.filename||'')+':'+(e.lineno||''));});"
             // la app ya esta en pantalla completa desde que abre (no hace falta tocar); SALIR le pide al servidor que la cierre
             // cada 5 s, los cuadros por segundo y la pantalla al registro del telefono (adb logcat | GeckoConsole): para medir
-            + "setInterval(function(){if(window.__port){var t=(window.__port.ultimos||[]).filter(function(l){return /tiron/.test(l);}).slice(-2).join(' | ');"
+            + "setInterval(function(){if(window.__port){var t=(window.__port.ultimos||[]).filter(function(l){return /tiron|puente:/.test(l);}).slice(-2).join(' | ');"
             + "fetch('/medida?c='+window.__port.cuadrosSeg+'&p='+window.__port.menu().pantalla+(t?'&t='+encodeURIComponent(t):'')).catch(function(){});}},5000);"
-            // (30/10, Charles: "arreglalo") en la pestaña de Chrome (Juego.java) la pantalla completa es la de la pagina
-            // (el primer toque la prende y el siguiente la recupera). Atras: con pantalla completa la saca Chrome; sin ella
-            // vuelve en el historial, y eso hace de Esc como en GeckoView (en el menu principal cierra la app)
-            + "var enChrome=/Chrome\\//.test(navigator.userAgent);"
+            // (31/10, Charles: "tiene que ser una apk... en pantalla completa de por si") la WebView de la app (Juego.java):
+            // pantalla completa propia, sin memoria compartida -> el puente de este servidor (app\port\trabajador.js).
+            // Abierta en Chrome (como en la 1.2.0) la pantalla completa es la de la pagina y Atras vuelve en el historial
+            + "var enWebView=/; wv\\)/.test(navigator.userAgent);"
+            + "var enChrome=/Chrome\\//.test(navigator.userAgent)&&!enWebView;"
             + "function esc(){dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}));setTimeout(function(){dispatchEvent(new KeyboardEvent('keyup',{code:'Escape',key:'Escape',bubbles:true}));},80);}"
             + "if(enChrome){history.pushState({piu:1},'');addEventListener('popstate',function(){history.pushState({piu:1},'');esc();});}"
-            + "window.piuBuild={android:true,chrome:enChrome,salir:function(){fetch('/salir').catch(function(){});},"
+            + "window.piuBuild={android:true,chrome:enChrome,puente:enWebView&&!self.crossOriginIsolated,salir:function(){fetch('/salir').catch(function(){});},"
             + "pantallaCompleta:function(si){if(!enChrome)return;try{if(si&&!document.fullscreenElement)document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(function(){});}catch(e){}},"
             + "estaCompleta:function(){return enChrome?!!document.fullscreenElement:true;},"
-            // (30/10) vibrar: el motor de Firefox ya no tiene navigator.vibrate; lo hace el telefono (/vibrar)
+            // (30/10) vibrar: la WebView y el motor de Firefox lo hacen por el telefono (/vibrar)
             + "vibrar:function(ms){if(enChrome&&navigator.vibrate){navigator.vibrate(ms|0);return;}fetch('/vibrar?ms='+(ms|0)).catch(function(){});}};})();</script>";
     // el vibrador del telefono (lo pone Juego): los paneles vibran al pisar (OPCIONES > VIBRAR AL PISAR)
     android.os.Vibrator vibrador;
@@ -104,15 +105,23 @@ class Servidor extends Thread {
             // la medida de la pagina (cuadros por segundo y pantalla, cada 5 s) al registro: adb logcat -s PIU
             if (ruta.startsWith("/medida?")) { android.util.Log.w("PIU", "medida " + ruta.substring(8)); responder(sal, 204, "No Content"); return; }
             int q = ruta.indexOf('?');
+            String consulta = q >= 0 ? ruta.substring(q + 1) : "";
             if (q >= 0) ruta = ruta.substring(0, q);
             ruta = URLDecoder.decode(ruta.replace("+", "%2B"), "UTF-8");
             int largo = 0;
             for (String l : lineas) if (l.regionMatches(true, 0, "Content-Length:", 0, 15)) try { largo = Integer.parseInt(l.substring(15).trim()); } catch (NumberFormatException e) { largo = 0; }
+            if (ruta.startsWith("/puente/")) { puente(ruta.substring(8), parametros(consulta), metodo, ent, sal, largo); return; }
             // SALIR del menu principal (o Esc/ATRAS en el menu): la pagina avisa y la app se cierra
-            if (ruta.startsWith("/vibrar?ms=")) {
+            // (02/11, Charles: "no vibra cuando toco los pasos") se preguntaba por "/vibrar?ms=" con la consulta ya
+            // sacada y nunca coincidia. Menos de 20 ms casi no se siente en muchos telefonos
+            if (ruta.equals("/vibrar")) {
                 responder(sal, 204, "No Content");
-                try { int ms = Math.max(1, Math.min(200, Integer.parseInt(ruta.substring(11))));
-                      if (vibrador != null) vibrador.vibrate(android.os.VibrationEffect.createOneShot(ms, android.os.VibrationEffect.DEFAULT_AMPLITUDE)); }
+                try { int ms = Math.max(20, Math.min(200, (int) numero(parametros(consulta).get("ms"))));
+                      // como vibracion de juego (multimedia): sin eso Android la toma como "al tocar la pantalla" y la
+                      // ignora si el telefono tiene apagada la vibracion al tocar (medido en el Nubia: usage TOUCH)
+                      android.os.VibrationEffect ef = android.os.VibrationEffect.createOneShot(ms, android.os.VibrationEffect.DEFAULT_AMPLITUDE);
+                      if (vibrador != null && android.os.Build.VERSION.SDK_INT >= 33) vibrador.vibrate(ef, android.os.VibrationAttributes.createForUsage(android.os.VibrationAttributes.USAGE_MEDIA));
+                      else if (vibrador != null) vibrador.vibrate(ef, new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_GAME).build()); }
                 catch (Exception e) { /* sin vibrador o numero raro */ }
                 return;
             }
@@ -160,6 +169,86 @@ class Servidor extends Thread {
         } finally {
             try { c.close(); } catch (IOException e) { /* ya cerrada */ }
         }
+    }
+
+    // ---------- puente (31/10): la WebView no tiene memoria compartida (app\port\trabajador.js) ----------
+    // La pagina deja aca su copia del estado (I, D y Q: 4416 bytes) y el ultimo cuadro que dibujo; el hilo del juego la
+    // pide con XHR sincronico cada vez que espera (es lo unico que puede esperar). Lo del disco propio pasa igual: la
+    // pagina sube el archivo entero y el hilo lo espera. Igual que tools\servidor.mjs alPuente.
+    private static final int TAM_ESTADO = 64 * 4 + 8 * 8 + 512 * 8;
+    private final Object llave = new Object();
+    private byte[] estado;
+    private long mostrado;
+    private final Map<String, byte[]> archivos = new HashMap<String, byte[]>();
+    private static final byte[] FALTA = new byte[0];
+
+    private void puente(String que, Map<String, String> q, String metodo, InputStream ent, OutputStream sal, int largo) throws IOException {
+        if (que.equals("estado") && metodo.equals("POST")) {
+            byte[] d = leerCuerpo(ent, largo, TAM_ESTADO);
+            if (d == null || d.length != TAM_ESTADO) { responder(sal, 400, "Bad Request"); return; }
+            ponerEstado(d, numero(q.get("mostrado")));
+            responder(sal, 204, "No Content"); return;
+        }
+        if (que.equals("esperar")) {
+            long ms = Math.max(0, Math.min(1000, numero(q.get("ms")))), cuadro = numero(q.get("cuadro"));
+            byte[] e;
+            synchronized (llave) {
+                long hasta = System.nanoTime() + ms * 1000000L;
+                while (!(cuadro > 0 && mostrado >= cuadro)) {
+                    long falta = (hasta - System.nanoTime()) / 1000000L;
+                    if (falta <= 0) break;
+                    try { llave.wait(falta); } catch (InterruptedException x) { break; }
+                }
+                e = estado;
+            }
+            if (e == null) { responder(sal, 204, "No Content"); return; }
+            cabecera200(sal, "estado.bin", e.length); sal.write(e); sal.flush(); return;
+        }
+        if (que.equals("archivo")) {
+            String r = q.get("ruta");
+            if (r == null) { responder(sal, 400, "Bad Request"); return; }
+            if (metodo.equals("POST")) {
+                byte[] d = q.containsKey("falta") ? null : leerCuerpo(ent, largo, 512 << 20);
+                synchronized (llave) { archivos.put(r, d == null ? FALTA : d); llave.notifyAll(); }
+                responder(sal, 204, "No Content"); return;
+            }
+            byte[] d;
+            synchronized (llave) {
+                long hasta = System.nanoTime() + 60000L * 1000000L;
+                while (!archivos.containsKey(r)) {
+                    long falta = (hasta - System.nanoTime()) / 1000000L;
+                    if (falta <= 0) break;
+                    try { llave.wait(falta); } catch (InterruptedException x) { break; }
+                }
+                d = archivos.remove(r);
+            }
+            if (d == null || d.length == 0) { responder(sal, 404, "Not Found"); return; }
+            cabecera200(sal, "archivo.bin", d.length); sal.write(d); sal.flush(); return;
+        }
+        responder(sal, 404, "Not Found");
+    }
+
+    // tambien lo llama la pagina directo (Juego.java, window.piuApp.estado): sin la demora de un pedido
+    void ponerEstado(byte[] d, long m) {
+        if (d == null || d.length != TAM_ESTADO) return;
+        synchronized (llave) { estado = d; mostrado = Math.max(mostrado, m); llave.notifyAll(); }
+    }
+
+    private static long numero(String s) {
+        try { return s == null ? 0 : Long.parseLong(s); } catch (NumberFormatException e) { return 0; }
+    }
+
+    private static Map<String, String> parametros(String consulta) {
+        Map<String, String> m = new HashMap<String, String>();
+        for (String par : consulta.split("&")) {
+            if (par.isEmpty()) continue;
+            int i = par.indexOf('=');
+            try {
+                if (i < 0) m.put(URLDecoder.decode(par, "UTF-8"), "");
+                else m.put(URLDecoder.decode(par.substring(0, i), "UTF-8"), URLDecoder.decode(par.substring(i + 1), "UTF-8"));
+            } catch (Exception e) { /* parametro raro */ }
+        }
+        return m;
     }
 
     // indice del disco sin distinguir mayusculas: el juego pide "bga\00.dat", "AUDIO\01.AUD"...

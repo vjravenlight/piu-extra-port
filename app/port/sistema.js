@@ -4,7 +4,11 @@ import { R, M8, IO, HLE, EAX, EBX, ECX, EDX, ESI, EDI, r32, w32, w16, w8, fijarC
 
 // delay() de Watcom: al arrancar (0x111277) calibra cuantas consultas de hora a DOS entran en un segundo y
 // delay(ms) (0x1112A9) gira consultando la hora. Se reemplaza por una espera real de la misma duracion.
-const dormir = (() => { const s = new Int32Array(new SharedArrayBuffer(4)); return (ms) => { if (ms > 0) Atomics.wait(s, 0, 0, ms); }; })();
+// (31/10) sin memoria compartida (la APK con la WebView) el hilo pone otra espera: fijarDormir (trabajador.js)
+let dormir = typeof SharedArrayBuffer === 'function'
+  ? (() => { const s = new Int32Array(new SharedArrayBuffer(4)); return (ms) => { if (ms > 0) Atomics.wait(s, 0, 0, ms); }; })()
+  : () => {};
+export function fijarDormir(f) { dormir = f; }
 HLE[0x111277] = () => { w32(0x7f04a8, 1000); return 0; };
 HLE[0x1112A9] = () => { dormir(R[EAX] | 0); return 0; };
 

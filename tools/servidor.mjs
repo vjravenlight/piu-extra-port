@@ -185,9 +185,49 @@ function recibir(req, res, tope, exacto, guardar) {
   });
 }
 
+// ---------- puente (31/10): sin memoria compartida, como en la APK con la WebView (Servidor.java hace lo mismo) ----------
+// La pagina deja su copia del estado (I, D, Q: 4416 bytes) y el ultimo cuadro que dibujo; el hilo del juego la pide con
+// XHR sincronico cada vez que espera (app\port\trabajador.js). Aca sirve para probarlo en la PC con ?puente=1.
+const P = { estado: null, mostrado: 0, esperan: new Set(), archivos: new Map(), piden: new Map() };
+const binario = (res, b) => { res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': b.length, 'Cache-Control': 'no-store', ...AISLAR }); res.end(b); };
+function alPuente(req, res, u) {
+  const que = u.pathname.slice('/puente/'.length), q = u.searchParams;
+  const sinNada = (codigo) => { res.writeHead(codigo, { 'Cache-Control': 'no-store', ...AISLAR }); res.end(); };
+  const cuerpo = (f) => { const partes = []; req.on('data', (c) => partes.push(c)); req.on('end', () => f(Buffer.concat(partes))); };
+  if (que === 'estado' && req.method === 'POST') return cuerpo((d) => {
+    if (d.length !== 4416) return sinNada(400);
+    P.estado = d; P.mostrado = Math.max(P.mostrado, +q.get('mostrado') || 0);
+    for (const w of P.esperan) if (P.mostrado >= w.cuadro) w.listo();
+    sinNada(204);
+  });
+  if (que === 'esperar') {
+    const ms = Math.min(1000, Math.max(0, +q.get('ms') || 0)), cuadro = +q.get('cuadro') || 0;
+    const listo = () => { clearTimeout(w.t); P.esperan.delete(w); if (P.estado) binario(res, P.estado); else sinNada(204); };
+    const w = { cuadro: cuadro || Infinity, listo, t: null };
+    if (cuadro && P.mostrado >= cuadro) return listo();
+    w.t = setTimeout(listo, ms); P.esperan.add(w);
+    return;
+  }
+  if (que === 'archivo') {
+    const ruta = q.get('ruta') || '';
+    if (req.method === 'POST') return cuerpo((d) => {
+      const b = q.has('falta') ? null : d;
+      const r = P.piden.get(ruta);
+      if (r) { P.piden.delete(ruta); clearTimeout(r.t); if (b) binario(r.res, b); else { r.res.writeHead(404, AISLAR); r.res.end(); } } else P.archivos.set(ruta, b);
+      sinNada(204);
+    });
+    if (P.archivos.has(ruta)) { const b = P.archivos.get(ruta); P.archivos.delete(ruta); return b ? binario(res, b) : sinNada(404); }
+    const t = setTimeout(() => { P.piden.delete(ruta); sinNada(404); }, 60000);
+    P.piden.set(ruta, { res, t });
+    return;
+  }
+  sinNada(404);
+}
+
 function atender(req, res) {
   try {
     const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    if (url.startsWith('/puente/')) return alPuente(req, res, new URL(req.url, 'http://x'));
     if (url.startsWith('/online/')) return alSalon(req, res);
     // pruebas del disco propio: PIU_DISCO_PRUEBA = ruta de una imagen, la pagina la toma de aca (?discoDePrueba=...)
     if (url === '/disco-de-prueba.bin' && process.env.PIU_DISCO_PRUEBA) return servirArchivo(req, res, process.env.PIU_DISCO_PRUEBA);

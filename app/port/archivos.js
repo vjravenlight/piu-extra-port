@@ -50,6 +50,14 @@ export async function traer(url) {
 // El hilo manda { tipo: 'leer', ruta, desde } y espera en L[0]. La pagina pone en B el pedazo que va desde 'desde',
 // L[1] = largo total, L[2] = bytes de este pedazo, y L[0] = 1 (o 2 = no existe). Los archivos grandes van en varios
 // pedazos (B es de 8 MB); el ultimo leido queda a mano para no volver a leerlo por cada pedazo.
+// (31/10) sin memoria compartida (la APK con la WebView): el archivo entero va al servidor de la app, que se lo da al
+// hilo cuando lo pide (trabajador.js leerPropio); si no esta, se avisa con falta=1
+export async function servirPorPuente(base, m) {
+  let bytes = null;
+  try { bytes = await leer(m.ruta); } catch (e) { bytes = null; }
+  const u = `${base}archivo?ruta=${encodeURIComponent(m.ruta)}${bytes ? '' : '&falta=1'}`;
+  try { await fetch(u, { method: 'POST', body: bytes || '', cache: 'no-store' }); } catch (e) { /* el hilo se cansa de esperar y sigue sin el */ }
+}
 export const PEDAZO = 8 << 20;
 export function crearCanal() { return { L: new SharedArrayBuffer(16), B: new SharedArrayBuffer(PEDAZO) }; }
 let ultimo = { ruta: '', bytes: null };

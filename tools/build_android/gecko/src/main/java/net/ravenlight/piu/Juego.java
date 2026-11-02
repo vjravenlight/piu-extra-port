@@ -11,6 +11,11 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
 import org.mozilla.geckoview.GeckoResult;
 import org.mozilla.geckoview.GeckoRuntime;
@@ -23,85 +28,85 @@ import java.io.FileOutputStream;
 
 /**
  * Pump It Up Extra para Android: el mismo port de la web (app\port) con el disco entero adentro, a pantalla completa
- * desde que se abre, sin barras ni toques previos. Lo sirve la app (Servidor) en 127.0.0.1 con COOP/COEP y se muestra
- * con GeckoView, el motor de Firefox: la WebView de Android no da memoria compartida (crossOriginIsolated = false,
- * medido en el Nubia el 21/10) y el hilo del juego la necesita. Ranking y online: los del hosting (window.piuBuild).
- * Atras = Esc (vuelve al menu; en el menu principal, o con SALIR, se cierra).
+ * desde que se abre, sin barras ni toques previos. Lo sirve la app (Servidor) en 127.0.0.1 con COOP/COEP.
+ * (31/10, Charles: "tiene que ser una apk... en pantalla completa de por si y no de señales de que armo un servidor")
+ * Se muestra con la WebView del telefono (el motor de Chrome, adentro de la app): no tiene memoria compartida
+ * (crossOriginIsolated = false, medido en el Nubia el 21/10) y el hilo del juego la reemplaza con el puente del
+ * servidor (/puente/, app\port\trabajador.js). Si el telefono no tiene WebView, GeckoView (el motor de Firefox, que si
+ * la tiene). Antes (1.2.0/1.3.0) era una pestaña de Chrome: tools\build_android\_archivo\1.3.0_con_Chrome.
+ * Ranking y online: los del hosting (window.piuBuild). Atras = Esc (vuelve al menu; en el menu principal, o con
+ * SALIR, se cierra).
  */
 public class Juego extends Activity {
     private static GeckoRuntime motor;              // uno solo por proceso (Gecko no deja crear otro)
     private GeckoView vista;
     private GeckoSession sesion;
-    // el servidor es uno por proceso: con Chrome encima esta ventana queda detras y el servidor tiene que seguir andando
-    private static Servidor servidor;
-    private static Juego actual;
-    // (30/10, Charles: "arreglalo") medido en el Nubia con SurfaceFlinger: GeckoView entrega 52-54 cuadros por segundo
-    // con saltos (38-43 en el menu) y Chrome 60 parejos. Si hay un navegador de Chrome (o hecho con su motor), el juego
-    // se abre en una pestaña suya a pantalla completa, servido igual desde la app; si no, en GeckoView como antes.
-    private boolean conChrome = false, chromeEncima = false, reabrir = false;
+    private WebView web;
+    private Servidor servidor;
     private String url;
 
     @Override
     protected void onCreate(Bundle estado) {
         super.onCreate(estado);
-        actual = this;
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        if (servidor == null) {
-            servidor = new Servidor(getAssets(), getFilesDir(), new Runnable() { public void run() { final Juego j = actual; if (j != null) j.runOnUiThread(new Runnable() { public void run() { j.cerrar(); } }); } });
-            servidor.vibrador = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
-            servidor.start();
-        }
+        getWindow().getDecorView().setBackgroundColor(0xFF000000);
+        servidor = new Servidor(getAssets(), getFilesDir(), new Runnable() { public void run() { runOnUiThread(new Runnable() { public void run() { cerrar(); } }); } });
+        servidor.vibrador = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+        servidor.start();
         url = "http://127.0.0.1:" + servidor.puerto() + "/port/";
-        String chrome = buscarChrome();
-        if (chrome != null) {
-            conChrome = true;
-            setContentView(new View(this));
-            getWindow().getDecorView().setBackgroundColor(0xFF000000);
-            Sosten.prender(this);
-            abrirEnChrome(chrome);
-            return;
-        }
-        usarGecko();
+        if (!usarWebView()) usarGecko();
     }
 
-    // los navegadores con el motor de Chrome que abren pestañas para otra app (Custom Tabs); Firefox no (es Gecko)
-    private static final String[] CHROMES = { "com.android.chrome", "com.chrome.beta", "com.chrome.dev", "com.sec.android.app.sbrowser", "com.microsoft.emmx", "com.brave.browser" };
-    private String buscarChrome() {
-        try {
-            java.util.List<android.content.pm.ResolveInfo> l = getPackageManager().queryIntentServices(new Intent("android.support.customtabs.action.CustomTabsService"), 0);
-            for (String p : CHROMES) for (android.content.pm.ResolveInfo r : l) if (r.serviceInfo != null && p.equals(r.serviceInfo.packageName)) return p;
-        } catch (Exception e) { Log.w("PIU", "sin lista de navegadores: " + e); }
-        return null;
-    }
-
-    private void abrirEnChrome(String paquete) {
-        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(paquete);
-        Bundle b = new Bundle();
-        b.putBinder("android.support.customtabs.extra.SESSION", null);     // esto la hace pestaña de la app (Custom Tab)
-        i.putExtras(b);
-        i.putExtra("android.support.customtabs.extra.TOOLBAR_COLOR", 0xFF000000);
-        i.putExtra("android.support.customtabs.extra.TITLE_VISIBILITY", 0);
-        i.putExtra("android.support.customtabs.extra.ENABLE_URLBAR_HIDING", true);
-        i.putExtra("androidx.browser.customtabs.extra.SHARE_STATE", 2);
-        i.putExtra("org.chromium.chrome.browser.customtabs.EXTRA_DISABLE_DOWNLOAD_BUTTON", true);
-        i.putExtra("org.chromium.chrome.browser.customtabs.EXTRA_DISABLE_STAR_BUTTON", true);
-        Log.w("PIU", "abriendo " + url + " en " + paquete);
-        try { startActivity(i); }
-        catch (Exception e) { Log.w("PIU", "Chrome no abrio: " + e); conChrome = false; Sosten.apagar(this); usarGecko(); }
-    }
-
-    // SALIR (o Atras en el menu principal): se cierra todo, la pestaña de Chrome incluida (esta en la misma tarea)
+    // SALIR (o Atras en el menu principal)
     void cerrar() {
-        Sosten.apagar(this);
         if (servidor != null) { servidor.parar(); servidor = null; }
         finishAndRemoveTask();
     }
 
-    @Override
-    protected void onNewIntent(Intent i) { super.onNewIntent(i); if (conChrome) reabrir = true; }
-
-    @Override
-    protected void onStop() { super.onStop(); if (conChrome) chromeEncima = true; }
+    private boolean usarWebView() {
+        try { web = new WebView(this); }
+        catch (Exception e) { Log.w("PIU", "sin WebView: " + e); web = null; return false; }
+        WebSettings s = web.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        s.setDatabaseEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false);   // la musica arranca sin tocar antes, como la cabina al prenderla
+        s.setAllowFileAccess(false);
+        s.setAllowContentAccess(false);
+        // para medir desde la PC por adb (chrome://inspect): solo con el cable y la depuracion USB prendida
+        WebView.setWebContentsDebuggingEnabled(true);
+        web.setBackgroundColor(0xFF000000);
+        // el puente sin pedidos (31/10, medido en el Nubia: con fetch el hilo esperaba 23 ms por cuadro): la pagina deja
+        // su estado y el ultimo cuadro dibujado directo en el servidor (principal.js subirEstado)
+        web.addJavascriptInterface(new Object() {
+            @android.webkit.JavascriptInterface
+            public void estado(String b64, String mostrado) {
+                Servidor s = servidor;
+                if (s == null) return;
+                try { s.ponerEstado(android.util.Base64.decode(b64, android.util.Base64.DEFAULT), Long.parseLong(mostrado)); }
+                catch (Exception e) { /* dato raro: se ignora */ }
+            }
+        }, "piuApp");
+        web.setWebViewClient(new WebViewClient());     // todo adentro de la app (nada se abre en el navegador)
+        web.setWebChromeClient(new WebChromeClient() {
+            // elegir archivos (el disco propio: app\port\instalar.js) con el selector del telefono
+            @Override
+            public boolean onShowFileChooser(WebView w, ValueCallback<Uri[]> cb, FileChooserParams p) {
+                if (archivosWeb != null) archivosWeb.onReceiveValue(null);
+                archivosWeb = cb;
+                Intent i = new Intent(Intent.ACTION_GET_CONTENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE);
+                if (p.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                try { startActivityForResult(Intent.createChooser(i, "Elegir el disco"), ELEGIR_ARCHIVO); }
+                catch (Exception e) { archivosWeb = null; return false; }
+                return true;
+            }
+        });
+        setContentView(web);
+        pantallaCompleta();
+        Log.w("PIU", "abriendo " + url + " (WebView)");
+        web.loadUrl(url);
+        return true;
+    }
 
     private void usarGecko() {
         if (motor == null) {
@@ -135,7 +140,7 @@ public class Juego extends Activity {
         vista.setSession(sesion);
         setContentView(vista);
         pantallaCompleta();
-        Log.w("PIU", "abriendo " + url);
+        Log.w("PIU", "abriendo " + url + " (GeckoView)");
         sesion.loadUri(url);
     }
 
@@ -173,6 +178,7 @@ public class Juego extends Activity {
 
     // lo que eligio en el selector de archivos del telefono, para la pagina
     private static final int ELEGIR_ARCHIVO = 7;
+    private ValueCallback<Uri[]> archivosWeb;
     private GeckoSession.PromptDelegate.FilePrompt archivoPedido;
     private GeckoResult<GeckoSession.PromptDelegate.PromptResponse> archivoRespuesta;
 
@@ -180,14 +186,21 @@ public class Juego extends Activity {
     @SuppressWarnings("deprecation")
     protected void onActivityResult(int pedido, int resultado, Intent datos) {
         super.onActivityResult(pedido, resultado, datos);
-        if (pedido != ELEGIR_ARCHIVO || archivoRespuesta == null) return;
+        if (pedido != ELEGIR_ARCHIVO) return;
+        java.util.ArrayList<Uri> elegidos = new java.util.ArrayList<>();
+        if (resultado == RESULT_OK && datos != null) {
+            if (datos.getClipData() != null) for (int k = 0; k < datos.getClipData().getItemCount(); k++) elegidos.add(datos.getClipData().getItemAt(k).getUri());
+            else if (datos.getData() != null) elegidos.add(datos.getData());
+        }
+        if (archivosWeb != null) {
+            ValueCallback<Uri[]> cb = archivosWeb; archivosWeb = null;
+            cb.onReceiveValue(elegidos.isEmpty() ? null : elegidos.toArray(new Uri[0]));
+            return;
+        }
+        if (archivoRespuesta == null) return;
         GeckoSession.PromptDelegate.FilePrompt p = archivoPedido;
         GeckoResult<GeckoSession.PromptDelegate.PromptResponse> r = archivoRespuesta;
         archivoPedido = null; archivoRespuesta = null;
-        if (resultado != RESULT_OK || datos == null) { r.complete(p.dismiss()); return; }
-        java.util.ArrayList<Uri> elegidos = new java.util.ArrayList<>();
-        if (datos.getClipData() != null) for (int k = 0; k < datos.getClipData().getItemCount(); k++) elegidos.add(datos.getClipData().getItemAt(k).getUri());
-        else if (datos.getData() != null) elegidos.add(datos.getData());
         if (elegidos.isEmpty()) r.complete(p.dismiss());
         else if (elegidos.size() == 1) r.complete(p.confirm(this, elegidos.get(0)));
         else r.complete(p.confirm(this, elegidos.toArray(new Uri[0])));
@@ -197,32 +210,33 @@ public class Juego extends Activity {
     @Override
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
-        if (vista == null) { cerrar(); return; }
+        View v = web != null ? web : vista;
+        if (v == null) { cerrar(); return; }
         long t = android.os.SystemClock.uptimeMillis();
-        vista.dispatchKeyEvent(new KeyEvent(t, t, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE, 0));
-        vista.dispatchKeyEvent(new KeyEvent(t, t + 80, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ESCAPE, 0));
+        v.dispatchKeyEvent(new KeyEvent(t, t, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE, 0));
+        v.dispatchKeyEvent(new KeyEvent(t, t + 80, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ESCAPE, 0));
     }
 
     @Override
-    protected void onPause() { super.onPause(); if (sesion != null) sesion.setActive(false); }
+    protected void onPause() {
+        super.onPause();
+        if (web != null) web.onPause();
+        if (sesion != null) sesion.setActive(false);
+    }
 
     @Override
     protected void onResume() {
         super.onResume();
-        actual = this;
+        if (web != null) web.onResume();
         if (sesion != null) sesion.setActive(true);
         pantallaCompleta();
-        // con Chrome: si se volvio a esta ventana es porque la pestaña se cerro (Atras de mas). Tocando el icono otra vez
-        // (onNewIntent) se abre de nuevo; si no, se cierra la app
-        if (conChrome && reabrir) { reabrir = false; chromeEncima = false; String p = buscarChrome(); if (p != null) abrirEnChrome(p); }
-        else if (conChrome && chromeEncima) cerrar();
     }
 
     @Override
     protected void onDestroy() {
+        if (web != null) { web.destroy(); web = null; }
         if (sesion != null) sesion.close();
-        if (!conChrome && servidor != null) { servidor.parar(); servidor = null; }
-        if (actual == this) actual = null;
+        if (servidor != null) { servidor.parar(); servidor = null; }
         super.onDestroy();
     }
 }

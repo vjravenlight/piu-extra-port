@@ -18,6 +18,49 @@ import { crearSeguidorSolo } from './solo.js';
 
 let I = null, D = null, Q = null;
 const ahoraAbs = () => performance.timeOrigin + performance.now();
+
+// ---------- sin memoria compartida (31/10: la APK con la WebView de Android, que no la tiene) ----------
+// I, D y Q son copias de este hilo. La pagina deja las suyas en el servidor de la app (/puente/estado, principal.js;
+// Servidor.java y tools\servidor.mjs) y cada vez que el hilo espera (el cuadro, una pausa) se trae la ultima. Lo que
+// escribe el hilo va a la pagina ('escribir') y manda aca hasta que la copia de la pagina lo tenga.
+const PUENTE = new URL('../puente/', self.location.href).href;
+const TAM_ESTADO = 64 * 4 + 8 * 8 + 512 * 8;
+let puente = false;
+let idCuadro = Math.floor(performance.timeOrigin) * 100;   // crece siempre, aunque se abra otro hilo
+const delHilo = new Map();                                  // 'I13' -> lo que escribio el hilo y la pagina no vio
+let medidaPuente = { n: 0, ms: 0, vencidas: 0 };
+function escribir(arr, i, v) {
+  if (arr === I) Atomics.store(I, i, v); else arr[i] = v;
+  if (!puente) return;
+  const d = arr === D;
+  delHilo.set((d ? 'D' : 'I') + i, v);
+  postMessage({ tipo: 'escribir', d, i, v });
+}
+function copiarDeLaPagina(dest, desde, letra) {
+  for (let k = 0; k < dest.length; k++) {
+    const propio = delHilo.get(letra + k);
+    if (propio !== undefined) { if (desde[k] !== propio) continue; delHilo.delete(letra + k); }
+    dest[k] = desde[k];
+  }
+}
+// esperar ms (o, con cuadro, hasta que la pagina dibuje ese cuadro): con memoria compartida, Atomics; si no, el servidor
+function esperar(ms, cuadro = 0) {
+  if (!puente) { if (ms > 0) Atomics.wait(espera, 0, 0, ms); return; }
+  const x = new XMLHttpRequest();
+  x.open('GET', `${PUENTE}esperar?ms=${ms | 0}${cuadro ? '&cuadro=' + cuadro : ''}`, false);
+  x.responseType = 'arraybuffer';
+  const t = performance.now();
+  try { x.send(); } catch (err) { return; }
+  // cada 600 cuadros, cuanto se espero a la pagina (para medir el puente en el telefono: adb logcat -s PIU)
+  if (cuadro) {
+    const dt = performance.now() - t; medidaPuente.n++; medidaPuente.ms += dt; if (dt >= ms - 2) medidaPuente.vencidas++;
+    if (medidaPuente.n >= 600) { postMessage({ tipo: 'registro', s: `puente: ${medidaPuente.n} cuadros, espera media ${(medidaPuente.ms / medidaPuente.n).toFixed(1)} ms, vencidas ${medidaPuente.vencidas}` }); medidaPuente = { n: 0, ms: 0, vencidas: 0 }; }
+  }
+  if (x.status !== 200 || !x.response || x.response.byteLength !== TAM_ESTADO) return;
+  copiarDeLaPagina(I, new Int32Array(x.response, 0, 64), 'I');
+  copiarDeLaPagina(D, new Float64Array(x.response, 256, 8), 'D');
+  Q.set(new Float64Array(x.response, 320, 512));
+}
 // la carpeta del juego (port\, motor\, disco\, volcados\...): en la PC es la raiz; en el hosting, /piu-prueba/
 const BASE = new URL('../', self.location.href).href;
 // DISCO PROPIO (archivos.js, 21/10): lo del disco no esta en el servidor sino guardado en el navegador; se le pide a la
@@ -25,6 +68,14 @@ const BASE = new URL('../', self.location.href).href;
 const DEL_DISCO = /^(disco\/|volcados\/|port\/(traducido\.js|game_[a-z]+\.cfg)$)/;
 let canal = null;
 function leerPropio(rel) {
+  // sin memoria compartida: la pagina sube el archivo entero al servidor de la app y aca se espera con XHR
+  if (puente) {
+    postMessage({ tipo: 'leer', ruta: rel, desde: 0 });
+    const x = new XMLHttpRequest();
+    x.open('GET', PUENTE + 'archivo?ruta=' + encodeURIComponent(rel), false); x.responseType = 'arraybuffer';
+    try { x.send(); } catch (err) { return null; }
+    return x.status === 200 ? new Uint8Array(x.response) : null;
+  }
   const L = new Int32Array(canal.L), B = new Uint8Array(canal.B), partes = [];
   let desde = 0, total = 0;
   do {
@@ -121,11 +172,11 @@ function correrTics() {
   Atomics.store(I, 3, K.luces.a4); Atomics.store(I, 4, K.luces.a6);
 }
 // la placa quieta mientras suena la musiquita de la seleccion (cabina.js, 0x30268): el reloj sigue andando
-const espera = new Int32Array(new SharedArrayBuffer(4));
+const espera = typeof SharedArrayBuffer === 'function' ? new Int32Array(new SharedArrayBuffer(4)) : null;
 K.esperas.mientrasSuena = (maxMs) => {
   const ini = performance.now();
   postMessage({ tipo: 'registro', s: 'placa quieta mientras suena la musiquita' });
-  while (K.musica.sonando && performance.now() - ini < maxMs) { correrTics(); Atomics.wait(espera, 0, 0, 8); }
+  while (K.musica.sonando && performance.now() - ini < maxMs) { correrTics(); esperar(8); }
   postMessage({ tipo: 'registro', s: `placa: ${Math.round(performance.now() - ini)} ms` });
 };
 
@@ -137,8 +188,8 @@ function cambiarCuadro() {
   // que la pagina lo dibujara para recien calcular el siguiente, y los dos tiempos se sumaban. Ahora calcula el
   // siguiente mientras la pagina dibuja este, y espera (como el retrazado vertical) recien antes de mandar el proximo.
   // El juicio no cambia: cada toque va con su hora a la cola de 240 Hz.
-  if (cuadroEnCamino) { Atomics.wait(I, 0, 0, 200); Atomics.store(I, 0, 0); }
-  postMessage({ tipo: 'cuadro', cmds, n: cuadros, luces: [K.luces.a4, K.luces.a6] }, transferir);
+  if (cuadroEnCamino) { if (puente) esperar(200, idCuadro); else { Atomics.wait(I, 0, 0, 200); Atomics.store(I, 0, 0); } }
+  postMessage({ tipo: 'cuadro', cmds, n: cuadros, id: ++idCuadro, luces: [K.luces.a4, K.luces.a6] }, transferir);
   cmds = []; transferir = []; cuadroEnCamino = true;
   // pausas largas (cargas): anotarlas para saber cuanto tarda cada una
   const ahora = performance.now(), dt = ultimoCuadro ? ahora - ultimoCuadro : 0;
@@ -383,7 +434,7 @@ function instalarEleccion() {
     const m = { tipo: 'eleccion', cmd, banderas: C.r32(0x1CFB08), cancion: C.r32(0x2B3A68), opciones: C.r32(0x1CFB0C), skin: C.r32(0x2AC088) };
     postMessage({ tipo: 'registro', s: `eleccion: ${cmd} (banderas 0x${(m.banderas >>> 0).toString(16)}, opciones 0x${(m.opciones >>> 0).toString(16)}, skin ${m.skin})` });
     postMessage(m);
-    for (;;) { correrTics(); Atomics.wait(espera, 0, 0, 20); }   // hasta que la pagina lo corte (I[13])
+    for (;;) { correrTics(); esperar(20); }   // hasta que la pagina lo corte (I[13])
   };
 }
 // (30/10, Charles: "que despues de los modificadores aparezca o no (elegir opciones) antes de empezar la cancion") modo
@@ -395,9 +446,9 @@ function instalarModsPorCancion() {
     const banderas = C.r32(0x1CFB08);
     if (banderas & 0x100000) { C.FN[0x35FB8](); return -4; }
     const guardados = Int32Array.from(C.R);
-    Atomics.store(I, 20, 0);
+    escribir(I, 20, 0);
     postMessage({ tipo: 'modsCancion', cancion: C.r32(0x2B3A68), banderas, opciones: C.r32(0x1CFB0C), skin: C.r32(0x2AC088) });
-    while (Atomics.load(I, 20) === 0) { correrTics(); Atomics.wait(I, 20, 0, 20); }   // (correrTics corta si la pagina cierra el juego)
+    while (Atomics.load(I, 20) === 0) { correrTics(); if (puente) esperar(20); else Atomics.wait(I, 20, 0, 20); }   // (correrTics corta si la pagina cierra el juego)
     C.R.set(guardados);
     if (Atomics.load(I, 20) === 1) { const o = Atomics.load(I, 21); C.w32(0x1CFB0C, o); C.w32(0x1CFB10, o); C.w32(0x2AC088, Atomics.load(I, 22)); }
     postMessage({ tipo: 'registro', s: `modificadores de la cancion: opciones 0x${(C.r32(0x1CFB0C) >>> 0).toString(16)}, skin ${C.r32(0x2AC088)}` });
@@ -413,7 +464,7 @@ function instalarOnline() {
     // (21/10) cargado y listo: la pagina avisa al salon, y la hora de verdad llega cuando los dos estan listos (D[3]);
     // hasta entonces vale la que vino al arrancar (la de respaldo)
     postMessage({ tipo: 'listoOnline' });
-    while (Date.now() < (D[3] > 0 ? D[3] : online.inicioMs)) { correrTics(); Atomics.wait(espera, 0, 0, 10); }
+    while (Date.now() < (D[3] > 0 ? D[3] : online.inicioMs)) { correrTics(); esperar(10); }
     const nn = String(online.cancion).padStart(2, '0'), doble = online.modo === 'DOUBLE';
     // el comando y las banderas que armo la seleccion de verdad del que desafio (instalarEleccion); si no vienen
     // (desafios de antes), los de siempre por modo
@@ -574,13 +625,13 @@ function precargarMusica(c, r) {
   } catch (err) { /* sin precarga: se decodifica al arrancar, como antes */ }
 }
 K.musica.arrancar = (bytes) => {
-  D[0] = -1; D[2] = 0;
+  escribir(D, 0, -1); escribir(D, 2, 0);
   // cancion propia mas larga que la placa (recortarAud): a la pagina va la completa
   const larga = musicaLarga.get(C.r32(0x2B3A68));
   if (larga && bytes.length > 100000) bytes = larga.slice();
   postMessage({ tipo: 'musica', bytes }, [bytes.buffer]);
 };
-K.musica.parar = () => { D[0] = -1; postMessage({ tipo: 'parar' }); };
+K.musica.parar = () => { escribir(D, 0, -1); postMessage({ tipo: 'parar' }); };
 K.musica.segundos = () => (D[0] < 0 ? -1 : D[0] + (ahoraAbs() - D[1]) / 1000);
 K.musica.termino = () => D[2] === 1;
 K.efectos.tocar = (efecto, voz, lazo) => postMessage({ tipo: 'efecto', efecto, voz, lazo });
@@ -621,6 +672,8 @@ onmessage = (e) => {
 };
 function iniciar(e) {
   I = new Int32Array(e.data.I); D = new Float64Array(e.data.D); Q = new Float64Array(e.data.Q);
+  puente = typeof SharedArrayBuffer !== 'function' || !(e.data.I instanceof SharedArrayBuffer);
+  if (puente) S.fijarDormir((ms) => { if (ms > 0) esperar(ms); });
   if (corridas++) dejarComoNuevo();
   anotarEntradas = !!e.data.anotarEntradas;
   leidos = e.data.leidos | 0;              // los toques de antes de abrir este juego no cuentan
@@ -721,7 +774,7 @@ function iniciar(e) {
     C.FN[S.ARRANQUE.eip]();
     postMessage({ tipo: 'fin', motivo: 'el programa termino' });
   } catch (err) {
-    if (err instanceof Reinicio) { Atomics.store(I, 13, 0); postMessage({ tipo: 'reiniciado' }); return; }
+    if (err instanceof Reinicio) { escribir(I, 13, 0); postMessage({ tipo: 'reiniciado' }); return; }
     postMessage({ tipo: 'fin', motivo: (err && err.message) || String(err), pila: (err && err.stack || '').split('\n').filter(l => /f_[0-9a-f]+/.test(l)).slice(0, 8).map(l => l.trim().replace(/\(.*\)/, '')).join(' < ') });
   }
 }

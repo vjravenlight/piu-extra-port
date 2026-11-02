@@ -148,7 +148,8 @@ En la misma wifi: https://192.168.0.10:8790/port/
 - En **OPCIONES** se cambian tu nombre y su clave (se escribe dos veces; anotala, porque no se puede recuperar), se cierra la sesión, se elige con qué jugás (JUEGO CON), las teclas, alfombras y joysticks USB (MANDO USB), el desfase del sonido (CALIBRAR), el volumen, el fondo y más.
 - En el celular aparecen los paneles en pantalla.
 - En el celular en vertical, mientras jugás, poné dos dedos sobre la imagen del juego para acercarla o alejarla (de 100 a 150 %). Queda guardado.
-- La APK abre el juego en una pestaña de Chrome si el celular lo tiene, porque así anda a 60 cuadros parejos. Si no lo tiene, usa su propio motor. La música arranca con el primer toque.
+- La APK muestra el juego con el motor de Chrome que trae el propio teléfono (la WebView), adentro de la app: pantalla completa desde que abre, sin barra, sin permisos y sin internet (salvo el online y el ranking). Anda a 60 cuadros parejos. Si el teléfono no tiene WebView, usa el motor de Firefox que viene en la APK.
+- Los paneles vibran al pisar (OPCIONES > VIBRAR AL PISAR).
 
 ---
 

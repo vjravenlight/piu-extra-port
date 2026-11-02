@@ -85,8 +85,13 @@ addEventListener('pointerup', levantarDedo);
 addEventListener('pointercancel', levantarDedo);
 
 // ---------- memoria compartida ----------
-if (!crossOriginIsolated) { estado.textContent = 'Falta el aislamiento (COOP/COEP): abrilo con JUGAR.cmd'; throw new Error('sin crossOriginIsolated'); }
-const sabI = new SharedArrayBuffer(64 * 4), sabD = new SharedArrayBuffer(8 * 8);
+// (31/10) la APK con la WebView de Android no la tiene (crossOriginIsolated = false): la reemplaza el puente del
+// servidor de la app (window.piuBuild.puente, Servidor.java; trabajador.js "sin memoria compartida"). En la PC se
+// prueba con ?puente=1
+const puente = !!(window.piuBuild && window.piuBuild.puente) || new URLSearchParams(location.search).has('puente');
+if (!crossOriginIsolated && !puente) { estado.textContent = 'Falta el aislamiento (COOP/COEP): abrilo con JUGAR.cmd'; throw new Error('sin crossOriginIsolated'); }
+const Memoria = puente ? ArrayBuffer : SharedArrayBuffer;
+const sabI = new Memoria(64 * 4), sabD = new Memoria(8 * 8);
 const I = new Int32Array(sabI), D = new Float64Array(sabD);
 D[0] = -1;
 
@@ -123,13 +128,36 @@ function teclasOnline(controles) {
   return m;
 }
 let mapa = TECLAS;
-const sabQ = new SharedArrayBuffer(512 * 8), Q = new Float64Array(sabQ);
+const sabQ = new Memoria(512 * 8), Q = new Float64Array(sabQ);
 const apretadas = new Set();
 function anotar(grupo, bit, abajo) {
   const w = Atomics.load(I, 10), j = (w & 255) * 2;
   Q[j] = performance.timeOrigin + performance.now(); Q[j + 1] = grupo * 0x20000 + bit * 2 + (abajo ? 1 : 0);
   Atomics.store(I, 10, w + 1);
+  subirEstado();
 }
+// con el puente: I, D y Q (y el ultimo cuadro dibujado) al servidor de la app, de a una subida por vez (asi nunca
+// llega una vieja despues de una nueva); el hilo se los trae cada vez que espera
+const URL_PUENTE = new URL('../puente/', location.href).href;
+let subiendo = false, otraSubida = false, mostradoId = 0;
+function subirEstado() {
+  if (!puente) return;
+  if (subiendo) { otraSubida = true; return; }
+  const cuerpo = new Uint8Array(64 * 4 + 8 * 8 + 512 * 8);
+  cuerpo.set(new Uint8Array(sabI), 0); cuerpo.set(new Uint8Array(sabD), 256); cuerpo.set(new Uint8Array(sabQ), 320);
+  // (31/10, medido en el Nubia: con fetch el hilo esperaba 23 ms por cuadro y el menu daba 33-41) en la APK, llamada
+  // directa a la app (Juego.java, window.piuApp): llega al instante, como la memoria compartida
+  if (window.piuApp) {
+    let s = '';
+    for (let i = 0; i < cuerpo.length; i += 0x1000) s += String.fromCharCode.apply(null, cuerpo.subarray(i, i + 0x1000));
+    window.piuApp.estado(btoa(s), String(mostradoId));
+    return;
+  }
+  subiendo = true;
+  fetch(`${URL_PUENTE}estado?mostrado=${mostradoId}`, { method: 'POST', body: cuerpo, cache: 'no-store' })
+    .catch(() => {}).finally(() => { subiendo = false; if (otraSubida) { otraSubida = false; subirEstado(); } });
+}
+if (puente) setInterval(subirEstado, 100);   // tambien cuando no llegan cuadros (cargas, esperas del juego)
 // cuenta de teclas de cada partida online (va en un reporte al terminar): cuantas veces llego cada una, cuantas
 // juntas como maximo y las que llegaron sin ser del juego (p. ej. el numerico con Bloq Num apagado)
 let teclasPartida = { veces: {}, otras: {}, juntas: 0 };
@@ -364,7 +392,8 @@ function arrancar(cfg = {}) {
       fondoBga: (opciones.online || {}).fondo || 0, modsSolo: cfg.modsSolo || null, modsCancion: !!cfg.modsCancion, carrilCentro: (opciones.online || {}).carril === 'centro' && !(cfg.online && !cfg.pasos),   // (en el online, a la derecha va el rival)
       demo: conf.demo && !Archivos.propio ? conf : null, eeprom: eepromLocal(), anotarEntradas: new URLSearchParams(location.search).has('entradas'),
       // disco propio (archivos.js): el hilo pide lo del disco a esta pagina por este canal
-      canal: Archivos.propio ? (canalDisco = canalDisco || Archivos.crearCanal()) : null };
+      canal: Archivos.propio ? (puente ? { puente: true } : (canalDisco = canalDisco || Archivos.crearCanal())) : null };
+    subirEstado();
     mandarPendiente();
   });
 }
@@ -383,14 +412,20 @@ function crearHilo() {
   hiloLibre = true;
   h.onmessage = (e) => {
     // (antes que nada: el hilo quedo esperando ese archivo, aunque sea de un juego que se esta cortando)
-    if (e.data.tipo === 'leer') { if (!e.data.desde) registrar('disco propio: ' + e.data.ruta); Archivos.servirLectura(canalDisco, e.data); return; }
+    if (e.data.tipo === 'leer') {
+      if (!e.data.desde) registrar('disco propio: ' + e.data.ruta);
+      if (puente) Archivos.servirPorPuente(URL_PUENTE, e.data); else Archivos.servirLectura(canalDisco, e.data);
+      return;
+    }
     if (h !== hilo) return;
     const m = e.data, cfg = cfgActual;
+    // con el puente: lo que escribio el hilo en su copia (trabajador.js escribir)
+    if (m.tipo === 'escribir') { (m.d ? D : I)[m.i] = m.v; subirEstado(); return; }
     if (m.tipo === 'reiniciado') { hiloLibre = true; esperandoCorte = false; mandarPendiente(); return; }
     if (m.tipo === 'fin') {
       hiloLibre = true;
       // se cayo justo mientras se lo cortaba: ya esta libre, y la bandera no tiene que quedar para el proximo
-      if (esperandoCorte) { esperandoCorte = false; Atomics.store(I, 13, 0); mandarPendiente(); return; }
+      if (esperandoCorte) { esperandoCorte = false; Atomics.store(I, 13, 0); subirEstado(); mandarPendiente(); return; }
     }
     if (!corriendo || esperandoCorte) { mandarPendiente(); return; }   // restos del juego que se acaba de cortar
     if (m.tipo === 'cuadro') { pendientes.push(m); cuadrosRecibidos++; cuadrosDesdeArranque++; ultimoCuadroVisto = performance.now(); if (modoFondo) ultimoCuadroFondo = ultimoCuadroVisto; }
@@ -430,7 +465,7 @@ function crearHilo() {
 setInterval(() => {
   if (!hilo || hiloLibre || Atomics.load(I, 13) !== 1 || performance.now() - cortarDesde < 3000) return;
   registrar('pagina: el hilo del juego no contesto en 3 s; se abre otro');
-  hilo.terminate(); Atomics.store(I, 13, 0); esperandoCorte = false;
+  hilo.terminate(); Atomics.store(I, 13, 0); esperandoCorte = false; subirEstado();
   hilo = crearHilo(); if (trabajador) trabajador = hilo;
   mandarPendiente();
 }, 500);
@@ -438,7 +473,7 @@ setInterval(() => {
 function terminar() {
   if (trabajador) {
     trabajador = null; corriendo = false; aIniciar = null; corrida++;
-    if (!hiloLibre) { Atomics.store(I, 13, 1); esperandoCorte = true; cortarDesde = performance.now(); }
+    if (!hiloLibre) { Atomics.store(I, 13, 1); esperandoCorte = true; cortarDesde = performance.now(); subirEstado(); }
     registrar('pagina: juego cerrado');
   }
   pararMusica(); pendientes = [];
@@ -452,11 +487,11 @@ Menu.iniciarMenu({ arrancar, terminar, audio, opciones: () => opcionesListas, gu
   tactil: { tamano: T.fijarTamano, vibrar: T.fijarVibrar }, mando: { fijarMapa: M.fijarMapa, aprender: M.aprender, hay: M.hayMando },
   desfase: (ms) => { latencia = Math.max(-0.3, Math.min(0.3, (+ms || 0) / 1000)); }, relojAudio: () => (actx ? relojAudible() : 0),
   // la hora de arranque del online, cuando los dos estan listos (trabajador.js la mira en D[3]); 0 = la de respaldo
-  fijarInicio: (ms) => { D[3] = ms > 0 ? ms : 0; },
+  fijarInicio: (ms) => { D[3] = ms > 0 ? ms : 0; subirEstado(); },
   // los modificadores elegidos antes de la cancion (trabajador.js instalarModsPorCancion); null = seguir sin cambiar
   modsCancion: (opcionesMods, skin) => {
     if (opcionesMods !== null) { Atomics.store(I, 21, opcionesMods | 0); Atomics.store(I, 22, skin | 0); }
-    Atomics.store(I, 20, opcionesMods === null ? 2 : 1); Atomics.notify(I, 20);
+    Atomics.store(I, 20, opcionesMods === null ? 2 : 1); Atomics.notify(I, 20); subirEstado();
   },
   pantalla: (m) => { modoPantalla = m === 'estirar' ? 'estirar' : 'original'; ajustar(); },
   teclas: fijarTeclas, volumen: (v) => { volumen = Math.max(0, Math.min(1, +v)); if (ganancia) ganancia.gain.value = volumen; },
@@ -533,9 +568,11 @@ function bucle() {
         else if (!desconocidas.has(c[0])) { desconocidas.add(c[0]); registrar('sin implementar: ' + c[0]); }
       }
       const l = m.luces; [...cajaLuces.children].forEach((el, i) => el.classList.toggle('on', i < 10 ? !!(l[0] & (1 << i)) : !!(l[1] & (1 << (i - 10)))));
+      if (m.id > mostradoId) mostradoId = m.id;
     }
     pendientes = [];
     Atomics.store(I, 0, 1); Atomics.notify(I, 0);
+    subirEstado();               // con el puente: el hilo espera esto para mandar el cuadro siguiente
     // recien dibujado: se puede copiar (cada 100 ms: el desenfoque cuesta en el celular y a la vista no cambia; 21/10)
     const tb = performance.now();
     if (tb - ultimoBorroso >= 100) {
