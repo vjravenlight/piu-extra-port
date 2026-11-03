@@ -1,16 +1,18 @@
 PUMP IT UP EXTRA — port de Ravenlight (ravenlight.net) · versión SIN DISCO
 
-Esta versión no trae nada del juego original: la primera vez que la abrís te pide EL DISCO de Pump It Up Extra (2001)
-y lo prepara sola (un par de minutos). Después arranca directo.
-Sirve la imagen del disco: el .bin (el archivo grande que va con el .cue) o un .iso. En la PC también la carpeta con
-los archivos ya sacados. El disco no se sube a ningún lado: queda en tu aparato.
+Esta versión no trae nada del juego original: la primera vez que la abrís te pide DOS COSAS de Pump It Up Extra (2001)
+y las prepara sola (un par de minutos). Después arranca directo. Nada se sube a ningún lado: queda en tu aparato.
+1. La ROM de sonidos (moneda, voces del puntaje): pumpitup.zip, el set de MAME, o el archivo piu10.u9. Sin ella se
+   juega igual, sin esos sonidos; si la conseguís después, se elige en OPCIONES > SONIDOS DE LA CABINA.
+2. La imagen del disco: el .bin (el archivo grande que va con el .cue) o un .iso. En la PC también la carpeta con los
+   archivos ya sacados.
 
 Elegí el archivo de tu aparato:
 
 ANDROID (teléfono o tablet, Android 10 o más nuevo, 64 bits)
   Pump It Up Extra - Android (sin disco).apk
   Pasalo al teléfono y tocalo para instalarlo. Si pregunta, permití "instalar apps de origen desconocido".
-  Pasá también el .bin del disco al teléfono; la app te lo pide al abrirla. Dejá 1,5 GB libres.
+  Pasá también el .bin del disco y pumpitup.zip al teléfono; la app te los pide al abrirla. Dejá 1,5 GB libres.
 
 WINDOWS (10 u 11)
   Pump It Up Extra - Windows (sin disco).zip

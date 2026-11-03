@@ -34,18 +34,23 @@ export function pedirDisco() {
     const d = document.createElement('div'); d.id = 'disco';
     d.innerHTML = `<div class="caja">
       <h1>PUMP IT UP EXTRA</h1><h2>PORT DE RAVENLIGHT</h2>
-      <p>Para jugar hacen falta <b>dos cosas de la cabina original</b> (Pump It Up Extra, 2001).</p>
-      <p><b>1. La ROM de sonidos</b> (moneda, voces del puntaje): <b>pumpitup.zip</b>, el set de MAME, o el archivo piu10.u9.
-      Sin ella el juego anda, pero sin esos sonidos. Si no la tenés ahora, se elige después en OPCIONES.</p>
-      <div class="botones"><button class="otro laRom">ELEGIR LA ROM DE SONIDOS</button></div><div class="estadoRom"></div>
-      <p><b>2. La imagen del disco</b>: el <b>.bin</b> (con su .cue), el <b>.iso</b>, o la <b>carpeta</b> con los archivos ya sacados.
-      Se prepara una sola vez (un par de minutos) y queda guardado en este aparato. <b>Nada se sube a ningún lado.</b></p>
-      <div class="botones"><button class="bin">ELEGIR EL .BIN O EL .ISO</button><button class="otro carpeta">ELEGIR LA CARPETA</button></div>
-      <div class="soltar">o arrastralos y soltalos acá</div>
+      <p>Para jugar hacen falta <b>dos cosas de la cabina original</b> (Pump It Up Extra, 2001), que no vienen con el juego:</p>
+      <p><b>La imagen del disco</b> (el .bin con su .cue, o un .iso) y <b>la ROM de sonidos</b> (pumpitup.zip, el set de MAME, o el archivo piu10.u9).
+      Sin la ROM se juega igual, sin la moneda ni las voces del puntaje; se puede elegir después en OPCIONES.</p>
+      <p class="enCompu">Ponelas en <b>una misma carpeta</b> y elegila. Si el navegador dice "subir", no te preocupes: <b>nada sale de tu aparato</b>.</p>
+      <p class="enCelu">Elegí primero la ROM y después el disco. <b>Nada sale de tu aparato.</b></p>
+      <div class="botones enCompu"><button class="carpeta">ELEGIR LA CARPETA</button></div>
+      <div class="botones"><button class="otro laRom">ELEGIR LA ROM</button><button class="otro bin">ELEGIR EL .BIN O EL .ISO</button></div>
+      <div class="estadoRom"></div>
+      <p>Se prepara una sola vez (un par de minutos) y queda guardado en este aparato.</p>
+      <div class="soltar enCompu">o arrastrala y soltala acá</div>
       <div class="barra"><i></i></div><div class="estado"></div>
       <div class="chico">Necesita unos 700 MB libres. Guía: <a href="https://github.com/vjravenlight/piu-extra-port/blob/main/GUIA.md" target="_blank" rel="noopener">paso a paso</a></div>
       <input type="file" class="archivo" accept=".bin,.iso,.cue,.img" multiple><input type="file" class="dir" webkitdirectory multiple><input type="file" class="archivoRom" accept=".zip,.u9"></div>`;
     document.body.appendChild(d);
+    // en el celu no se puede elegir una carpeta entera: la ROM y el disco van de a uno
+    const tactil = navigator.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches;
+    d.querySelectorAll(tactil ? '.enCompu' : '.enCelu').forEach((e) => { e.style.display = 'none'; });
     const $ = (s) => d.querySelector(s), estado = $('.estado'), barra = $('.barra'), relleno = $('.barra i');
     const decir = (t, error) => { estado.textContent = t; estado.classList.toggle('error', !!error); };
     let ocupado = false;
@@ -81,7 +86,7 @@ export function pedirDisco() {
     function elegidos(lista) {
       if (ocupado || !lista.length) return;
       // (al soltar pueden venir la ROM y el disco juntos)
-      const laRom = lista.find((a) => /\.(zip|u9)$/i.test(a.ruta));
+      const laRom = lista.find((a) => /(pumpitup\.zip|piu10\.u9)$/i.test(a.ruta)) || lista.find((a) => /\.(zip|u9)$/i.test(a.ruta));
       if (laRom) { elegirRom(laRom.file); lista = lista.filter((a) => a !== laRom); if (!lista.length) return; }
       const imagen =lista.find((a) => /\.(bin|iso|img)$/i.test(a.ruta) && a.file.size > 100e6);
       const exe = lista.find((a) => /(^|\/)piu\.exe$/i.test(a.ruta));

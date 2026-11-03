@@ -7,7 +7,7 @@
 export const ALMACEN = 'piu-disco-1';
 const BASE = new URL('../', import.meta.url).href;
 // lo que sale del disco (o de Piu.exe) y nunca esta en el repositorio; y la ROM de los efectos (la elige el jugador)
-const DEL_DISCO = /^(disco\/|volcados\/|efectos\/|port\/(traducido\.js|game_[a-z]+\.cfg)$)/;
+const DEL_DISCO = /^(disco\/|volcados\/|efectos\/|port\/(traducido\.js|game_[a-z_]+\.cfg)$)/;
 let almacen = null;
 export let propio = false;            // true = disco propio (lo guardado en el navegador)
 

@@ -29,6 +29,7 @@ Todo lo que hay que hacer, en orden, pensado para alguien que nunca usó GitHub 
   - la **carpeta** con los archivos del disco ya sacados (la que tiene `Piu.exe`).
 
   **Sin el disco no hay juego.** El repositorio no lo trae ni lo va a traer.
+- **La ROM de sonidos:** `pumpitup.zip`, el set de MAME (o el archivo `piu10.u9`). Son la moneda y las voces del puntaje, que no están en el disco. Sin ella se juega igual, sin esos sonidos. Se elige en la misma pantalla del disco o después, en **OPCIONES > SONIDOS DE LA CABINA**.
 - **Una compu con Windows 10 u 11, Linux o Mac**, o un teléfono Android con la app.
 - **Espacio libre:** 1,5 GB para jugar; 8 GB si además vas a armar las apps.
 - **Internet**, la primera vez (para bajar las herramientas) y para el online.
@@ -233,11 +234,11 @@ En cada carpeta van:
 
 - **Requisitos:** Android 10 o más nuevo, de 64 bits (casi todos desde 2019) y **1,5 GB libres**.
 
-1. Pasá el `.apk` al teléfono (cable USB, Drive, Telegram…). Con la versión sin disco, pasá también el **`.bin`**.
+1. Pasá el `.apk` al teléfono (cable USB, Drive, Telegram…). Con la versión sin disco, pasá también el **`.bin`** y **`pumpitup.zip`**.
 2. Tocá el `.apk`.
 3. Si dice que **no permite instalar apps desconocidas**: **Configuración** → activá **Permitir de esta fuente** → volvé.
 4. Si aparece **Play Protect** ("app desconocida"): **Más detalles** → **Instalar de todas formas**.
-5. Abrila: arranca a pantalla completa. Si es la sin disco, la primera vez tocá **ELEGIR EL .BIN O EL .ISO** y buscá el `.bin` en el teléfono.
+5. Abrila: arranca a pantalla completa. Si es la sin disco, la primera vez tocá **ELEGIR LA ROM DE SONIDOS** y buscá `pumpitup.zip`; después **ELEGIR EL .BIN O EL .ISO** y buscá el `.bin` en el teléfono.
    - Los paneles aparecen en la pantalla.
    - **Atrás** = volver.
    - En el menú principal está **SALIR**.

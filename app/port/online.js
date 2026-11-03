@@ -70,7 +70,8 @@ const nombreDe = (n) => (cancion(n) || {}).nombre || OTRAS[n] || `CANCION ${n}`;
 // el modo segun las banderas de [0x1CFB08] que deja la seleccion (JUEGO_REGLAS 3.3)
 const modoDe = (b) => (b & 0x80 ? 'DOUBLE' : b & 0x400 ? 'CRAZY' : b & 0x100 ? 'REMIX' : b & 0x20 ? 'HARD' : 'NORMAL');
 // en la web, el salon del mismo sitio; en la build de Edge (window.piuBuild), el del hosting: ranking y online compartidos
-export const API = window.piuBuild ? 'https://ravenlight.net/piu/online/api.php' : new URL('../online/api.php', location.href).href;
+// (03/11) en el hosting el juego sin nada de Andamiro va en /piu/juego/port/ y el salon es uno solo, /piu/online/
+export const API = window.piuBuild ? 'https://ravenlight.net/piu/online/api.php' : new URL(/\/juego\/port\//.test(location.pathname) ? '../../online/api.php' : '../online/api.php', location.href).href;
 const DISCO = new URL('../disco/', location.href).href;
 const VOLCADOS = new URL('../volcados/', location.href).href;
 

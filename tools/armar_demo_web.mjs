@@ -6,6 +6,12 @@
 // - .htaccess: aislamiento (COOP/COEP) para la memoria compartida, CSP propia, sin indexar ni listar.
 // Desde el 30/10 sube el disco ENTERO (todas las canciones, como las builds; Charles: "subime todas las canciones a la
 // web"); con --demo arma la demo vieja de 32 canciones.
+// (03/11, Charles: "necesitas en una misma carpeta la iso y la rom, asi no viene andamiro a quejarse... que quede port
+// protegido con contraseña sin cambiar la ruta, y el otro, enlazado en la web, que diga juego y te pida la carpeta") DOS JUEGOS:
+//   /piu/port/       el completo, en su lugar de siempre, con clave (port, disco, volcados y efectos los protege
+//                    DirectoryPrivacy del hosting, no un .htaccess de aca: tools\clave_web.ps1)
+//   /piu/juego/port/ publico, SIN NADA DE ANDAMIRO: pide el disco y la ROM (port sin traducido.js ni game_*.cfg, motor, preparar)
+//   /piu/online/     el salon, abierto y uno solo para todos (lo usan tambien las builds)
 // Uso: node armar_demo_web.mjs [--demo]
 import fs from 'node:fs';
 import path from 'node:path';
@@ -24,10 +30,16 @@ let bytes = 0, archivos = 0;
 const sumar = (f) => { bytes += fs.statSync(f).size; archivos++; };
 
 // 1. el juego y el salon
-for (const f of fs.readdirSync(path.join(base, 'app', 'port'))) copiar(path.join(base, 'app', 'port', f), path.join(destino, 'port', f));
-for (const f of ['gl1.js', 'cifrados.js', 'disco.js']) copiar(path.join(base, 'app', 'motor', f), path.join(destino, 'motor', f));
-// lo que usa el navegador para preparar un disco propio (app\port\instalador.js; tools\preparar\archivos_navegador.json)
-for (const [n, f] of Object.entries(JSON.parse(fs.readFileSync(path.join(base, 'tools', 'preparar', 'archivos_navegador.json'), 'utf8')))) copiar(path.join(base, 'tools', f), path.join(destino, 'preparar', n));
+const DE_ANDAMIRO = /^(traducido\.js|game_[a-z_]+\.cfg)$/;      // lo que sale de Piu.exe o del disco: en el publico no va
+for (const f of fs.readdirSync(path.join(base, 'app', 'port'))) {
+  copiar(path.join(base, 'app', 'port', f), path.join(destino, 'port', f));
+  if (!DE_ANDAMIRO.test(f)) copiar(path.join(base, 'app', 'port', f), path.join(destino, 'juego', 'port', f));
+}
+for (const carpeta of ['', 'juego']) {
+  for (const f of ['gl1.js', 'cifrados.js', 'disco.js']) copiar(path.join(base, 'app', 'motor', f), path.join(destino, carpeta, 'motor', f));
+  // lo que usa el navegador para preparar un disco propio (app\port\instalador.js; tools\preparar\archivos_navegador.json)
+  for (const [n, f] of Object.entries(JSON.parse(fs.readFileSync(path.join(base, 'tools', 'preparar', 'archivos_navegador.json'), 'utf8')))) copiar(path.join(base, 'tools', f), path.join(destino, carpeta, 'preparar', n));
+}
 for (const f of ['api.php', 'filtro.php']) copiar(path.join(base, 'app', 'online', f), path.join(destino, 'online', f));
 for (const f of ['codigo_0x20000.bin', 'datos_0x130000.bin']) copiar(path.join(base, 'investigacion', 'volcados', f), path.join(destino, 'volcados', f));
 
@@ -66,7 +78,7 @@ fs.writeFileSync(path.join(base, 'app', 'port', 'game_online.cfg'), demoCfg, 'la
 const steps = new Set(todos.filter(r => r.toLowerCase().startsWith('step/')).map(r => r.toLowerCase().slice(5)));
 const atrae = CANCIONES.filter(n => steps.has(`${nn(n)}_h2.not`));
 // (con TODAS no es una demo: config.json dice demo false y el juego usa su game.cfg, como las builds)
-fs.writeFileSync(path.join(destino, 'port', 'config.json'), JSON.stringify(TODAS ? { demo: false } : { demo: true, canciones: CANCIONES, atrae }, null, 1));
+for (const carpeta of ['', 'juego']) fs.writeFileSync(path.join(destino, carpeta, 'port', 'config.json'), JSON.stringify(TODAS ? { demo: false } : { demo: true, canciones: CANCIONES, atrae }, null, 1));
 
 // 4. reglas del servidor y la entrada
 fs.writeFileSync(path.join(destino, '.htaccess'), [
@@ -104,7 +116,8 @@ fs.writeFileSync(path.join(destino, '.htaccess'), [
   '',
 ].join('\n'));
 fs.writeFileSync(path.join(destino, 'robots.txt'), 'User-agent: *\nDisallow: /\n');
-fs.writeFileSync(path.join(destino, 'index.html'), '<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><meta http-equiv="refresh" content="0; url=port/"><title>Pump It Up Extra</title><a href="port/">Pump It Up Extra</a>\n');
+// (la entrada /piu/ lleva al publico; el completo se abre con su direccion, /piu/port/)
+for (const [carpeta, a] of [['', 'juego/'], ['juego', 'port/']]) fs.writeFileSync(path.join(destino, carpeta, 'index.html'), `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><meta http-equiv="refresh" content="0; url=${a}"><title>Pump It Up Extra</title><a href="${a}">Pump It Up Extra</a>\n`);
 
 let total = 0, n = 0;
 (function medir(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) medir(p); else { total += fs.statSync(p).size; n++; } } })(destino);

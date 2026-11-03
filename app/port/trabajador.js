@@ -66,7 +66,7 @@ function esperar(ms, cuadro = 0) {
 const BASE = new URL('../', self.location.href).href;
 // DISCO PROPIO (archivos.js, 21/10): lo del disco no esta en el servidor sino guardado en el navegador; se le pide a la
 // pagina por el canal { L, B } y se espera con Atomics (este hilo no puede esperar promesas)
-const DEL_DISCO = /^(disco\/|volcados\/|port\/(traducido\.js|game_[a-z]+\.cfg)$)/;
+const DEL_DISCO = /^(disco\/|volcados\/|port\/(traducido\.js|game_[a-z_]+\.cfg)$)/;
 let canal = null;
 function leerPropio(rel) {
   // sin memoria compartida: la pagina sube el archivo entero al servidor de la app y aca se espera con XHR
@@ -652,13 +652,15 @@ let corridas = 0;
 onmessage = (e) => {
   if (e.data.tipo !== 'iniciar') return;
   if (e.data.canal) canal = e.data.canal;
+  // (03/11) antes de leer nada: el codigo traducido del disco propio ya se pide por el puente (sin esto, en la WebView
+  // la APK sin disco se caia con "Invalid atomic access index" y nunca arrancaba)
+  puente = typeof SharedArrayBuffer !== 'function' || !(e.data.I instanceof SharedArrayBuffer);
   // la primera vez, antes de arrancar: el codigo traducido (la pagina espera el 'listo')
   const t = performance.now(), primera = !traducidoListo;
   cargarTraducido().then(() => { if (primera) postMessage({ tipo: 'registro', s: `codigo traducido cargado en ${Math.round(performance.now() - t)} ms${canal ? ' (disco propio)' : ''}` }); iniciar(e); }, (err) => postMessage({ tipo: 'fin', motivo: 'no carga el juego: ' + (err && err.message || err) }));
 };
 function iniciar(e) {
   I = new Int32Array(e.data.I); D = new Float64Array(e.data.D); Q = new Float64Array(e.data.Q);
-  puente = typeof SharedArrayBuffer !== 'function' || !(e.data.I instanceof SharedArrayBuffer);
   if (puente) S.fijarDormir((ms) => { if (ms > 0) esperar(ms); });
   if (corridas++) dejarComoNuevo();
   anotarEntradas = !!e.data.anotarEntradas;
