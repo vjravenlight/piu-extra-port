@@ -231,6 +231,7 @@ function atender(req, res) {
     if (url.startsWith('/online/')) return alSalon(req, res);
     // pruebas del disco propio: PIU_DISCO_PRUEBA = ruta de una imagen, la pagina la toma de aca (?discoDePrueba=...)
     if (url === '/disco-de-prueba.bin' && process.env.PIU_DISCO_PRUEBA) return servirArchivo(req, res, process.env.PIU_DISCO_PRUEBA);
+    if (url === '/rom-de-prueba.bin' && process.env.PIU_ROM_PRUEBA) return servirArchivo(req, res, process.env.PIU_ROM_PRUEBA);
     // sin disco: como un servidor sin nada de Andamiro (cada jugador pone su disco: app\port\archivos.js)
     if ((sinDisco || !hayDisco) && /^\/(disco|volcados|datos)\/|^\/port\/(traducido\.js|game_[a-z]+\.cfg)$/i.test(url)) { res.writeHead(404); return res.end('sin disco'); }
     // en la red, lo guardado es de esta compu: los demas guardan en su navegador (como en la web)

@@ -9,6 +9,7 @@ import { esTactil, vibrarAhora } from './tactil.js';
 import { iniciarEditor, abrirEditor, dibujarEditor, teclaEditor, volverDePrueba, archivoDe } from './editor.js';
 import { revisarPaquete } from './paquete.js';
 import * as Archivos from './archivos.js';
+import { cargarEfectos, hayEfectos } from './efectos.js';
 
 export const CANCIONES = [
   { n: 60, nombre: 'BEETHOVEN VIRUS', modos: ['NORMAL', 'HARD', 'CRAZY', 'DOUBLE'] },
@@ -712,6 +713,7 @@ function elegirOpcion() {
     if (f === 'controles') { pantalla = 'controles'; cursor = Math.max(0, CONTROLES.indexOf(op.controles)); }
     else if (f === 'nombre') { destinoNick = 'cambiar'; pedirNick(); return; }
     else if (f === 'avatar') { abrirAvatar(); return; }
+    else if (f === 'rom') { elegirRomSonidos(); return; }
     else if (f === 'pantalla') { op.pantalla = op.pantalla === 'estirar' ? 'original' : 'estirar'; J.pantalla(op.pantalla); }
     else if (f === 'aparato') op.aparato = APARATOS[(APARATOS.indexOf(op.aparato) + 1) % APARATOS.length];
     else if (f === 'pin') { if (!op.nick) { avisar('Primero elegi tu nombre'); return; } empezarClave(); return; }
@@ -757,7 +759,18 @@ const CORTO_CONTROLES = { izquierda: 'IZQUIERDA', derecha: 'DERECHA', numerico: 
 // OPCIONES (20/10): intro, demo y su sonido son del modo solo (trabajador.js, seguirAtraccion); PANELES solo en
 // celulares y tablets (tactil.js: uno o dos juegos de paneles, el segundo para DOUBLE)
 // (mejoras 10 y 16, 21/10: MANDO USB en todos; TAMANO DE PANELES y VIBRAR en el celular)
-const FILAS_OPCIONES = ['nombre', 'pin', 'sesion', 'avatar', 'aparato', 'controles',...(esTactil ? ['paneles', 'tamano', 'vibrar'] : ['teclas', 'pantalla']), 'usb', 'calibrar', 'volumen', 'fondo', 'carril', 'panelmods', 'cuenta', 'rival', 'intro', 'demo', 'sonido', 'desbloqueado', 'sincorte', 'volver'];
+// (03/11) con disco propio, la ROM de los sonidos de la cabina (archivos.js) se elige aca o en la pantalla del disco
+function elegirRomSonidos() {
+  const i = document.createElement('input');
+  i.type = 'file'; i.accept = '.zip,.u9';
+  i.onchange = async () => {
+    if (!i.files[0]) return;
+    try { await Archivos.guardarRom(await Archivos.leerRom(i.files[0])); await cargarEfectos(); avisar('Listo: suenan los efectos de la cabina', 4); }
+    catch (e) { avisar(e.message, 6); }
+  };
+  i.click();
+}
+const FILAS_OPCIONES = ['nombre', 'pin', 'sesion', 'avatar', 'aparato', 'controles',...(esTactil ? ['paneles', 'tamano', 'vibrar'] : ['teclas', 'pantalla']), 'usb', ...(Archivos.propio ? ['rom'] : []), 'calibrar', 'volumen', 'fondo', 'carril', 'panelmods', 'cuenta', 'rival', 'intro', 'demo', 'sonido', 'desbloqueado', 'sincorte', 'volver'];
 const TAMANOS = [0.8, 0.9, 1, 1.1, 1.2, 1.3];
 // (30/10, Charles: "necesito saber si al juego lo estan jugando desde una pc, celular, o que cosa... no es lo mismo jugar
 // teclado que plataforma o celular") JUEGO CON: lo ven los demas en el salon, el desafio y el torneo. AUTOMATICO: si se uso
@@ -778,7 +791,7 @@ const reglaTorneo = (c) => (!c || c === 'libre' ? 'SE JUEGA CON CUALQUIER CONTRO
 // online, desde que los dos cargaron (la del que desafia es la que vale)
 const FONDOS = [0, 0.25, 0.5, 0.75, 'titulo'], CUENTAS = [3, 5, 8, 10];
 const nombreFondo = (f) => (f === 'titulo' ? 'SIN VIDEO' : f ? `ATENUADO ${Math.round(f * 100)}%` : 'NORMAL');
-const AYUDA_OPCIONES = { sesion: 'ESTE APARATO SE OLVIDA DE TU NOMBRE (CON TU CLAVE VOLVES A ENTRAR)', sincorte: 'EN SOLO, LA CANCION NO SE CORTA CON 50 MISS (EN ONLINE NUNCA)', desbloqueado: 'LAS OCULTAS DE CRAZY Y LOS PASOS EXTRA DESDE EL PRINCIPIO', controles: 'CON QUE PARTE DEL TECLADO SE JUEGA EL ONLINE', paneles: 'DOS JUEGOS DE PANELES PARA JUGAR DOUBLE',
+const AYUDA_OPCIONES = { rom: 'MONEDA Y VOCES DEL PUNTAJE: ELEGI PUMPITUP.ZIP (SET DE MAME) O PIU10.U9', sesion: 'ESTE APARATO SE OLVIDA DE TU NOMBRE (CON TU CLAVE VOLVES A ENTRAR)', sincorte: 'EN SOLO, LA CANCION NO SE CORTA CON 50 MISS (EN ONLINE NUNCA)', desbloqueado: 'TODO DESDE EL PRINCIPIO: LAS LISTAS NO CAMBIAN Y SE PUEDE REPETIR CANCION', controles: 'CON QUE PARTE DEL TECLADO SE JUEGA EL ONLINE', paneles: 'DOS JUEGOS DE PANELES PARA JUGAR DOUBLE',
   tamano: 'MAS GRANDES O MAS CHICOS (SE VE AL TOQUE)', vibrar: 'EL CELULAR VIBRA UN POQUITO EN CADA PISADA',
   nombre: 'CON EL QUE JUGAS EN SOLO, ONLINE Y RANKING (SE PIDE UNA SOLA VEZ)',
   pin: 'OPCIONAL: CON CLAVE NADIE MAS USA TU NOMBRE EN EL RANKING (EN OTRO APARATO, PONELA ACA)',
@@ -1215,6 +1228,7 @@ function dibujarMenu(t, vivo) {
     : pantalla === 'opciones' ? FILAS_OPCIONES.map((f) => ({ nombre: `TU NOMBRE: ${op.nick || '-'}`, pin: `CLAVE DEL NOMBRE: ${op.pin ? 'REGISTRADA' : 'SIN CLAVE'}`, sesion: op.nick ? `CERRAR SESION (${op.nick})`.slice(0, 30) : 'CERRAR SESION', avatar: `AVATAR: ${op.avatar ? 'ELEGIDO' : 'NINGUNO'}`,
       aparato: `JUEGO CON: ${op.aparato === 'auto' || !op.aparato ? `AUTO (${CORTO_APARATO[aparatoAuto()]})` : { teclado: 'TECLADO', plataforma: 'PLATAFORMA', tactil: 'CELU/TABLET' }[op.aparato]}`, controles: `CONTROLES: ${CORTO_CONTROLES[op.controles]}`, paneles: `PANELES: ${op.panelesDos ? 'DOS' : 'UNO'}`,
       tamano: `TAMANO DE PANELES: ${Math.round(op.tamanoPads * 100)}%`, vibrar: `VIBRAR AL PISAR: ${si(op.vibrar)}`,
+      rom: `SONIDOS DE LA CABINA: ${hayEfectos() ? 'SI' : 'FALTA LA ROM'}`,
       usb: `MANDO USB: ${op.usb ? 'APRENDIDO' : 'COMUN'}${J.mando.hay().length ? ' (CONECTADO)' : ''}`, calibrar: `CALIBRAR: ${op.desfase > 0 ? '+' : ''}${op.desfase} MS`,
       fondo: `FONDO: ${nombreFondo(op.fondo)}`, cuenta: `CUENTA DEL ONLINE: ${op.cuenta} S`, panelmods: `MODIFICADORES: ${NOMBRE_MODO_MODS[modoMods()]}`,
       carril: `FLECHAS DE UNO SOLO: ${op.carril === 'centro' ? 'AL CENTRO' : 'EN SU LUGAR'}`,

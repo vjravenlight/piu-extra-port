@@ -1,10 +1,12 @@
 // Pantalla "PONE TU DISCO" (disco propio, archivos.js): cuando el servidor no trae el juego, el jugador elige la imagen
 // de su disco (.bin con su .cue, o .iso) o la carpeta con los archivos ya sacados. instalador.js lo prepara en un hilo
-// aparte y queda guardado en este navegador; el disco no sale del aparato.
+// aparte y queda guardado en este navegador; el disco no sale del aparato. Tambien la ROM de sonidos (archivos.js).
+import * as Archivos from './archivos.js';
+
 const ESTILO = `
-#disco { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px;
+#disco { position: fixed; inset: 0; z-index: 50; display: flex; overflow-y: auto; padding: 16px;
   background: radial-gradient(circle at 50% 30%, #1d2340, #000 70%); color: #e9ecf5; font: 16px "Segoe UI", system-ui, sans-serif; }
-#disco .caja { max-width: 560px; width: 100%; text-align: center; }
+#disco .caja { max-width: 560px; width: 100%; margin: auto; text-align: center; }
 #disco h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: 2px; color: #ffd23f; }
 #disco h2 { margin: 0 0 20px; font-size: 14px; font-weight: 400; color: #8a90a6; letter-spacing: 1px; }
 #disco p { margin: 0 0 14px; line-height: 1.45; color: #c8cde0; }
@@ -17,7 +19,7 @@ const ESTILO = `
 #disco.encima .soltar { border-color: #ffd23f; color: #ffd23f; }
 #disco .barra { height: 10px; background: #22263a; border-radius: 5px; overflow: hidden; margin: 18px 0 8px; display: none; }
 #disco .barra i { display: block; height: 100%; width: 0; background: #ffd23f; transition: width .2s; }
-#disco .estado { min-height: 22px; font-size: 14px; color: #c8cde0; }
+#disco .estado, #disco .estadoRom { min-height: 22px; font-size: 14px; color: #c8cde0; }
 #disco .error { color: #ff6b6b; }
 #disco .chico { font-size: 12px; color: #6f7590; margin-top: 18px; }
 #disco a { color: #5fd0ff; }
@@ -26,19 +28,23 @@ const ESTILO = `
 const PASOS = ['', 'Disco', 'Piu.exe', 'Traduccion', 'Listas'];
 
 export function pedirDisco() {
+  let rom = null;     // la ROM de sonidos (archivos.js leerRom), si la eligio: se guarda cuando termina de preparar el disco
   return new Promise((listo) => {
     const estilo = document.createElement('style'); estilo.textContent = ESTILO; document.head.appendChild(estilo);
     const d = document.createElement('div'); d.id = 'disco';
     d.innerHTML = `<div class="caja">
       <h1>PUMP IT UP EXTRA</h1><h2>PORT DE RAVENLIGHT</h2>
-      <p>Para jugar hace falta <b>el disco original de la cabina</b> (Pump It Up Extra, 2001).</p>
-      <p>Elegí la imagen del disco: el <b>.bin</b> (con su .cue), el <b>.iso</b>, o la <b>carpeta</b> con los archivos ya sacados.
-      Se prepara una sola vez (un par de minutos) y queda guardado en este aparato. <b>El disco no se sube a ningún lado.</b></p>
+      <p>Para jugar hacen falta <b>dos cosas de la cabina original</b> (Pump It Up Extra, 2001).</p>
+      <p><b>1. La ROM de sonidos</b> (moneda, voces del puntaje): <b>pumpitup.zip</b>, el set de MAME, o el archivo piu10.u9.
+      Sin ella el juego anda, pero sin esos sonidos. Si no la tenés ahora, se elige después en OPCIONES.</p>
+      <div class="botones"><button class="otro laRom">ELEGIR LA ROM DE SONIDOS</button></div><div class="estadoRom"></div>
+      <p><b>2. La imagen del disco</b>: el <b>.bin</b> (con su .cue), el <b>.iso</b>, o la <b>carpeta</b> con los archivos ya sacados.
+      Se prepara una sola vez (un par de minutos) y queda guardado en este aparato. <b>Nada se sube a ningún lado.</b></p>
       <div class="botones"><button class="bin">ELEGIR EL .BIN O EL .ISO</button><button class="otro carpeta">ELEGIR LA CARPETA</button></div>
-      <div class="soltar">o arrastralo y soltalo acá</div>
+      <div class="soltar">o arrastralos y soltalos acá</div>
       <div class="barra"><i></i></div><div class="estado"></div>
       <div class="chico">Necesita unos 700 MB libres. Guía: <a href="https://github.com/vjravenlight/piu-extra-port/blob/main/GUIA.md" target="_blank" rel="noopener">paso a paso</a></div>
-      <input type="file" class="archivo" accept=".bin,.iso,.cue,.img" multiple><input type="file" class="dir" webkitdirectory multiple></div>`;
+      <input type="file" class="archivo" accept=".bin,.iso,.cue,.img" multiple><input type="file" class="dir" webkitdirectory multiple><input type="file" class="archivoRom" accept=".zip,.u9"></div>`;
     document.body.appendChild(d);
     const $ = (s) => d.querySelector(s), estado = $('.estado'), barra = $('.barra'), relleno = $('.barra i');
     const decir = (t, error) => { estado.textContent = t; estado.classList.toggle('error', !!error); };
@@ -46,6 +52,13 @@ export function pedirDisco() {
     const botones = (si) => d.querySelectorAll('button').forEach((b) => { b.disabled = !si; });
     $('.bin').onclick = () => $('.archivo').click();
     $('.carpeta').onclick = () => $('.dir').click();
+    $('.laRom').onclick = () => $('.archivoRom').click();
+    $('.archivoRom').onchange = (e) => { if (e.target.files[0]) elegirRom(e.target.files[0]); };
+    async function elegirRom(f) {
+      const est = $('.estadoRom');
+      try { rom = await Archivos.leerRom(f); est.textContent = 'ROM de sonidos lista.'; est.classList.remove('error'); }
+      catch (err) { rom = null; est.textContent = err.message; est.classList.add('error'); }
+    }
     $('.archivo').onchange = (e) => elegidos([...e.target.files].map((f) => ({ ruta: f.name, file: f })));
     $('.dir').onchange = (e) => elegidos([...e.target.files].map((f) => ({ ruta: f.webkitRelativePath || f.name, file: f })));
     d.addEventListener('dragover', (e) => { e.preventDefault(); d.classList.add('encima'); });
@@ -58,11 +71,19 @@ export function pedirDisco() {
 
     // pruebas automaticas (tools\servidor.mjs con PIU_DISCO_PRUEBA): ?discoDePrueba=/disco-de-prueba.bin lo elige solo
     const dePrueba = new URLSearchParams(location.search).get('discoDePrueba');
-    if (dePrueba) fetch(dePrueba).then((r) => r.blob()).then((b) => elegidos([{ ruta: 'prueba.bin', file: new File([b], 'prueba.bin') }]));
+    const romDePrueba = new URLSearchParams(location.search).get('romDePrueba');
+    if (dePrueba) (async () => {
+      if (romDePrueba) await elegirRom(await (await fetch(romDePrueba)).blob());
+      const b = await (await fetch(dePrueba)).blob();
+      elegidos([{ ruta: 'prueba.bin', file: new File([b], 'prueba.bin') }]);
+    })();
     // lo elegido: una imagen (.bin o .iso; el .cue solo dice como se llama el .bin) o los archivos de una carpeta
     function elegidos(lista) {
       if (ocupado || !lista.length) return;
-      const imagen = lista.find((a) => /\.(bin|iso|img)$/i.test(a.ruta) && a.file.size > 100e6);
+      // (al soltar pueden venir la ROM y el disco juntos)
+      const laRom = lista.find((a) => /\.(zip|u9)$/i.test(a.ruta));
+      if (laRom) { elegirRom(laRom.file); lista = lista.filter((a) => a !== laRom); if (!lista.length) return; }
+      const imagen =lista.find((a) => /\.(bin|iso|img)$/i.test(a.ruta) && a.file.size > 100e6);
       const exe = lista.find((a) => /(^|\/)piu\.exe$/i.test(a.ruta));
       if (imagen) return empezar({ imagen: imagen.file }, `${imagen.file.name} (${Math.round(imagen.file.size / 1048576)} MB)`);
       if (exe) return empezar({ carpeta: lista }, `la carpeta (${lista.length} archivos)`);
@@ -78,13 +99,15 @@ export function pedirDisco() {
         if (est && est.quota && est.quota - (est.usage || 0) < 600e6) decir(`Ojo: este navegador deja guardar poco (${Math.round((est.quota - (est.usage || 0)) / 1048576)} MB). Si falla, liberá espacio.`, true);
       } catch (e) { /* sin dato */ }
       const h = new Worker('./instalador.js', { type: 'module' });
-      h.onmessage = (e) => {
+      h.onmessage = async (e) => {
         const m = e.data;
         if (m.tipo === 'progreso') {
           decir(`${m.paso}/4 · ${m.texto}`);
           relleno.style.width = Math.round(((m.paso - 1) + (m.parte || 0)) / 4 * 100) + '%';
         } else if (m.tipo === 'listo') {
           relleno.style.width = '100%';
+          // (el instalador vacia el almacen al empezar: la ROM se guarda recien ahora)
+          if (rom) { try { await Archivos.guardarRom(rom); } catch (err) { /* se puede elegir despues en OPCIONES */ } }
           decir(m.listo.mismoExe ? '¡Listo! Arrancando...' : 'Listo, pero ese Piu.exe es de otra versión del disco: puede no andar bien. Arrancando...');
           h.terminate();
           setTimeout(() => { d.remove(); estilo.remove(); listo(m.listo); }, m.listo.mismoExe ? 600 : 3500);

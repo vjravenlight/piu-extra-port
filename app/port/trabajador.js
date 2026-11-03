@@ -15,6 +15,7 @@ import * as G from './gl_hle.js';
 import * as K from './cabina.js';
 import { aplicarArreglos } from './arreglos.js';
 import { crearSeguidorSolo } from './solo.js';
+import { instalarListas } from './listas.js';
 
 let I = null, D = null, Q = null;
 const ahoraAbs = () => performance.timeOrigin + performance.now();
@@ -222,33 +223,19 @@ function cambiarCuadro() {
 
 // ---------- TODO DESBLOQUEADO (OPCIONES, Charles 20/10): las ocultas de CRAZY desde la primera cancion ----------
 // En el original se agregan de a una al pasar etapas en XX (7, 20, 21; JUEGO_REGLAS 3.4). Aca van en game.cfg desde
-// el principio, y como 0x2EEE8 las vuelve a agregar sin fijarse si estan, despues de cada llamada se sacan los repetidos
-// de la lista XX (cancion + marca). Listas: cancion 0x2B3600 + 50*modo, nivel 0x2B372C, marca 0x2B3858, cantidad 0x2B3984.
+// el principio, y durante la partida las listas no cambian (listas.js).
 const OCULTAS_XX = [[7, 4], [20, 4], [21, 5]];
 function desbloquear(bytes) {
   const lineas = new TextDecoder('latin1').decode(bytes).split(/\r?\n/);
   const i = lineas.findIndex((l) => /^MODENAME\s+XX\b/.test(l.trim()));
   if (i < 0) return bytes;
   let fin = lineas.findIndex((l, k) => k > i && /^MODENAME\b/.test(l.trim())); if (fin < 0) fin = lineas.length;
-  // (30/10, Charles: "no quiero que cuando gane una cancion se habiliten las ocultas y aparezcan dos veces") la simple
-  // Y la doble (marca 2), como las agrega el juego al ganar (0x2EEE8); asi lo que agrega despues sale repetido y
-  // deduplicarXX lo saca
-  const ya = new Set(lineas.slice(i, fin).map((l) => l.trim().split(/\s+/)).filter((p) => p[0] === 'SONG').map((p) => +p[1] * 256 + +p[3]));
+  // la simple Y la doble (marca 2), como las agrega el juego al ganar (0x2EEE8)
+  const ya =new Set(lineas.slice(i, fin).map((l) => l.trim().split(/\s+/)).filter((p) => p[0] === 'SONG').map((p) => +p[1] * 256 + +p[3]));
   const nuevas = OCULTAS_XX.flatMap(([n, nivel]) => [0, 2].filter((marca) => !ya.has(n * 256 + marca)).map((marca) => `SONG   ${String(n).padStart(2)}    ${nivel}   ${marca}`));
   lineas.splice(i + 1, 0, ...nuevas);
   postMessage({ tipo: 'registro', s: `todo desbloqueado: ${nuevas.length} ocultas en CRAZY desde el principio` });
   return Uint8Array.from(lineas.join('\r\n'), (ch) => ch.charCodeAt(0) & 255);
-}
-function deduplicarXX() {
-  const m = 2, n = C.r8(0x2B3984 + m), visto = new Set();
-  let k = 0;
-  for (let i = 0; i < n; i++) {
-    const c = C.r8(0x2B3600 + 50 * m + i), nivel = C.r8(0x2B372C + 50 * m + i), marca = C.r8(0x2B3858 + 50 * m + i);
-    if (visto.has(c * 256 + marca)) continue;
-    visto.add(c * 256 + marca);
-    C.w8(0x2B3600 + 50 * m + k, c); C.w8(0x2B372C + 50 * m + k, nivel); C.w8(0x2B3858 + 50 * m + k, marca); k++;
-  }
-  C.w8(0x2B3984 + m, k);
 }
 // ---------- canciones propias (editor, EDITOR_MASTER.md etapa 2; build de Edge y PC) ----------
 // guardado\canciones\canciones.json: [{ n (82-99), nombre, video (el remix cuyo fondo usa), pasos: { NORMAL|HARD|CRAZY|DOUBLE:
@@ -405,7 +392,6 @@ function instalarCarrilCentro() {
     };
   }
 }
-function instalarDesbloqueado() { C.HLE[0x2EEE8] = () => { C.FN[0x2EEE8](); deduplicarXX(); return -4; }; }
 
 // ---------- partida online: la cancion arranca sola a la hora acordada, y se informa el marcador ----------
 // En vez del logo (estado 13, 0x3B064, lo primero que hace la espera despues de arrancar), se espera la hora y se
@@ -688,7 +674,7 @@ function iniciar(e) {
   seguidorSolo = solo ? crearSeguidorSolo((m) => postMessage(m)) : null;
   if (online) instalarOnline();
   else if (e.data.eleccion) instalarEleccion();
-  if (e.data.desbloqueado) instalarDesbloqueado();
+  instalarListas(!!e.data.desbloqueado);
   if (e.data.fondoBga && !e.data.fondo && !e.data.eleccion) instalarFondoBga(e.data.fondoBga);
   if (e.data.carrilCentro && !e.data.fondo && !e.data.eleccion) instalarCarrilCentro();
   else if (e.data.fondo) instalarFondo();

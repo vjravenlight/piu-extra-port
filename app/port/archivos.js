@@ -6,8 +6,8 @@
 // El hilo del juego no puede esperar promesas: pide cada archivo a la pagina (servirLectura) y espera con Atomics.
 export const ALMACEN = 'piu-disco-1';
 const BASE = new URL('../', import.meta.url).href;
-// lo que sale del disco (o de Piu.exe) y nunca esta en el repositorio
-const DEL_DISCO = /^(disco\/|volcados\/|port\/(traducido\.js|game_[a-z]+\.cfg)$)/;
+// lo que sale del disco (o de Piu.exe) y nunca esta en el repositorio; y la ROM de los efectos (la elige el jugador)
+const DEL_DISCO = /^(disco\/|volcados\/|efectos\/|port\/(traducido\.js|game_[a-z]+\.cfg)$)/;
 let almacen = null;
 export let propio = false;            // true = disco propio (lo guardado en el navegador)
 
@@ -44,6 +44,46 @@ export async function traer(url) {
   const b = rel !== null && propio && esDelDisco(rel) ? await leer(rel) : await fetch(url).then((r) => (r.ok ? r.arrayBuffer() : null)).then((a) => (a ? new Uint8Array(a) : null));
   if (!b) throw new Error('falta ' + url);
   return b;
+}
+
+// ---------- la ROM de los sonidos de la cabina (03/11, Charles: "aclara que para jugar se necesitan esas dos cosas") ----------
+// Los efectos (moneda, voces del puntaje...) no estan en el disco: los tocaba un chip de la placa desde su ROM (efectos.js).
+// Sin disco propio la pone el servidor; con disco propio la elige el jugador: pumpitup.zip (el set de MAME) o piu10.u9.
+const HUELLA_ROM = '34cf33a0007f87e8bf8c847a7b86a0a72a8a9c18e489e579dcf5d5175ce3946d', LARGO_ROM = 2097152;
+const NO_ES_ROM = 'Esa no es la ROM de sonidos: elegí pumpitup.zip (el set de MAME) o el archivo piu10.u9.';
+async function sacarDeZip(z) {
+  const d = new DataView(z.buffer, z.byteOffset, z.byteLength);
+  let fin = z.length - 22;
+  while (fin >= 0 && d.getUint32(fin, true) !== 0x06054b50) fin--;
+  if (fin < 0) throw new Error(NO_ES_ROM);
+  let p = d.getUint32(fin + 16, true);
+  for (let i = 0, n = d.getUint16(fin + 10, true); i < n; i++) {
+    const metodo = d.getUint16(p + 10, true), comprimido = d.getUint32(p + 20, true), largoNombre = d.getUint16(p + 28, true), local = d.getUint32(p + 42, true);
+    const nombre = new TextDecoder().decode(z.subarray(p + 46, p + 46 + largoNombre));
+    if (/(^|\/)piu10\.u9$/i.test(nombre)) {
+      const ini = local + 30 + d.getUint16(local + 26, true) + d.getUint16(local + 28, true), datos = z.subarray(ini, ini + comprimido);
+      if (metodo === 0) return datos;
+      if (metodo !== 8) throw new Error(NO_ES_ROM);
+      return new Uint8Array(await new Response(new Blob([datos]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    }
+    p += 46 + largoNombre + d.getUint16(p + 30, true) + d.getUint16(p + 32, true);
+  }
+  throw new Error(NO_ES_ROM);
+}
+// de lo que eligio el jugador a los bytes de la ROM, comprobados con su huella (si no es, tira el error para mostrar)
+export async function leerRom(archivo) {
+  let b = new Uint8Array(await archivo.arrayBuffer());
+  if (b[0] === 0x50 && b[1] === 0x4b) b = await sacarDeZip(b);
+  if (b.length !== LARGO_ROM) throw new Error(NO_ES_ROM);
+  if (globalThis.crypto && crypto.subtle) {
+    const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', b))].map((x) => x.toString(16).padStart(2, '0')).join('');
+    if (h !== HUELLA_ROM) throw new Error(NO_ES_ROM);
+  }
+  return b;
+}
+export async function guardarRom(bytes) {
+  const a = await caches.open(ALMACEN);
+  await a.put(clave('efectos/piu10.u9'), new Response(bytes));
 }
 
 // ---------- lecturas del hilo del juego ----------
