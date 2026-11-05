@@ -261,7 +261,11 @@ function sumarPropias(bytes) {
     for (const [modo, d] of Object.entries(pasos)) for (const [lista, marca] of LISTAS_DE[modo] || []) poner(lista, c, d.nivel, marca);
     if (pasos.REMIX && pasos.DOUBLE) poner('REMIX', c, pasos.DOUBLE.nivel, 2);
   }
-  return Uint8Array.from(lineas.join('\r\n'), (ch) => ch.charCodeAt(0) & 255);
+  // (05/11) El juego no controla el tope de 50 al leer (0x2F1C0): en BATTLE, la marca del tema 51 cae sobre las cantidades
+  // (0x2B3984), deja NORMAL en 0 y se cae con division por cero en 0x30268. Las propias van primero: se caen las ultimas.
+  let enLista = 0;
+  const conTope = lineas.filter((l) => { const t = l.trim(); if (/^MODENAME\s/.test(t)) enLista = 0; else if (/^SONG\s/.test(t) && ++enLista > 50) return false; return true; });
+  return Uint8Array.from(conTope.join('\r\n'), (ch) => ch.charCodeAt(0) & 255);
 }
 function archivoPropio(r) {          // r en minuscula: 'step/82_h1.not', 'audio/82.aud', 'audio/d82.aud', 'title/t82.pnz', 'bga/82.dat'
   const m = /^(step|audio|title|bga)\/([dt]?)(\d\d)(_[a-z0-9]+)?\.(not|aud|pnz|dat)$/.exec(r);
