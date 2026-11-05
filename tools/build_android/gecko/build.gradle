@@ -13,7 +13,9 @@ android {
         version = release(37) { minorApiLevel = 1 }
     }
     defaultConfig {
-        applicationId = 'net.ravenlight.piu'
+        // (03/11, Charles: "ponele full para diferenciar") armar_apk_gecko.ps1 -Full: otra app, con su icono, al lado de la de siempre
+        applicationId = project.findProperty('idApp') ?: 'net.ravenlight.piu'
+        manifestPlaceholders = [nombreApp: project.findProperty('nombreApp') ?: 'Pump It Up Extra']
         minSdk = 29
         targetSdk = 35
         versionCode = 6
