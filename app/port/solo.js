@@ -13,6 +13,26 @@ const MODO_RULETA = ['NORMAL', 'HARD', 'CRAZY', 'DOUBLE', 'REMIX', 'BATTLE'];
 const EN_JUEGO = new Set([2, 4, 5]);
 export const notaDe = (ratio, miss) => (ratio >= 1 && miss === 0 ? 'S' : ratio >= 0.9 ? 'A' : ratio >= 0.8 ? 'B' : ratio >= 0.7 ? 'C' : ratio >= 0.6 ? 'D' : 'F');
 
+// (05/11) para las kcal (online.js kcalCancion): al salir de la cancion (estado 2), cuanto duro y cuantas flechas piso cada uno.
+// Va en todos los modos de juego; la demo de la atraccion (bandera 0x100000) no cuenta.
+const PISADAS = [0x1A, 0x1C, 0x1E, 0x20];     // PERFECT, GREAT, GOOD, BAD (JUEGO_REGLAS 6)
+const pisadasDe = (p) => PISADAS.reduce((s, o) => s + C.r16(p + o), 0);
+export function crearSeguidorKcal(avisar) {
+  let antes = -1, desde = 0, base = [0, 0], banderas = 0, ultimas = [0, 0];
+  return { seguir() {
+    const est = C.r32(0x1CA6A0);
+    if (est === 2 && antes !== 2) { desde = performance.now(); base = [pisadasDe(0x1CFB7C), pisadasDe(0x1CFBA5)]; banderas = 0; }
+    if (est === 2) { banderas = C.r32(0x1CFB08) || banderas; ultimas = [pisadasDe(0x1CFB7C), pisadasDe(0x1CFBA5)]; }
+    if (antes === 2 && est !== 2 && banderas && !(banderas & 0x100000)) {
+      const seg = (performance.now() - desde) / 1000, jugadores = [];
+      if (banderas & 1) jugadores.push({ jugador: 1, pisadas: Math.max(0, ultimas[0] - base[0]) });
+      if (banderas & 2) jugadores.push({ jugador: 2, pisadas: Math.max(0, ultimas[1] - base[1]) });
+      avisar({ tipo: 'kcal', seg, jugadores });
+    }
+    antes = est;
+  } };
+}
+
 export function crearSeguidorSolo(avisar) {
   // banderas de [0x1CFB08] vistas durante la etapa: al GAME OVER el juego las borra en el mismo cuadro en que vuelve
   // a la espera, asi que al salir ya no dicen quien jugaba (probado en Node con PIU_SOLO, 20/10)

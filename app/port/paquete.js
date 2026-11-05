@@ -67,7 +67,7 @@ export function soloCuadros(b, topeSeg = 185) {
 
 export function limpiarMeta(m, numero) {
   const t = (s, n) => String(s || '').toUpperCase().replace(/[^A-Z0-9 .,'!?&()+-]/g, '').trim().slice(0, n);
-  const archivo = String(m && m.archivo || '').toLowerCase(), am = /^(\d\d)_([nhx][12]|db)\.not$/.exec(archivo), video = (m && m.video) | 0;
+  const archivo = String(m && m.archivo || '').toLowerCase(), am = /^(\d\d)_([nhx][12]|db|xd|[12])\.not$/.exec(archivo), video = (m && m.video) | 0;
   if (!am || +am[1] !== numero || !VIDEOS_REMIX.includes(video)) return null;
   return { archivo, video, nombre: t(m.nombre, 24) || `CANCION ${numero}`, artista: t(m.artista, 30) };
 }

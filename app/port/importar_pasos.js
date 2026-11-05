@@ -94,7 +94,8 @@ function leerKsf(texto, nombreArchivo) {
   const media = /halfdouble|half-double|h_double|hdb/.test(n), doble = !media && (/double|nightmare|freestyle|(^|[_\- .])(db|nm|fs)([_\- .]|$)/.test(n) || /double/i.test(cab.PLAYER || ''));
   const versus = !media && !doble && /_2\./.test(n);
   const columnas = media ? 6 : doble || versus ? 10 : 5, desde = media ? 2 : 0;
-  let modo = doble || media ? 'DOUBLE' : 'HARD';
+  // (nightmare o crazy en un doble = CRAZY doble, el _xd de la cabina)
+  let modo = doble || media ? (/nightmare|(^|[_\- .])nm([_\- .]|$)|crazy|(^|[_\- .])cz([_\- .]|$)/.test(n) ? 'CRAZY DOBLE' : 'DOUBLE') : 'HARD';
   if (!doble && !media) for (const [re, d] of DIFICULTAD_KSF) if (re.test(n)) { modo = d; break; }
   const bpm = numero(cab.BPM);
   if (!(bpm > 0)) throw new Error('este .ksf no dice el BPM');
@@ -138,7 +139,7 @@ function leerKsf(texto, nombreArchivo) {
     bAnterior = b2; iniAnterior = hora - b * 60 / b2;
   }
   return [{ titulo: cab.TITLE || '', artista: '', descripcion: nombreArchivo || '', tipo: media || doble ? 'doble' : versus ? 'versus' : 'simple', modo, nivel: numero(cab.DIFFICULTY) | 0,
-    notas, tiempo: { inicio, bpm, eventos }, inf, tick: tickInicial, audio: cab.SONGFILE || '', portada: cab.TITLEFILE || '' }];
+    notas, tiempo: { inicio, bpm, eventos }, inf, tick: tickInicial, audio: cab.SONGFILE || '', portada: cab.TITLEFILE || '', banner: cab.DISCFILE || '' }];
 }
 
 // ---------- SM y SSC ----------
@@ -158,8 +159,9 @@ function armarCartaSm(tipoTxt, descripcion, dif, nivel, notas, cab, propios) {
   const t = TIPOS[String(tipoTxt).trim().toLowerCase()];
   if (!t) return { rechazada: String(tipoTxt).trim() };
   const inf = nuevoInforme(), [tipo, columnas, desde] = t;
-  return { titulo: cab.TITLE || '', artista: cab.ARTIST || '', descripcion: String(descripcion || '').trim(), tipo, modo: tipo === 'doble' ? 'DOUBLE' : (MODO_DIF[String(dif).trim()] || 'HARD'), nivel: numero(nivel) | 0,
-    notas: leerNotasSm(notas, columnas, desde, inf), tiempo: tiempoSm({ ...cab, ...propios }, inf), inf, audio: cab.MUSIC || '', portada: cab.JACKET || cab.BANNER || cab.BACKGROUND || '' };
+  const d = MODO_DIF[String(dif).trim()] || 'HARD';
+  return { titulo: cab.TITLE || '', artista: cab.ARTIST || '', descripcion: String(descripcion || '').trim(), tipo, modo: tipo === 'doble' ? (d === 'CRAZY' ? 'CRAZY DOBLE' : 'DOUBLE') : d, nivel: numero(nivel) | 0,
+    notas: leerNotasSm(notas, columnas, desde, inf), tiempo: tiempoSm({ ...cab, ...propios }, inf), inf, audio: cab.MUSIC || '', portada: cab.JACKET || cab.BACKGROUND || cab.BANNER || '', banner: cab.BANNER || cab.CDIMAGE || '' };
 }
 function leerSm(texto) {
   const cab = {}, cartas = [];
@@ -303,7 +305,7 @@ export function convertirCarta(carta) {
   if (!exacto || aplanado) avisos.push(`${aplanado ? `mas de ${TOPE_TRAMOS} cambios de BPM` : 'ritmo mas fino de lo que el juego marca'}: ${corridas} notas corridas, hasta ${Math.round(errorMax * 1000)} ms`);
   for (const e of inf.efectos) avisos.push(`${e}: se ignora`);
 
-  return { titulo: carta.titulo, artista: carta.artista, descripcion: carta.descripcion, tipo: carta.tipo, modo: carta.modo, nivel: carta.nivel, audio: carta.audio, portada: carta.portada,
+  return { titulo: carta.titulo, artista: carta.artista, descripcion: carta.descripcion, tipo: carta.tipo, modo: carta.modo, nivel: carta.nivel, audio: carta.audio, portada: carta.portada, banner: carta.banner,
     versus: carta.tipo === 'versus', doble: carta.tipo === 'doble', filasPorPulso: fpp, bpms: tramos.map(t => t.bpm), valores: tramos.map(t => t.valor), cambiosBpm: tramos.slice(1).map(t => t.cambio), numeroInterno: 0,
     notas, largas, ultimaFila: ultima, flechas: notas.length + largas.length, avisos };
 }

@@ -83,7 +83,10 @@ const sm = (extra, notas, tipo = 'pump-single', dif = 'Hard', nivel = 12) => `#T
 // double, couple, halfdouble
 {
   const dob = importarPasos('e.sm', bytes(sm('#BPMS:0=120;', '1000000001\n0000010000\n', 'pump-double'))).cartas[0];
-  ok(dob.tipo === 'doble' && dob.modo === 'DOUBLE' && dob.notas.some(n => n[1] === 9), 'SM: pump-double, 10 columnas');
+  ok(dob.tipo === 'doble' && dob.modo === 'CRAZY DOBLE' && dob.notas.some(n => n[1] === 9), 'SM: pump-double Hard = CRAZY doble, 10 columnas');
+  ok(importarPasos('e2.sm', bytes(sm('#BPMS:0=120;', '1000000001\n', 'pump-double', 'Medium'))).cartas[0].modo === 'DOUBLE', 'SM: pump-double Medium = DOUBLE');
+  ok(importarPasos('nm_x.ksf', bytes(ksf(['BPM:120'], [fila([0, '1'])]))).cartas[0].modo === 'CRAZY DOBLE', 'KSF: nightmare = CRAZY doble');
+  ok(importarPasos('x_fs.ksf', bytes(ksf(['BPM:120'], [fila([0, '1'])]))).cartas[0].modo === 'DOUBLE', 'KSF: freestyle = DOUBLE');
   const cou = importarPasos('f.sm', bytes(sm('#BPMS:0=120;', '1000010000\n', 'pump-couple'))).cartas[0];
   ok(cou.tipo === 'versus' && cou.versus, 'SM: pump-couple = VERSUS');
   const med = importarPasos('g.sm', bytes(sm('#BPMS:0=120;', '100001\n', 'pump-halfdouble'))).cartas[0];

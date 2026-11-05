@@ -20,6 +20,8 @@ function Enlace($desde, $nombre) {
     New-Item -ItemType HardLink -Path $destino -Target $desde | Out-Null
 }
 Enlace (Join-Path $b ('Pump It Up Extra - Android\' + $(if ($SinDisco) { 'PumpItUpExtra-sin-disco.apk' } else { 'PumpItUpExtra.apk' }))) "Pump It Up Extra - Android$sufijo.apk"
+$apk32 = Join-Path $b ('Pump It Up Extra - Android\' + $(if ($SinDisco) { 'PumpItUpExtra-sin-disco-32bits.apk' } else { 'PumpItUpExtra-32bits.apk' }))
+if (Test-Path -LiteralPath $apk32) { Enlace $apk32 "Pump It Up Extra - Android 32 bits$sufijo.apk" }     # la de Android de 32 bits (armar_apk_gecko.ps1 -Bits32), si esta armada
 foreach ($f in 'Linux', 'Mac Apple', 'Mac Intel') { Enlace (Join-Path $b "Pump It Up Extra - Linux y Mac\Pump It Up Extra - $f$sufijo.tar.gz") "Pump It Up Extra - $f$sufijo.tar.gz" }
 
 Write-Host 'Windows: armando el .zip (sin guardado\)...'

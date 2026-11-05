@@ -1,10 +1,12 @@
 // Pump It Up Extra para Android (21/10). El juego (app\port + el disco entero) va adentro como assets, tal cual la
 // carpeta juego\ de la build de Edge, y lo sirve la app (Servidor.java) en 127.0.0.1 con COOP/COEP. Se muestra con
 // GeckoView (el motor de Firefox) porque la WebView de Android no da memoria compartida (crossOriginIsolated = false,
-// medido en el Nubia) y el port la necesita. Solo arm64 (los telefonos de ahora): asi pesa la mitad.
+// medido en el Nubia) y el port la necesita. Una APK por procesador, asi pesa la mitad: arm64 y, con -Pabi=armeabi-v7a
+// (armar_apk_gecko.ps1 -Bits32), la de los telefonos con Android de 32 bits, como varios Galaxy A13.
 plugins {
     id 'com.android.application' version '9.3.3'
 }
+def abi = project.findProperty('abi') ?: 'arm64-v8a'
 
 android {
     namespace = 'net.ravenlight.piu'
@@ -18,9 +20,9 @@ android {
         manifestPlaceholders = [nombreApp: project.findProperty('nombreApp') ?: 'Pump It Up Extra']
         minSdk = 29
         targetSdk = 35
-        versionCode = 7
-        versionName = '1.5.0'      // (05/11) moderacion, cuenta opcional, EDITS en el celu; 1.4.1: listas fijas (app\port\listas.js); 1.4.0: la WebView con el puente (Juego.java)
-        ndk { abiFilters += ['arm64-v8a'] }
+        versionCode = 8
+        versionName = '1.5.1'      // (05/11) MODO EDIT, todos los modos, title y banner en las canciones propias; 1.5.0: moderacion, cuenta opcional; 1.4.1: listas fijas (app\port\listas.js); 1.4.0: la WebView con el puente (Juego.java)
+        ndk { abiFilters += [abi] }
     }
     sourceSets {
         // -Pjuego=<carpeta>: otra carpeta juego\ (la de la build sin disco, armar_apk_gecko.ps1 -SinDisco)
@@ -51,5 +53,5 @@ android {
 }
 
 dependencies {
-    implementation 'org.mozilla.geckoview:geckoview-arm64-v8a:157.0.20261005135250'
+    implementation "org.mozilla.geckoview:geckoview-${abi}:157.0.20261005135250"
 }

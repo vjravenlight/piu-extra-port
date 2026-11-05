@@ -214,6 +214,30 @@ function relojAudible() {
   return t;
 }
 
+// ---------- BANNER de una cancion propia en la seleccion (trabajador.js instalarDibujoPropias) ----------
+// La textura la elige el trabajador (920000 + numero); esto la llena la primera vez: 171 x 128 arriba a la izquierda de 256 x 256,
+// que es lo que espera una pieza de STITLE. Mientras carga, el cuadro queda vacio.
+const bannersFondo = new Map();
+function bannerCancion(n) {
+  const e = bannersFondo.get(n);
+  if (!e) {
+    bannersFondo.set(n, {});
+    Menu.bannerFondo(n).then((img) => {
+      if (!img) return;
+      const c = new OffscreenCanvas(256, 256), x = c.getContext('2d'); x.drawImage(img, 0, 0, 171, 128);
+      bannersFondo.set(n, { rgba: new Uint8Array(x.getImageData(0, 0, 256, 256).data.buffer) });
+    }).catch(() => {});
+    return;
+  }
+  if (!e.rgba) return;
+  const previa = this.texActual;
+  this.glBindTexture(0x0DE1, 920000 + n);
+  this.glTexParameteri(0x0DE1, 0x2801, 0x2601); this.glTexParameteri(0x0DE1, 0x2800, 0x2601);
+  this.glTexImage2D(0x0DE1, 0, 0x1908, 256, 256, 0, 0x1908, 0x1401, e.rgba);
+  e.rgba = null;
+  this.glBindTexture(0x0DE1, previa);
+}
+
 // ---------- VIDEO PROPIO de una cancion nueva (editor, tecla V; trabajador.js instalarFondoBga) ----------
 // Un <video> mudo que se copia a una textura en cada cuadro nuevo, recortado para llenar los 640 x 480. Es adorno: arranca con
 // el primer cuadro de la cancion y no manda sobre los pasos. Si no se puede abrir (formato raro), va la caratula.
@@ -405,6 +429,8 @@ function arrancar(cfg = {}) {
     gl = new GL1(lienzo, { escala, profundidad: false });
     gl.fondoCancion = fondoCancion;
     gl.videoCancion = videoCancion;
+    gl.bannerCancion = bannerCancion;
+    bannersFondo.clear();             // (el banner puede haber cambiado en el editor)
     requestAnimationFrame(bucle);
   }
   enOnline = !!cfg.online;
@@ -488,6 +514,7 @@ function crearHilo() {
     else if (m.tipo === 'modsCancion') { pararMusica(); Menu.modsCancion(m); }   // solo: los modificadores antes de la cancion
     else if (m.tipo === 'listoOnline') Menu.onlineListo();       // el juego del online cargo: se avisa al salon
     else if (m.tipo === 'eleccionLista') Menu.eleccionLista();   // desafio: la seleccion ya se ve
+    else if (m.tipo === 'kcal') Menu.kcalCancion(m);
     else if (m.tipo === 'etapa') { registrar(`etapa: J${m.jugador} cancion ${m.cancion} ${m.modo} ${m.puntaje} puntos, nota ${m.nota}`); Menu.etapaSolo(m); }
     else if (m.tipo === 'sesion') { registrar(`sesion terminada: ${m.etapas.length} etapa(s)`); Menu.sesionSolo(m); }
     else if (m.tipo === 'eeprom') grabarLocal(EEPROM_LOCAL, btoa(String.fromCharCode(...m.datos)));

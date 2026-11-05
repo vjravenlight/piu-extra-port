@@ -14,7 +14,7 @@ import * as S from './sistema.js';
 import * as G from './gl_hle.js';
 import * as K from './cabina.js';
 import { aplicarArreglos } from './arreglos.js';
-import { crearSeguidorSolo } from './solo.js';
+import { crearSeguidorSolo, crearSeguidorKcal } from './solo.js';
 import { instalarListas } from './listas.js';
 
 let I = null, D = null, Q = null;
@@ -200,6 +200,7 @@ function cambiarCuadro() {
   subidas.n = 0; subidas.bytes = 0;
   correrTics();
   ultimoCuadro = performance.now();
+  if (seguidorKcal) seguidorKcal.seguir();
   if (online) seguirOnline(); else if (seguidorSolo) seguidorSolo.seguir();
   if (atraccion) seguirAtraccion();
   estirarFin();
@@ -247,15 +248,18 @@ function cargarPropias() {
   try { const b = traer(BASE + 'guardado/canciones/canciones.json'); if (b) propias = (JSON.parse(new TextDecoder().decode(b)).canciones || []).filter(c => c.n >= 82 && c.n <= 99); } catch (e) { propias = []; }
   if (propias.length) postMessage({ tipo: 'registro', s: `canciones propias: ${propias.map(c => c.n).join(', ')}` });
 }
-const LISTA_DE = { NORMAL: 'NORMAL', HARD: 'HARD', CRAZY: 'XX', DOUBLE: 'DOUBLE' };
+// (05/11, Charles: "acordate como son todos los modos") a que lista va cada tabla y con que marca (JUEGO_REGLAS 3.1 y 3.3):
+// XX con marca 2 pide _xd; REMIX pide _1 y, con marca 2, _db; BATTLE (dos jugadores en DOUBLE) pide _h1. Cada lista aguanta 50:
+// una propia entra primero, y si la lista ya estaba llena se cae la ultima.
+const LISTAS_DE = { NORMAL: [['NORMAL', 0]], HARD: [['HARD', 0], ['BATTLE', 0]], CRAZY: [['XX', 0]], 'CRAZY DOBLE': [['XX', 2]], DOUBLE: [['DOUBLE', 0]], REMIX: [['REMIX', 0]] };
 function sumarPropias(bytes) {
   if (!propias.length) return bytes;
   const lineas = new TextDecoder('latin1').decode(bytes).split(/\r?\n/);
-  for (const c of propias) for (const [modo, d] of Object.entries(c.pasos || {})) {
-    const lista = LISTA_DE[modo]; if (!lista) continue;
-    const i = lineas.findIndex((l) => new RegExp(`^MODENAME\\s+${lista}\\b`).test(l.trim()));
-    if (i >= 0) lineas.splice(i + 1, 0, `SONG   ${c.n}   ${Math.max(1, Math.min(12, d.nivel | 0 || 5))}   0`);
-    if (modo === 'HARD') { const b = lineas.findIndex((l) => /^MODENAME\s+BATTLE\b/.test(l.trim())); if (b >= 0) lineas.splice(b + 1, 0, `SONG   ${c.n}   ${Math.max(1, Math.min(12, d.nivel | 0 || 5))}   0`); }
+  const poner = (lista, c, nivel, marca) => { const i = lineas.findIndex((l) => new RegExp(`^MODENAME\\s+${lista}\\b`).test(l.trim())); if (i >= 0) lineas.splice(i + 1, 0, `SONG   ${c.n}   ${Math.max(1, Math.min(12, nivel | 0 || 5))}   ${marca}`); };
+  for (const c of propias) {
+    const pasos = c.pasos || {};
+    for (const [modo, d] of Object.entries(pasos)) for (const [lista, marca] of LISTAS_DE[modo] || []) poner(lista, c, d.nivel, marca);
+    if (pasos.REMIX && pasos.DOUBLE) poner('REMIX', c, pasos.DOUBLE.nivel, 2);
   }
   return Uint8Array.from(lineas.join('\r\n'), (ch) => ch.charCodeAt(0) & 255);
 }
@@ -265,25 +269,50 @@ function archivoPropio(r) {          // r en minuscula: 'step/82_h1.not', 'audio
   const c = propias.find((p) => p.n === +m[3]); if (!c) return null;
   if (m[1] === 'bga') return traer(BASE + `disco/bga/${String(c.video || 28).padStart(2, '0')}.dat`);
   const b = traer(BASE + 'guardado/canciones/' + r.slice(r.indexOf('/') + 1));
+  // con dos jugadores el juego pide la _2: si la cancion no la tiene, la _1 (las dos alfombras con los mismos pasos), y al reves
+  if (!b && m[1] === 'step' && /^_[nhx]?[12]$/.test(m[4] || '')) return traer(BASE + 'guardado/canciones/' + r.slice(5).replace(/([12])\.not$/, (_, x) => (x === '2' ? '1' : '2') + '.not'));
   return b && m[1] === 'audio' && !m[2] && b.length > TOPE_PLACA ? recortarAud(b, c.n) : b;
 }
 // La seleccion dibuja las caratulas chicas de los costados con las piezas de STITLE.SP2, una por cancion del disco y
 // buscadas por su numero (como mucho 73): con una propia (82-99) leia fuera de la tabla y se caia ("Offset is outside
 // the bounds", f_31740 < f_32270, 20/10). Mientras dibujan (0x31154, 0x31740, 0x31D20, llamadas desde la ruleta 0x32270)
-// la propia se cambia en las listas por el remix de su video, y se vuelve a poner al terminar: la caratula grande (por
-// archivo, TITLE\tNN.pnz), la vista previa y el "run" siguen viendo el numero de verdad.
+// la propia se cambia en las listas por otro numero, y se vuelve a poner al terminar: la caratula grande (por archivo,
+// TITLE\tNN.pnz), la vista previa y el "run" siguen viendo el numero de verdad.
+// (05/11, Charles: "falta el banner") ese otro numero es una pieza libre de STITLE (la tabla tiene lugar para 80 y el disco usa
+// 73), y la rutina que dibuja cualquier pieza (0x346A0) la dibuja con la textura de la propia: su banner o su title achicado
+// (principal.js bannerCancion). Son 7 piezas por el lugar en la lista: en pantalla hay 5 seguidas, asi que no se pisan.
+const PIEZAS_STITLE = 0x2B2824, TAM_PIEZA = 0x2C, PIEZA_LIBRE = 73, PIEZAS_LIBRES = 7, VISIBLES = [0x2B35EC, 0x2B35F0, 0x2B35F4, 0x2B35F8, 0x2B35FC];
 function instalarDibujoPropias() {
+  const cancionDePieza = new Array(PIEZAS_LIBRES).fill(0);
   for (const dir of [0x31154, 0x31740, 0x31D20]) {
     C.HLE[dir] = () => {
-      const cambiados = [];
+      const cambiados = []; cancionDePieza.fill(0);
+      let visto = C.r32(0x2B35E8); if (visto === 3 && (C.r32(0x1CFB08) & 3) === 3) visto = 5;   // DOUBLE con dos jugadores es BATTLE
       for (let m = 0; m < 6; m++) for (let i = 0, n = C.r8(0x2B3984 + m); i < n; i++) {
         const a = 0x2B3600 + 50 * m + i, c = propias.find((p) => p.n === C.r8(a));
-        if (c) { cambiados.push([a, c.n]); C.w8(a, c.video || 28); }
+        if (!c) continue;
+        cambiados.push([a, c.n]);
+        if (m === visto) { const s = i % PIEZAS_LIBRES; cancionDePieza[s] = c.n; C.w8(a, PIEZA_LIBRE + s); } else C.w8(a, c.video || 28);
       }
-      try { C.FN[dir](); } finally { for (const [a, v] of cambiados) C.w8(a, v); }
+      // las 5 de la pantalla, que ya tenian el numero de verdad
+      for (const a of VISIBLES) { const v = C.r32(a); if (v >= 82) { const s = cancionDePieza.indexOf(v); C.w32(a, s >= 0 ? PIEZA_LIBRE + s : (propias.find(p => p.n === v) || {}).video || 28); } }
+      // las piezas libres, con las medidas de una del disco
+      for (let s = 0; s < PIEZAS_LIBRES; s++) for (let b = 0; b < TAM_PIEZA; b++) C.w8(PIEZAS_STITLE + (PIEZA_LIBRE + s) * TAM_PIEZA + b, C.r8(PIEZAS_STITLE + b));
+      try { C.FN[dir](); } finally {
+        for (const [a, v] of cambiados) C.w8(a, v);
+        for (const a of VISIBLES) { const v = C.r32(a); if (v >= PIEZA_LIBRE && v < PIEZA_LIBRE + PIEZAS_LIBRES && cancionDePieza[v - PIEZA_LIBRE]) C.w32(a, cancionDePieza[v - PIEZA_LIBRE]); }
+      }
       return -4;
     };
   }
+  C.HLE[0x346A0] = () => {
+    const s = (C.R[C.EAX] - PIEZAS_STITLE) / TAM_PIEZA - PIEZA_LIBRE, n = s >= 0 && s < PIEZAS_LIBRES && Number.isInteger(s) ? cancionDePieza[s] : 0;
+    if (!n) { C.FN[0x346A0](); return -4; }
+    cmds.push(['bannerCancion', n]);
+    grabador.glBindTexture(0x0DE1, 920000 + n);
+    C.FN[0x34618]();      // el cuadro, como lo dibuja el juego; ya hizo su "ret"
+    return -4;
+  };
 }
 // Canciones mas largas que la placa: la cabina lee el .AUD entero a un bufer de 0x27FA60 bytes (2,6 MB, CABINA 4.1).
 // Al juego se le da una copia recortada (cuadros MP3 enteros, con su Adler-32) y, cuando la manda a sonar, la pagina
@@ -480,7 +509,7 @@ function instalarOnline() {
   };
 }
 // ---------- modo solo: lo que necesita el ranking (solo.js; se vuelve a crear en cada juego) ----------
-let solo = false, seguidorSolo = null, sinCorte = false;
+let solo = false, seguidorSolo = null, seguidorKcal = null, sinCorte = false;
 
 // ---------- modo solo: intro la primera vez y demo si nadie toca (Charles, 20/10) ----------
 // En FREE el juego va directo al titulo y se queda ahi: ni logo, ni opening, ni demo (JUEGO_REGLAS 2.1). Para verlos
@@ -681,6 +710,7 @@ function iniciar(e) {
   modsSolo = solo && e.data.modsSolo ? e.data.modsSolo : null;
   if (solo && e.data.modsCancion) instalarModsPorCancion();
   seguidorSolo = solo ? crearSeguidorSolo((m) => postMessage(m)) : null;
+  seguidorKcal = e.data.fondo ? null : crearSeguidorKcal((m) => postMessage(m));
   if (online) instalarOnline();
   else if (e.data.eleccion) instalarEleccion();
   instalarListas(!!e.data.desbloqueado);

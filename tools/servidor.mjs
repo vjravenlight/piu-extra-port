@@ -168,10 +168,10 @@ function servirArchivo(req, res, ruta) {
 const GUARDABLES = { '/guardado/eeprom.bin': { exacto: 128 }, '/guardado/opciones.json': { max: 4096 } };
 function topeCancion(n) {
   const num = '(8[2-9]|9\\d)';
-  if (new RegExp(`^${num}_([nhx][12]|db)\\.not$`).test(n)) return 262144;
+  if (new RegExp(`^${num}_([nhx][12]|db|xd|[12])\\.not$`).test(n)) return 262144;
   if (new RegExp(`^d${num}\\.aud$`).test(n)) return 614400;
   if (new RegExp(`^${num}\\.aud$`).test(n)) return 16777216;   // entera: si pasa la placa (2,6 MB) el juego recibe una recortada
-  if (new RegExp(`^t${num}\\.pnz$`).test(n)) return 2097152;
+  if (new RegExp(`^[ts]${num}\\.pnz$`).test(n)) return 2097152;   // el title y el banner
   if (new RegExp(`^v${num}\\.(mp4|webm)$`).test(n)) return 209715200;   // el video propio de fondo (editor, tecla V)
   if (n === 'canciones.json') return 65536;
   return 0;
@@ -248,7 +248,9 @@ function atender(req, res) {
     // solo NN_xx.not; el original del disco nunca se toca
     if (url.startsWith('/guardado/canciones/') || url.startsWith('/guardado/ediciones/')) {
       const edicion = url.startsWith('/guardado/ediciones/'), n = url.slice(20).toLowerCase();
-      const tope = edicion ? (/^\d\d_([nhx][12]|db)\.not$/.test(n) ? 262144 : 0) : topeCancion(n);
+      // (05/11) MODO EDIT > MIS EDITS: los que hay
+      if (edicion && n === 'lista') { let l = []; try { l = fs.readdirSync(path.join(raizGuardado, 'ediciones')).filter(a => /\.not$/.test(a)); } catch (e) { /* todavia ninguno */ } res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Cross-Origin-Resource-Policy': 'same-origin' }); return res.end(JSON.stringify(l)); }
+      const tope = edicion ? (/^\d\d_([nhx][12]|db|xd|[12])\.not$/.test(n) ? 262144 : 0) : topeCancion(n);
       if (!tope) { res.writeHead(404); return res.end('nombre no permitido'); }
       const ruta = path.join(raizGuardado, edicion ? 'ediciones' : 'canciones', n);
       if (req.method === 'PUT') return recibir(req, res, tope, 0, (d) => { fs.mkdirSync(path.dirname(ruta), { recursive: true }); fs.writeFileSync(ruta, d); });

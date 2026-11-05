@@ -134,7 +134,17 @@ class Servidor
                 {
                     bool edicion = ruta.StartsWith("/guardado/ediciones/");
                     string n = ruta.Substring(20).ToLowerInvariant();
-                    int tope = edicion ? (System.Text.RegularExpressions.Regex.IsMatch(n, "^[0-9]{2}_([nhx][12]|db)\\.not$") ? 262144 : 0) : TopeCancion(n);
+                    if (edicion && n == "lista")     // MODO EDIT > MIS EDITS: los que hay
+                    {
+                        string carpeta = Path.Combine(raizGuardado, "ediciones"), json = "[";
+                        if (Directory.Exists(carpeta)) foreach (string a in Directory.GetFiles(carpeta, "*.not")) json += (json.Length > 1 ? "," : "") + "\"" + Path.GetFileName(a).ToLowerInvariant() + "\"";
+                        byte[] cuerpo = Encoding.UTF8.GetBytes(json + "]");
+                        string cab = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + cuerpo.Length + "\r\nCache-Control: no-store\r\n" + AISLAR + "Connection: close\r\n\r\n";
+                        byte[] bc = Encoding.ASCII.GetBytes(cab);
+                        s.Write(bc, 0, bc.Length); s.Write(cuerpo, 0, cuerpo.Length);
+                        return;
+                    }
+                    int tope = edicion ? (System.Text.RegularExpressions.Regex.IsMatch(n, "^[0-9]{2}_([nhx][12]|db|xd|[12])\\.not$") ? 262144 : 0) : TopeCancion(n);
                     if (tope == 0) { Responder(s, 404, "Not Found", null, metodo); return; }
                     string archivo = Path.Combine(raizGuardado, edicion ? "ediciones" : "canciones", n);
                     if (metodo == "PUT")
@@ -183,10 +193,10 @@ class Servidor
     static int TopeCancion(string n)
     {
         string num = "(8[2-9]|9[0-9])";
-        if (System.Text.RegularExpressions.Regex.IsMatch(n, "^" + num + "_([nhx][12]|db)\\.not$")) return 262144;
+        if (System.Text.RegularExpressions.Regex.IsMatch(n, "^" + num + "_([nhx][12]|db|xd|[12])\\.not$")) return 262144;
         if (System.Text.RegularExpressions.Regex.IsMatch(n, "^d" + num + "\\.aud$")) return 614400;
         if (System.Text.RegularExpressions.Regex.IsMatch(n, "^" + num + "\\.aud$")) return 16777216;   // entera; si pasa la placa (2,6 MB) el juego recibe una recortada
-        if (System.Text.RegularExpressions.Regex.IsMatch(n, "^t" + num + "\\.pnz$")) return 2097152;
+        if (System.Text.RegularExpressions.Regex.IsMatch(n, "^[ts]" + num + "\\.pnz$")) return 2097152;   // el title y el banner
         if (System.Text.RegularExpressions.Regex.IsMatch(n, "^v" + num + "\\.(mp4|webm)$")) return 209715200;   // el video propio de fondo (editor, tecla V)
         if (n == "canciones.json") return 65536;
         return 0;

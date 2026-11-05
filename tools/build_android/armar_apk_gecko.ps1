@@ -10,8 +10,10 @@
 #   Andamiro, la primera vez pide el disco del jugador.
 # -Full (03/11): PumpItUpExtra-FULL.apk, la completa como OTRA app ("Pump It Up FULL", net.ravenlight.piu.full): se instala
 #   al lado de la de siempre, con su propio icono y sus propios datos. Solo para Charles: no se reparte.
-# Uso: powershell -ExecutionPolicy Bypass -File armar_apk_gecko.ps1 [-AceptarLicenciasAndroid] [-SinDisco] [-Full]
-param([switch]$AceptarLicenciasAndroid, [switch]$SinDisco, [switch]$Full)
+# -Bits32 (05/11): para Android de 32 bits (armeabi-v7a, como varios Galaxy A13, que dicen "no es compatible" con la otra). La misma
+#   app con otro motor adentro: sale con -32bits en el nombre. Se puede sumar a -SinDisco.
+# Uso: powershell -ExecutionPolicy Bypass -File armar_apk_gecko.ps1 [-AceptarLicenciasAndroid] [-SinDisco] [-Full] [-Bits32]
+param([switch]$AceptarLicenciasAndroid, [switch]$SinDisco, [switch]$Full, [switch]$Bits32)
 $ErrorActionPreference = 'Continue'
 $aqui = $PSScriptRoot
 $base = Split-Path -Parent (Split-Path -Parent $aqui)
@@ -46,9 +48,11 @@ $env:PIU_KS = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.Intero
 # de comandos de gradle.bat se rompe)
 $env:ORG_GRADLE_PROJECT_juego = $juego
 if ($Full) { $env:ORG_GRADLE_PROJECT_idApp = 'net.ravenlight.piu.full'; $env:ORG_GRADLE_PROJECT_nombreApp = 'Pump It Up FULL' }
+if ($Bits32) { $env:ORG_GRADLE_PROJECT_abi = 'armeabi-v7a' }
 & $gradle -p $proyecto assembleRelease --no-daemon --console=plain
 $codigo = $LASTEXITCODE
 Remove-Item Env:\ORG_GRADLE_PROJECT_juego
+if ($Bits32) { Remove-Item Env:\ORG_GRADLE_PROJECT_abi }
 if ($Full) { Remove-Item Env:\ORG_GRADLE_PROJECT_idApp, Env:\ORG_GRADLE_PROJECT_nombreApp }
 Remove-Item Env:\PIU_KS
 if ($codigo -ne 0) { Write-Host 'FALLO: gradle' -ForegroundColor Red; exit 1 }
@@ -57,7 +61,7 @@ $sale = Join-Path $proyecto 'build\outputs\apk\release\PumpItUpExtra-release.apk
 if (-not (Test-Path $sale)) { $sale = (Get-ChildItem (Join-Path $proyecto 'build\outputs\apk\release') -Filter *.apk)[0].FullName }
 $destino = Join-Path $base 'build\Pump It Up Extra - Android'
 New-Item -ItemType Directory -Force $destino | Out-Null
-$nombre = if ($Full) { 'PumpItUpExtra-FULL.apk' } elseif ($SinDisco) { 'PumpItUpExtra-sin-disco.apk' } else { 'PumpItUpExtra.apk' }
+$nombre = $(if ($Full) { 'PumpItUpExtra-FULL' } elseif ($SinDisco) { 'PumpItUpExtra-sin-disco' } else { 'PumpItUpExtra' }) + $(if ($Bits32) { '-32bits' } else { '' }) + '.apk'
 Copy-Item $sale (Join-Path $destino $nombre) -Force
 $mb = [math]::Round((Get-Item (Join-Path $destino $nombre)).Length / 1MB)
 Write-Host "LISTO: $destino\$nombre ($mb MB)" -ForegroundColor Green

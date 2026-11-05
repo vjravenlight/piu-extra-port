@@ -11,6 +11,8 @@ Elegí el archivo de tu aparato:
 
 ANDROID (teléfono o tablet, Android 10 o más nuevo, 64 bits)
   Pump It Up Extra - Android (sin disco).apk
+  Si el teléfono dice que no es compatible (pasa en algunos con Android de 32 bits, como varios Galaxy A13):
+  Pump It Up Extra - Android 32 bits (sin disco).apk
   Pasalo al teléfono y tocalo para instalarlo. Si pregunta, permití "instalar apps de origen desconocido".
   Pasá también el .bin del disco y pumpitup.zip al teléfono; la app te los pide al abrirla. Dejá 1,5 GB libres.
 

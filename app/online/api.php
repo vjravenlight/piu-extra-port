@@ -179,7 +179,7 @@ function cerrarPaquete(string $dir, string $pq, string $id, $meta, int $c): ?arr
     $aud = abrirCabina((string)@file_get_contents("$dp/aud.sub"), $K); $aud = $aud === null ? null : soloCuadros($aud);
     $png = abrirCabina((string)@file_get_contents("$dp/pnz.sub"), $K); $png = $png === null ? null : pngLimpio($png);
     if ($not === null || $aud === null || $png === null || !in_array($video, VIDEOS_REMIX, true)
-        || !preg_match('/^(\d\d)_([nhx][12]|db)\.not$/', $archivo, $mm) || (int)$mm[1] !== $c) { borrarPaquete($dp); return null; }
+        || !preg_match('/^(\d\d)_([nhx][12]|db|xd|[12])\.not$/', $archivo, $mm) || (int)$mm[1] !== $c) { borrarPaquete($dp); return null; }
     file_put_contents("$dp/not", $not); file_put_contents("$dp/aud", cerrarCabina($aud, $K)); file_put_contents("$dp/pnz", cerrarCabina($png, $K));
     foreach (['not', 'aud', 'pnz'] as $t) @unlink("$dp/$t.sub");
     $limpio = fn($v, $n) => filtrarTexto(strtoupper(preg_replace("/[^A-Za-z0-9 .,'!?&()+-]/", '', texto($v, $n)) ?? ''));
@@ -188,10 +188,11 @@ function cerrarPaquete(string $dir, string $pq, string $id, $meta, int $c): ?arr
     return $m;
 }
 
-if ($accion === 'guardar_pasos' || $accion === 'leer_pasos') {
+if ($accion === 'guardar_pasos' || $accion === 'leer_pasos' || $accion === 'listar_pasos') {
     $clave = (string)($p['clave'] ?? ''); $archivo = strtolower((string)($p['archivo'] ?? ''));
     if (!preg_match('/^[a-f0-9]{32}$/', $clave)) error('clave invalida');
-    if (!preg_match('/^\d\d_([nhx][12]|db)\.not$/', $archivo)) error('nombre invalido');
+    if ($accion === 'listar_pasos') responder(['archivos' => array_map('basename', glob("$dir/ediciones/" . substr(hash('sha256', $clave), 0, 24) . '/*.not') ?: [])]);   // MODO EDIT: MIS EDITS
+    if (!preg_match('/^\d\d_([nhx][12]|db|xd|[12])\.not$/', $archivo)) error('nombre invalido');
     $carpeta = "$dir/ediciones/" . substr(hash('sha256', $clave), 0, 24);
     $f = "$carpeta/$archivo";
     if ($accion === 'leer_pasos') { if (!is_file($f)) responder(['hay' => false]); responder(['hay' => true, 'datos' => base64_encode((string)file_get_contents($f))]); }
@@ -251,7 +252,7 @@ if (strncmp($accion, 'comunidad_', 10) === 0) {
     if (nickProhibido($nick)) $fallar('ese nombre no se puede usar');
     if (!nombreLibre($dir, $nick, $p['pin'] ?? null)) $fallar(ERROR_CLAVE);
     $archivo = strtolower((string)($p['archivo'] ?? ''));
-    if (!preg_match('/^(\d\d)_([nhx][12]|db)\.not$/', $archivo, $mm) || !in_array((int)$mm[1], CANCIONES_SOLO, true)) $fallar('solo se publican pasos de canciones del disco');
+    if (!preg_match('/^(\d\d)_([nhx][12]|db|xd|[12])\.not$/', $archivo, $mm) || !in_array((int)$mm[1], CANCIONES_SOLO, true)) $fallar('solo se publican pasos de canciones del disco');
     $b = base64_decode((string)($p['datos'] ?? ''), true);
     $limpio = $b === false ? null : pasosLimpios($b);
     if ($limpio === null) $fallar('no es un .NOT valido');

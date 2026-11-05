@@ -6,7 +6,7 @@ const API = '../online/api.php', MODOS = { n: 'NORMAL', h: 'HARD', x: 'CRAZY' };
 const lista = document.getElementById('lista'), cuantos = document.getElementById('cuantos'), buscar = document.getElementById('buscar'), modo = document.getElementById('modo'), avisoEl = document.getElementById('aviso');
 let edits = [], avisoT = 0;
 const nombreDe = (n) => (window.PIU_CANCIONES || {})[n] || `Canción ${n}`;
-const datosDe = (a) => { const m = /^(\d\d)_(db|([nhx])([12]))\.not$/.exec(a) || []; return m[2] === 'db' ? { modo: 'DOUBLE', versus: false } : { modo: MODOS[m[3]] || '', versus: m[4] === '2' }; };
+const datosDe = (a) => { const m = /^(\d\d)_(db|xd|([nhx])([12])|([12]))\.not$/.exec(a) || []; return m[2] === 'db' ? { modo: 'DOUBLE', versus: false } : m[2] === 'xd' ? { modo: 'CRAZY', versus: false } : m[5] ? { modo: 'REMIX', versus: m[5] === '2' } : { modo: MODOS[m[3]] || '', versus: m[4] === '2' }; };
 const avisar = (t) => { avisoEl.textContent = t; avisoEl.classList.add('ver'); clearTimeout(avisoT); avisoT = setTimeout(() => avisoEl.classList.remove('ver'), 3500); };
 async function pedir(cuerpo) {
   const r = await fetch(API, { method: 'POST', body: JSON.stringify(cuerpo) }); const j = await r.json();

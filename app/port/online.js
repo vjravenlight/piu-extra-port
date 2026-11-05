@@ -6,7 +6,8 @@
 // El salon habla con ../online/api.php (app\online). La pagina (principal.js) le presta arrancar/terminar el juego.
 import { abrirPaquete, descifrarPnz, descifrarAudio, leerPasos } from '../motor/cifrados.js';
 import { esTactil, vibrarAhora } from './tactil.js';
-import { iniciarEditor, abrirEditor, abrirEdits, dibujarEditor, teclaEditor, volverDePrueba, archivoDe } from './editor.js';
+import { iniciarEditor, abrirEditor, abrirEdits, dibujarEditor, teclaEditor, volverDePrueba, archivoDe, esModoDoble } from './editor.js';
+import { estimarKcal } from './kcal.js';
 import { iniciarCuenta, abrirCuenta, cuentaAbierta, cuentaActiva, mailDeCuenta, revisarCuenta, nombreElegido } from './cuenta.js';
 import { revisarPaquete } from './paquete.js';
 import * as Archivos from './archivos.js';
@@ -182,7 +183,7 @@ let lienzo, x, entrada;            // canvas de la interfaz y el <input> escondi
 let pantalla = 'cargando', cursor = 0, cursor2 = 0, mensaje = '', mensajeHasta = 0, escribiendo = false;
 // (30/10, Charles: "que de por si quede todo desbloqueado") desbloqueado: true de fabrica (cargarOpciones lo prende
 // una vez tambien a los que lo tenian guardado en NO; despues cada uno lo cambia en OPCIONES)
-const op = { nick: '', controles: 'izquierda', intro: true, demo: true, demoSonido: true, panelesDos: false, desbloqueado: true, sinCorte: false,
+const op = { peso: 70, nick: '', controles: 'izquierda', intro: true, demo: true, demoSonido: true, panelesDos: false, desbloqueado: true, sinCorte: false,
   tamanoPads: 1, vibrar: true, usb: null, desfase: 0, fondo: 0, cuenta: 5, teclas: null, volumen: 1, panelMods: false, pin: '', vistaRival: 'juego', carril: 'lugar', avatar: null, pantalla: 'original', aparato: 'auto',
   mods: { velocidad: 1, vanish: 0, mirror: false, random: false, banda: false, azar: false, skin: 0 } };
 let introVista = false;            // la intro del modo solo, una sola vez por visita
@@ -380,8 +381,8 @@ async function bajarPaquete(d) {
 let practicaActual = null;
 function probarPasos(e, bytes, practica = null) {
   // VERSUS (_2): con los dos jugadores sumados (teclas de la izquierda = jugador 1, numerico = jugador 2)
-  const n = nn(e.cancion), doble = e.modo === 'DOUBLE', archivo = archivoDe(e);
-  const banderas = ({ NORMAL: 0x10, HARD: 0x20, CRAZY: 0x400, DOUBLE: 0x80 }[e.modo] || 0x20) | (e.versus ? 3 : 1);
+  const n = nn(e.cancion), doble = esModoDoble(e.modo), archivo = archivoDe(e);
+  const banderas = ({ NORMAL: 0x10, HARD: 0x20, CRAZY: 0x400, DOUBLE: 0x80, 'CRAZY DOBLE': 0x80, REMIX: 0x100 }[e.modo] || 0x20) | (e.versus ? 3 : 1);
   pantalla = 'probando';
   practicaActual = practica ? { e, bytes, practica } : null;
   J.arrancar({ online: { cancion: e.cancion, modo: e.modo, inicioMs: Date.now() + 300, controles: op.controles, cmd: `run ${archivo} ${doble ? '-D' : '-S'} ${n}.dat`,
@@ -405,6 +406,11 @@ export async function portadaFondo(n) {
   const url = n >= 82 ? GUARDADO_PROPIAS() + `t${n}.pnz` : DISCO + `title/t${nn(n)}.pnz`;
   const png = descifrarPnz(await traer(url), R.llave);
   return png ? imagen(png) : null;
+}
+// el banner de una cancion propia en la seleccion (principal.js bannerCancion): el suyo o, si no tiene, su title
+export async function bannerFondo(n) {
+  try { const r = await fetch(GUARDADO_PROPIAS() + `s${n}.pnz`); if (r.ok) { const png = descifrarPnz(new Uint8Array(await r.arrayBuffer()), R.llave); if (png) return await imagen(png); } } catch (e) { /* sin banner propio */ }
+  return portadaFondo(n);
 }
 // (21/10) el juego del online ya cargo: se avisa al salon; la cuenta arranca cuando los dos estan listos
 export function onlineListo() {
@@ -630,9 +636,10 @@ function tecla(e) {
     // pads de arriba (↖ ↗) suben, los de abajo (↙ ↘) bajan; el centro elige
     // (21/10) en OPCIONES, izquierda/derecha ajustan sin entrar: el desfase de a 5 ms y el volumen de a 10 %
     const fila = pantalla === 'opciones' && FILAS_OPCIONES[cursor];
-    if ((k === 'ArrowLeft' || k === 'ArrowRight') && (fila === 'calibrar' || fila === 'volumen')) {
+    if ((k === 'ArrowLeft' || k === 'ArrowRight') && (fila === 'calibrar' || fila === 'volumen' || fila === 'peso')) {
       const s = k === 'ArrowLeft' ? -1 : 1;
       if (fila === 'calibrar') { op.desfase = Math.max(-300, Math.min(300, op.desfase + 5 * s)); J.desfase(op.desfase); }
+      else if (fila === 'peso') op.peso = siguientePeso(op.peso, s);
       else { op.volumen = Math.max(0, Math.min(1, Math.round(op.volumen * 10 + s) / 10)); J.volumen(op.volumen); }
       guardarOpciones(); return true;
     }
@@ -728,6 +735,7 @@ function elegirOpcion() {
     else if (f === 'usb') { abrirUsb(); return; }
     else if (f === 'calibrar') { abrirCalibrar(); return; }
     else if (f === 'teclas') { abrirTeclas(); return; }
+    else if (f === 'peso') op.peso = siguientePeso(op.peso, 1);
     else if (f === 'volumen') { op.volumen = Math.round(op.volumen * 10) >= 10 ? 0 : Math.min(1, Math.round(op.volumen * 10 + 1) / 10); J.volumen(op.volumen); }
     else if (f === 'fondo') op.fondo = FONDOS[(FONDOS.indexOf(op.fondo) + 1) % FONDOS.length];
     else if (f === 'cuenta') op.cuenta = CUENTAS[(CUENTAS.indexOf(op.cuenta) + 1) % CUENTAS.length];
@@ -749,7 +757,7 @@ function elegirOpcion() {
   else if (m === 'online') { destinoNick = 'online'; if (op.nick) entrarSala(op.nick); else pedirNick(); }
   else if (m === 'ranking') { pantalla = 'ranking'; pedirRanking(); }
   else if (m === 'editor') { pantalla = 'editor'; abrirEditor(); }               // EDITOR de pasos (editor.js)
-  else if (m === 'edits') { pantalla = 'editor'; abrirEdits(); }                 // en el celu, sin editor: los edits de la comunidad
+  else if (m === 'edits') { pantalla = 'editor'; abrirEdits(); }                 // MODO EDIT: pasos aparte, sin tocar los del disco
   else if (m === 'opciones') { pantalla = 'opciones'; cursor = 0; }
   else if (m === 'salir') window.piuBuild.salir();
 }
@@ -757,8 +765,10 @@ function elegirOpcion() {
 // build de Edge y la APK (window.piuBuild) si
 // (21/10: "el editor en android ocultalo, de momento": tampoco en la APK). SALIR abajo en las builds y la APK (Charles
 // 21/10), que tienen como cerrarse (window.piuBuild.salir); en la web no hay
-const MENU = ['solo', 'online', 'ranking', ...(esTactil && !(window.piuBuild && !window.piuBuild.android) ? ['edits'] : ['editor']), 'opciones', ...(window.piuBuild ? ['salir'] : [])];
-const NOMBRE_MENU = { solo: 'JUGAR SOLO', online: 'ONLINE', ranking: 'RANKING', editor: 'EDITOR', edits: 'EDITS', opciones: 'OPCIONES', salir: 'SALIR' };
+// (05/11, Charles: "que no reemplace los not que ya estan activos, sino que se complemente como otro archivo y otro tipo de paso,
+// edit mode o algo asi") MODO EDIT, en todos lados: los edits son archivos aparte y se juegan desde ahi; la seleccion sigue igual
+const MENU = ['solo', 'edits', 'online', 'ranking', ...(esTactil && !(window.piuBuild && !window.piuBuild.android) ? [] : ['editor']), 'opciones', ...(window.piuBuild ? ['salir'] : [])];
+const NOMBRE_MENU = { solo: 'JUGAR SOLO', online: 'ONLINE', ranking: 'RANKING', editor: 'EDITOR', edits: 'MODO EDIT', opciones: 'OPCIONES', salir: 'SALIR' };
 const NOMBRE_CONTROLES = { izquierda: 'IZQUIERDA (Z Q S E C)', derecha: 'DERECHA (U O K M .)', numerico: 'NUMERICO (1 7 5 9 3)', ambos: 'TODOS' };
 const CORTO_CONTROLES = { izquierda: 'IZQUIERDA', derecha: 'DERECHA', numerico: 'NUMERICO', ambos: 'TODOS' };
 // OPCIONES (20/10): intro, demo y su sonido son del modo solo (trabajador.js, seguirAtraccion); PANELES solo en
@@ -775,7 +785,9 @@ function elegirRomSonidos() {
   };
   i.click();
 }
-const FILAS_OPCIONES = ['login', 'nombre', 'pin', 'sesion', 'avatar', 'aparato', 'controles',...(esTactil ? ['paneles', 'tamano', 'vibrar'] : ['teclas', 'pantalla']), 'usb', ...(Archivos.propio ? ['rom'] : []), 'calibrar', 'volumen', 'fondo', 'carril', 'panelmods', 'cuenta', 'rival', 'intro', 'demo', 'sonido', 'desbloqueado', 'sincorte', 'volver'];
+// las kcal: de a 5 kg, y por debajo de 30 se apagan
+const siguientePeso = (p, s) => { const v = (p || 25) + 5 * s; return v < 30 ? (s > 0 ? 30 : 0) : v > 150 ? (s > 0 ? 0 : 150) : v; };
+const FILAS_OPCIONES = ['login', 'nombre', 'pin', 'sesion', 'avatar', 'aparato', 'controles',...(esTactil ? ['paneles', 'tamano', 'vibrar'] : ['teclas', 'pantalla']), 'usb', ...(Archivos.propio ? ['rom'] : []), 'calibrar', 'volumen', 'peso', 'fondo', 'carril', 'panelmods', 'cuenta', 'rival', 'intro', 'demo', 'sonido', 'desbloqueado', 'sincorte', 'volver'];
 const TAMANOS = [0.8, 0.9, 1, 1.1, 1.2, 1.3];
 // (30/10, Charles: "necesito saber si al juego lo estan jugando desde una pc, celular, o que cosa... no es lo mismo jugar
 // teclado que plataforma o celular") JUEGO CON: lo ven los demas en el salon, el desafio y el torneo. AUTOMATICO: si se uso
@@ -801,6 +813,7 @@ const AYUDA_OPCIONES = { rom: 'MONEDA Y VOCES DEL PUNTAJE: ELEGI PUMPITUP.ZIP (S
   nombre: 'CON EL QUE JUGAS EN SOLO, ONLINE Y RANKING (SE PIDE UNA SOLA VEZ)',
   pin: 'OPCIONAL: CON CLAVE NADIE MAS USA TU NOMBRE EN EL RANKING (EN OTRO APARATO, PONELA ACA)',
   login: 'OPCIONAL: TU NOMBRE, ESTADISTICAS Y PASOS EN CUALQUIER APARATO',
+  peso: 'PARA ESTIMAR LAS KCAL DE CADA CANCION (IZQ/DER = CAMBIAR). ES UNA ESTIMACION',
   avatar: 'UNA FLECHA DEL JUEGO QUE TE REPRESENTA: PERFIL, SALON Y ONLINE',
   aparato: 'LO VEN LOS DEMAS EN EL ONLINE (Y CUENTA PARA LOS TORNEOS DE UN SOLO CONTROL)',
   usb: 'ALFOMBRA, JOYSTICK O GAMEPAD: CENTRO = PISAR CADA PANEL PARA APRENDERLO',
@@ -1034,7 +1047,7 @@ const modoMods = () => (op.panelMods === true ? 'inicio' : ['inicio', 'cancion']
 const NOMBRE_MODO_MODS = { no: 'NO', inicio: 'AL EMPEZAR', cancion: 'EN CADA CANCION' };
 function jugarSolo() { if (modoMods() === 'inicio') abrirMods('solo'); else empezarSolo(op.nick); }
 function empezarSolo(nick) {
-  soloNick = nick; ruleta = null; soloEtapas = []; sesionFin = null;
+  soloNick = nick; ruleta = null; soloEtapas = []; sesionFin = null; kcalSesion = 0;
   pantalla = 'oculto';
   api({ accion: 'ranking' }).then(r => { ranking = r; rankingSolo = r.solo; }).catch(() => {});
   J.arrancar({ solo: { nick }, desbloqueado: op.desbloqueado, sinCorte: op.sinCorte, atraccion: { intro: op.intro && !introVista, demo: op.demo, sonido: op.demoSonido },
@@ -1051,6 +1064,20 @@ export const panelAbierto = () => pantalla === 'mods' && modsDestino === 'cancio
 const nickJugador = (j) => (j === 2 ? soloNick.slice(0, 13) + ' 2P' : soloNick);   // el 2.o jugador, con el numerico
 // lo llama principal.js con lo que avisa el juego (trabajador.js, seguirSolo)
 export function ruletaSolo(m) { ruleta = m.cancion ? m : null; }
+// (05/11, Charles: "eso de kcalorias despues de una cancion, en la version de pc, quizas en mobil no") con los paneles de la
+// pantalla no se muestra: no es bailar. Con teclado tampoco, pero se dice cuanto seria con alfombra.
+let kcalSesion = 0, ultimaKcal = '', kcalHasta = 0;
+export function kcalCancion(m) {
+  if (!op.peso || miAparato() === 'tactil') return;
+  const lista = m.jugadores.map(j => ({ j: j.jugador, k: estimarKcal(j.pisadas, m.seg, op.peso) })).filter(x => x.k > 0);
+  if (!lista.length) return;
+  const uno = lista[0].k; kcalSesion += uno;
+  const fmt = (k) => Math.max(1, Math.round(k));
+  const cuanto = lista.length > 1 ? lista.map(x => `J${x.j} ${fmt(x.k)}`).join(' / ') : String(fmt(uno));
+  ultimaKcal = miAparato() === 'teclado' ? `CON ALFOMBRA SERIAN UNAS ${cuanto} KCAL` : `ESTA CANCION: UNAS ${cuanto} KCAL  -  EN TOTAL: ${fmt(kcalSesion)} KCAL`;
+  kcalHasta = performance.now() + 10000;     // (mientras corre el juego, el menu no se ve: va en la capa de arriba, dibujarHud)
+  avisar(ultimaKcal, 8);
+}
 export function etapaSolo(m) {
   if (!soloNick) return;
   soloEtapas.push(m);
@@ -1231,7 +1258,7 @@ function dibujarMenu(t, vivo) {
   }
   const si = (v) => (v ? 'SI' : 'NO');
   const items = pantalla === 'menu' ? MENU.map((m) => NOMBRE_MENU[m])
-    : pantalla === 'opciones' ? FILAS_OPCIONES.map((f) => ({ login: cuentaActiva() ? `CUENTA: ${mailDeCuenta().toUpperCase()}`.slice(0, 30) : 'CUENTA: ENTRAR O CREAR', nombre: `TU NOMBRE: ${op.nick || '-'}`, pin: `CLAVE DEL NOMBRE: ${op.pin ? 'REGISTRADA' : 'SIN CLAVE'}`, sesion: op.nick ? `CERRAR SESION (${op.nick})`.slice(0, 30) : 'CERRAR SESION', avatar: `AVATAR: ${op.avatar ? 'ELEGIDO' : 'NINGUNO'}`,
+    : pantalla === 'opciones' ? FILAS_OPCIONES.map((f) => ({ peso: op.peso ? `KCAL: PESO ${op.peso} KG` : 'KCAL: NO MOSTRAR', login: cuentaActiva() ? `CUENTA: ${mailDeCuenta().toUpperCase()}`.slice(0, 30) : 'CUENTA: ENTRAR O CREAR', nombre: `TU NOMBRE: ${op.nick || '-'}`, pin: `CLAVE DEL NOMBRE: ${op.pin ? 'REGISTRADA' : 'SIN CLAVE'}`, sesion: op.nick ? `CERRAR SESION (${op.nick})`.slice(0, 30) : 'CERRAR SESION', avatar: `AVATAR: ${op.avatar ? 'ELEGIDO' : 'NINGUNO'}`,
       aparato: `JUEGO CON: ${op.aparato === 'auto' || !op.aparato ? `AUTO (${CORTO_APARATO[aparatoAuto()]})` : { teclado: 'TECLADO', plataforma: 'PLATAFORMA', tactil: 'CELU/TABLET' }[op.aparato]}`, controles: `CONTROLES: ${CORTO_CONTROLES[op.controles]}`, paneles: `PANELES: ${op.panelesDos ? 'DOS' : 'UNO'}`,
       tamano: `TAMANO DE PANELES: ${Math.round(op.tamanoPads * 100)}%`, vibrar: `VIBRAR AL PISAR: ${si(op.vibrar)}`,
       rom: `SONIDOS DE LA CABINA: ${hayEfectos() ? 'SI' : 'FALTA LA ROM'}`,
@@ -1739,11 +1766,20 @@ export function fijarZoom(z) { zoomHud = z || 1; }
 function dibujarHud() {
   requestAnimationFrame(dibujarHud);
   const verSolo = pantalla === 'oculto' && soloNick && ruleta, verEleccion = pantalla === 'eligiendo' && elegido.rival;
-  const ver = (pantalla === 'jugando' && sala.partida) || verSolo || verEleccion;
+  const verPartida = (pantalla === 'jugando' && sala.partida) || verSolo || verEleccion;
+  const verKcal = performance.now() < kcalHasta && (pantalla === 'oculto' || pantalla === 'jugando');   // sobre el resultado del juego
+  const ver = verPartida || verKcal;
   hud.style.display = ver ? '' : 'none';
   if (!ver || !R.listo) return;
   const h = hud.getContext('2d'), r = rival();
   h.clearRect(0, 0, 640, 480);
+  if (verKcal) {
+    const xh = x; x = h;
+    h.fillStyle = 'rgba(0,0,30,.85)'; h.fillRect(0, 438, 640, 32);
+    texto(x, ultimaKcal.slice(0, 56), 320, 446, 1.4, 'amarillo', true);
+    x = xh;
+    if (!verPartida) return;
+  }
   if (verSolo) { dibujarTop3(h); return; }
   if (verEleccion) {      // arriba, chiquito, sobre la seleccion de verdad: a quien se desafia y como volver
     const xh = x; x = h;
@@ -1974,4 +2010,4 @@ export function juegoCerrado() {
   if (pantalla === 'eligiendo') { pantalla = elegido.serie ? 'serie' : 'sala'; return; }     // Esc en la seleccion del desafio: vuelve al salon (o a la serie)
   if (pantalla === 'oculto') { sesionSolo(); pantalla = 'menu'; cursor = 0; ruleta = null; }   // ATRAS: al menu principal
 }
-export const estadoMenu = () => ({ pantalla, ruleta, clave: { paso: pinPaso, enCamino: claveEnCamino }, sala: { yo: sala.yo && sala.yo.nick, jugadores: sala.jugadores.length, partida: !!sala.partida, serie: sala.serie, torneo: sala.torneo }, resultado });
+export const estadoMenu = () => ({ pantalla, ultimaKcal, ruleta, clave: { paso: pinPaso, enCamino: claveEnCamino }, sala: { yo: sala.yo && sala.yo.nick, jugadores: sala.jugadores.length, partida: !!sala.partida, serie: sala.serie, torneo: sala.torneo }, resultado });
