@@ -12,6 +12,7 @@
 //   archivos y la cancion arranca sola, como en el online); EXPORTAR un .NOT formato A, que la cabina lee.
 import { leerPasos, descifrarAudio, descifrarPnz, ESPEJO } from '../motor/cifrados.js';
 import { esTactil } from './tactil.js';
+import { importarPasos, horaDeFila, filaDeHora, TOPE_FILAS } from './importar_pasos.js';
 
 let D = null;                 // lo que presta online.js: { texto, caja, barra, numerosCromo, R, CANCIONES, nombreDe, traer, DISCO, audio, avisar, probar, salir, lienzo }
 let ed = null;                // la tabla abierta
@@ -51,7 +52,9 @@ const foto = () => JSON.stringify({ n: [...ed.notas], l: ed.largas });
 function guardarDeshacer() { ed.deshacer.push(foto()); if (ed.deshacer.length > 200) ed.deshacer.shift(); ed.rehacer = []; ed.cambiado = true; }
 function volver(desde, hacia) { if (!desde.length) return; hacia.push(foto()); const s = JSON.parse(desde.pop()); ed.notas = new Map(s.n); ed.largas = s.l; ed.cambiado = true; }
 const largaEn = (r, col) => ed.largas.find(l => l.col === col && r >= l.d && r <= l.h);
+const filaPermitida = (r) => { if (r < TOPE_FILAS) return true; D.avisar(`El juego tiene lugar para ${TOPE_FILAS} filas: mas alla no entra`); return false; };
 function alternar(r, col) {
+  if (!filaPermitida(r)) return;
   guardarDeshacer();
   const l = largaEn(r, col);
   if (l) { ed.largas.splice(ed.largas.indexOf(l), 1); return; }
@@ -62,6 +65,7 @@ function alternar(r, col) {
 function ponerLarga(col, d, h) {
   if (h < d) [d, h] = [h, d];
   if (h === d) { alternar(d, col); return; }
+  if (!filaPermitida(h)) return;
   guardarDeshacer();
   ed.largas = ed.largas.filter(l => l.col !== col || l.h < d || l.d > h);
   for (let r = d; r <= h; r++) { const m = (ed.notas.get(r) || 0) & ~(1 << col); if (m) ed.notas.set(r, m); else ed.notas.delete(r); }
@@ -94,13 +98,14 @@ function espejo(a, b) {          // ↙↔↘ y ↖↔↗ en cada pad
   for (const l of ed.largas) if (l.d >= a && l.h <= b) l.col = mc(l.col);
 }
 
-// ---------- tiempo: fila r = valores[0]/100 + r / filasPorPulso * 60 / BPM (JUEGO_REGLAS 5) ----------
-const segFila = (r) => ed.valores[0] / 100 + r / ed.porPulso * 60 / ed.bpms[0];
-const filaSeg = (s) => (s - ed.valores[0] / 100) * ed.bpms[0] / 60 * ed.porPulso;
+// ---------- tiempo: fila r del tramo s = valores[s]/100 + r / filasPorPulso * 60 / BPM[s] (JUEGO_REGLAS 5). (05/11) con todos
+// los tramos: con uno solo, una tabla con cambios de BPM se le despegaba a la musica despues del primero ----------
+const segFila = (r) => horaDeFila(ed, r);
+const filaSeg = (s) => filaDeHora(ed, s);
 
 // ---------- .NOT formato A ("pump 5.0"), el que la cabina lee sin cifrar (FORMATOS.md) ----------
 export function escribirNot(e) {
-  const N = Math.max(1, e.largo), b = new Uint8Array(216 + 6 * N), v = new DataView(b.buffer);
+  const N = Math.min(TOPE_FILAS, Math.max(1, e.largo)), b = new Uint8Array(216 + 6 * N), v = new DataView(b.buffer);
   for (let i = 0; i < 8; i++) b[i] = 'pump 5.0'.charCodeAt(i);
   v.setUint16(0x0A, N, true);
   for (let i = 0; i < 10; i++) { v.setFloat32(0x10 + 4 * i, e.bpms[i] || e.bpms[0] || 120, true); v.setInt32(0x38 + 4 * i, e.valores[i] | 0, true); v.setInt32(0x60 + 4 * i, e.cambios[i] | 0, true); }
@@ -139,10 +144,34 @@ function armarTabla(c, modo, versus, p) {
   fase = 'editar';
   cargarMusica(c.n);
 }
+// (05/11) tambien pasos de otros programas: .ksf (Kick It Up y Direct Move), .sm y .ssc (StepMania). Se convierten y se muestra
+// que se pudo pasar antes de aceptar (importar_pasos.js)
+const imp = { cartas: [], i: 0, rechazadas: [], nombre: '', destino: null };
+function cartaAModo(ca, cancion) {
+  const c = cancion || D.CANCIONES[elegir.i], v = c.modos ? variantes(c)[elegir.modo % variantes(c).length] : { modo: 'HARD' };
+  return { c, modo: ca.doble ? 'DOUBLE' : (ca.modo === 'DOUBLE' ? 'HARD' : ca.modo || v.modo), versus: !!ca.versus };
+}
+function abrirCarta(ca) {
+  const L = lista(), actual = L[elegir.i % L.length], { modo, versus } = cartaAModo(ca, actual);
+  const base = { filasPorPulso: ca.filasPorPulso, bpms: ca.bpms, valores: ca.valores, cambiosBpm: ca.cambiosBpm, numeroInterno: actual.n };
+  ed = nueva(actual, modo, base, versus); if (actual.propia) ed.propia = actual.propia;
+  cargarDe(ed, ca);
+  const primera = Math.min(...[...ed.notas.keys(), ...ed.largas.map(l => l.d)]); if (Number.isFinite(primera)) ed.cursor = Math.max(0, primera - ed.porPulso * 4);
+  fase = 'editar'; ed.cambiado = true;
+  D.avisar(`Importado sobre ${actual.nombre} (${modo}): P prueba, G guarda. El desfase vale para el audio del archivo original`, 6);
+  if (actual.propia) cargarMusicaPropia(actual.propia); else cargarMusica(actual.n);
+}
 function importar() {
-  const i = document.createElement('input'); i.type = 'file'; i.accept = '.not,.NOT';
+  const i = document.createElement('input'); i.type = 'file'; i.accept = '.not,.NOT,.ksf,.KSF,.sm,.SM,.ssc,.SSC';
   i.onchange = async () => {
     const f = i.files[0]; if (!f) return;
+    if (!/\.not$/i.test(f.name)) {
+      try {
+        const r = importarPasos(f.name, new Uint8Array(await f.arrayBuffer()));
+        Object.assign(imp, { cartas: r.cartas, rechazadas: r.rechazadas, nombre: f.name, i: 0 }); fase = 'importar';
+      } catch (e) { D.avisar('No se pudo importar: ' + e.message, 6); }
+      return;
+    }
     if (f.size > 256 * 1024) { D.avisar('Ese archivo es demasiado grande para ser un .NOT'); return; }
     try {
       const p = leerPasos(f.name.toUpperCase(), new Uint8Array(await f.arrayBuffer()));
@@ -172,8 +201,14 @@ function claveNavegador() {
 }
 const aBase64 = (b) => { let s = ''; for (let i = 0; i < b.length; i += 8192) s += String.fromCharCode(...b.subarray(i, i + 8192)); return btoa(s); };
 async function apiPasos(cuerpo) { const r = await fetch(D.API, { method: 'POST', body: JSON.stringify({ ...cuerpo, clave: D.clave ? D.clave() : claveNavegador() }) }); const j = await r.json(); if (j.error) throw new Error(j.error); return j; }
+const conCuenta = () => !!(D.conCuenta && D.conCuenta());
 async function leerEdicion(archivo) {
-  if (puedeGuardar()) { try { const r = await fetch(EDICIONES() + archivo, { cache: 'no-store' }); return r.ok ? new Uint8Array(await r.arrayBuffer()) : null; } catch (e) { return null; } }
+  if (puedeGuardar()) {
+    try { const r = await fetch(EDICIONES() + archivo, { cache: 'no-store' }); if (r.ok) return new Uint8Array(await r.arrayBuffer()); } catch (e) { /* sin nada aca */ }
+    // (05/11) con cuenta, tus pasos te siguen: lo que hiciste en otro aparato esta en el hosting
+    if (conCuenta()) { try { const j = await apiPasos({ accion: 'leer_pasos', archivo }); if (j.hay) return Uint8Array.from(atob(j.datos), c => c.charCodeAt(0)); } catch (e) { /* sin conexion */ } }
+    return null;
+  }
   try { const j = await apiPasos({ accion: 'leer_pasos', archivo }); if (j.hay) return Uint8Array.from(atob(j.datos), c => c.charCodeAt(0)); } catch (e) { /* sin conexion: lo del navegador */ }
   try { const db = await baseEdiciones(); return await new Promise((ok) => { const q = db.transaction('pasos').objectStore('pasos').get(archivo); q.onsuccess = () => ok(q.result || null); q.onerror = () => ok(null); }); } catch (e) { return null; }
 }
@@ -181,8 +216,10 @@ async function guardarEdicion() {
   try {
     const b = escribirNot(ed);
     let donde = 'en la carpeta del juego (guardado\\ediciones)';
-    if (puedeGuardar()) { const r = await fetch(EDICIONES() + archivoDe(ed), { method: 'PUT', body: b }); if (!r.ok) throw new Error('el juego no lo acepto (' + r.status + ')'); }
-    else {
+    if (puedeGuardar()) {
+      const r = await fetch(EDICIONES() + archivoDe(ed), { method: 'PUT', body: b }); if (!r.ok) throw new Error('el juego no lo acepto (' + r.status + ')');
+      if (conCuenta()) { try { await apiPasos({ accion: 'guardar_pasos', archivo: archivoDe(ed), datos: aBase64(b) }); donde += ' y en tu cuenta'; } catch (er) { donde += ' (no se pudo subir a tu cuenta)'; } }
+    } else {
       try { await apiPasos({ accion: 'guardar_pasos', archivo: archivoDe(ed), datos: aBase64(b) }); donde = 'en el juego (hosting)'; }
       catch (er) { donde = 'en este navegador (sin conexion: ' + er.message + ')'; }
       const db = await baseEdiciones(); await new Promise((ok, mal) => { const t = db.transaction('pasos', 'readwrite'); t.objectStore('pasos').put(b, archivoDe(ed)); t.oncomplete = ok; t.onerror = () => mal(t.error); });
@@ -203,20 +240,53 @@ function exportar() {
 // pero solo eso, que el creador pueda borrar o modificar su version"). U publica la tabla abierta (api.php
 // comunidad_publicar: el servidor la rearma desde cero). En la lista: VER (la grilla en solo ver), JUGAR, y si es tuyo
 // MODIFICAR o BORRAR. El dueño es la clave de este aparato (online.js claveDueno). Solo canciones del disco ----------
-const com = { lista: [], i: 0, cargando: false, todas: false, borrar: null, error: '' };
+const com = { lista: [], i: 0, cargando: false, todas: false, borrar: null, error: '', directo: false, bajados: false };
+// (05/11, Charles: "desde el celu tambien quiero descargar los edits") en el celu no esta el editor, pero si la lista: el menu
+// EDITS entra directo aca. BAJAR guarda el edit en este aparato (IndexedDB), para jugarlo aunque no haya conexion.
+export function abrirEdits() { fase = 'comunidad'; com.directo = true; com.todas = true; com.bajados = false; parar(); abrirComunidad(); }
+const salirDeLista = () => { parar(); if (com.directo) { com.directo = false; fase = 'elegir'; D.salir(); } else fase = 'elegir'; };
+const claveBajado = (id) => 'edit:' + id;
+async function bajadosEnAparato() {
+  const db = await baseEdiciones();
+  return new Promise((ok) => { const q = db.transaction('pasos').objectStore('pasos').getAll(IDBKeyRange.bound('edit:', 'edit:￿')); q.onsuccess = () => ok(q.result || []); q.onerror = () => ok([]); });
+}
+async function bajarEdit(e) {
+  try {
+    const j = await traerEdit(e), db = await baseEdiciones(), dato = { id: e.id, archivo: j.archivo, cancion: e.cancion, nick: e.nick, fecha: e.fecha, t: e.t, flechas: e.flechas, bytes: j.bytes, bajado: true };
+    await new Promise((ok, mal) => { const t = db.transaction('pasos', 'readwrite'); t.objectStore('pasos').put(dato, claveBajado(e.id)); t.oncomplete = ok; t.onerror = () => mal(t.error); });
+    e.bajado = true; D.avisar(`Bajado a este aparato: edit de ${e.nick}. Lo ves en BAJADOS, aunque no haya conexion`, 5);
+  } catch (er) { D.avisar('No se pudo bajar: ' + er.message); }
+}
+async function quitarBajado(e) {
+  try {
+    const db = await baseEdiciones();
+    await new Promise((ok, mal) => { const t = db.transaction('pasos', 'readwrite'); t.objectStore('pasos').delete(claveBajado(e.id)); t.oncomplete = ok; t.onerror = () => mal(t.error); });
+    D.avisar('Quitado de este aparato'); abrirComunidad();
+  } catch (er) { D.avisar('No se pudo quitar: ' + er.message); }
+}
 const contarFlechas = () => [...ed.notas.values()].reduce((a, m) => a + popc(m), 0) + ed.largas.length;
 function deArchivo(a) { const m = /^(\d\d)_(db|([nhx])([12]))\.not$/.exec(a) || []; return { cancion: +m[1], modo: m[2] === 'db' ? 'DOUBLE' : { n: 'NORMAL', h: 'HARD', x: 'CRAZY' }[m[3]], versus: m[4] === '2' }; }
 const cancionDe = (n) => D.CANCIONES.find(c => c.n === n);
 async function abrirComunidad() {
   parar(); fase = 'comunidad'; com.cargando = true; com.borrar = null; com.error = '';
   const actual = lista()[elegir.i % lista().length];
+  let guardados = [];
+  try { guardados = await bajadosEnAparato(); } catch (e) { /* sin almacenamiento */ }
+  if (com.bajados) { com.lista = guardados.filter(e => cancionDe(e.cancion)); com.i = Math.min(com.i, Math.max(0, com.lista.length - 1)); com.cargando = false; return; }
   try {
     const j = await apiPasos({ accion: 'comunidad_lista', cancion: com.todas || !actual || actual.propia ? 0 : actual.n });
-    com.lista = j.edits.filter(e => cancionDe(e.cancion)); com.i = Math.min(com.i, Math.max(0, com.lista.length - 1));
+    const ya = new Set(guardados.map(e => e.id));
+    com.lista = j.edits.filter(e => cancionDe(e.cancion)).map(e => ({ ...e, bajado: ya.has(e.id) })); com.i = Math.min(com.i, Math.max(0, com.lista.length - 1));
   } catch (e) { com.lista = []; com.error = 'NO SE PUDO LEER LA COMUNIDAD: ' + e.message.toUpperCase(); }
   com.cargando = false;
 }
-async function traerEdit(e) { const j = await apiPasos({ accion: 'comunidad_leer', id: e.id }); return { ...j, bytes: Uint8Array.from(atob(j.datos), c => c.charCodeAt(0)) }; }
+// lo bajado se juega de lo guardado; lo demas, de lo que manda el salon. (05/11) Y uno viejo con mas filas de las que entran, no
+async function traerEdit(e) {
+  if (e.bytes) return { id: e.id, archivo: e.archivo, nick: e.nick, mio: false, bytes: e.bytes };
+  const j = await apiPasos({ accion: 'comunidad_leer', id: e.id }), bytes = Uint8Array.from(atob(j.datos), c => c.charCodeAt(0));
+  if (bytes.length > 216 + 6 * TOPE_FILAS) throw new Error('ese edit es mas largo de lo que el juego aguanta');
+  return { ...j, bytes };
+}
 // VER (solo mirar y escuchar) o, si es tuyo, MODIFICAR: se abre en la grilla con lo que guarda el servidor
 async function abrirEdit(e, modificar) {
   try {
@@ -251,11 +321,11 @@ async function publicar() {
 function dibujarComunidad(x) {
   const { texto, caja } = D, actual = lista()[elegir.i % lista().length];
   caja(24, 24, 592, 432, 0.85);
-  texto(x, 'PASOS DE LA COMUNIDAD', 320, 34, 2.4, 'amarillo', true);
-  texto(x, com.todas || !actual || actual.propia ? '< TODAS LAS CANCIONES >' : `< ${actual.nombre} >`, 320, 72, 1.4, 'celeste', true);
+  texto(x, com.bajados ? 'EDITS BAJADOS A ESTE APARATO' : 'PASOS DE LA COMUNIDAD', 320, 34, 2.4, 'amarillo', true);
+  texto(x, com.bajados ? 'SE JUEGAN AUNQUE NO HAYA CONEXION' : com.todas || !actual || actual.propia ? (esTactil ? 'TODAS LAS CANCIONES' : '< TODAS LAS CANCIONES >') : `< ${actual.nombre} >`, 320, 72, 1.4, 'celeste', true);
   if (com.cargando) { texto(x, 'CARGANDO...', 320, 220, 2, 'blanco', true); return; }
   if (com.error) { texto(x, com.error.slice(0, 70), 320, 220, 1, 'rojo', true); }
-  else if (!com.lista.length) { texto(x, 'TODAVIA NO HAY EDITS PUBLICADOS', 320, 200, 1.6, 'blanco', true); texto(x, 'ABRI UNA CANCION, HACELE LOS PASOS Y APRETA U PARA PUBLICARLA', 320, 232, 1, 'gris', true); }
+  else if (!com.lista.length) { texto(x, com.bajados ? 'TODAVIA NO BAJASTE NINGUNO' : 'TODAVIA NO HAY EDITS PUBLICADOS', 320, 200, 1.6, 'blanco', true); texto(x, com.bajados ? 'ELEGI UNO DE LA LISTA Y TOCA BAJAR' : esTactil ? 'LOS EDITS SE HACEN EN EL EDITOR, EN LA COMPU' : 'ABRI UNA CANCION, HACELE LOS PASOS Y APRETA U PARA PUBLICARLA', 320, 232, 1, 'gris', true); }
   const VIS = 13, desde = Math.max(0, Math.min(com.i - 6, com.lista.length - VIS));
   com.lista.slice(desde, desde + VIS).forEach((e, k) => {
     const i = desde + k, y = 100 + k * 23, v = deArchivo(e.archivo), sel = i === com.i;
@@ -266,18 +336,23 @@ function dibujarComunidad(x) {
     texto(x, e.fecha.slice(5), 410, y, 1, 'gris');
     texto(x, `${e.flechas} FL`, 466, y, 1, 'gris');
     if (e.mio) texto(x, 'TUYO', 548, y, 1, 'verde');
+    else if (e.bajado) texto(x, 'BAJADO', 540, y, 1, 'verde');
   });
   const e = com.lista[com.i];
   texto(x, esTactil ? 'TOCAR UNA FILA = ELEGIR' : 'ARRIBA/ABAJO = ELEGIR   IZQ/DER = ESTA CANCION O TODAS', 320, 404, 1, 'gris', true);
-  texto(x, esTactil ? '' : `ENTER = VER   P = JUGAR${e && e.mio ? '   M = MODIFICAR   SUPR = BORRAR' : ''}   ESC = VOLVER`, 320, 420, 1, 'amarillo', true);
+  texto(x, esTactil ? '' : `ENTER = VER   P = JUGAR   B = BAJAR   Y = BAJADOS${e && e.mio ? '   M = MODIFICAR   SUPR = BORRAR' : ''}   ESC = VOLVER`.slice(0, 74), 320, 420, 1, 'amarillo', true);
   texto(x, 'SOLO QUIEN HIZO UN EDIT LO PUEDE CAMBIAR O BORRAR', 320, 438, 1, 'celeste', true);
   botonesComunidad(x, e);
 }
-// botones (dedo y mouse) de la lista
-const botonesCom = (e) => [['VER', () => e && abrirEdit(e, false)], ['JUGAR', () => e && jugarEdit(e)], ...(e && e.mio ? [['MODIFICAR', () => abrirEdit(e, true)], ['BORRAR', () => borrarEdit(e)]] : []), ['VOLVER', () => { fase = 'elegir'; }]];
-function botonesComunidad(x, e) { if (!esTactil) return; botonesCom(e).forEach(([s], i) => { D.caja(30 + i * 118, 452, 110, 24, 0.9); D.texto(x, s, 85 + i * 118, 457, 1, 'amarillo', true); }); }
+// botones (dedo y mouse) de la lista. En el celu no hay MODIFICAR: el editor no esta
+const alternarBajados = () => { com.bajados = !com.bajados; com.i = 0; abrirComunidad(); };
+const botonesCom = (e) => [['VER', () => e && abrirEdit(e, false)], ['JUGAR', () => e && jugarEdit(e)],
+  ...(com.bajados ? (e ? [['QUITAR', () => quitarBajado(e)]] : []) : [['BAJAR', () => e && bajarEdit(e)]]), [com.bajados ? 'TODOS' : 'BAJADOS', alternarBajados],
+  ...(e && e.mio && !com.bajados ? [['BORRAR', () => borrarEdit(e)]] : []), ['VOLVER', salirDeLista]];
+const anchoBotonCom = (b) => Math.floor(584 / b.length);
+function botonesComunidad(x, e) { if (!esTactil) return; const b = botonesCom(e), w = anchoBotonCom(b); b.forEach(([s], i) => { D.caja(28 + i * w, 452, w - 6, 24, 0.9); D.texto(x, s, 28 + i * w + (w - 6) / 2, 457, 1, 'amarillo', true); }); }
 function tocarComunidad(px, py) {
-  if (esTactil && py >= 452 && py <= 476) { const i = Math.floor((px - 30) / 118), b = botonesCom(com.lista[com.i]); if (i >= 0 && i < b.length) b[i][1](); return true; }
+  if (esTactil && py >= 452 && py <= 476) { const b = botonesCom(com.lista[com.i]), i = Math.floor((px - 28) / anchoBotonCom(b)); if (i >= 0 && i < b.length) b[i][1](); return true; }
   if (py >= 97 && py < 97 + 13 * 23) { const desde = Math.max(0, Math.min(com.i - 6, com.lista.length - 13)), i = desde + Math.floor((py - 97) / 23); if (i < com.lista.length) com.i = i; return true; }
   return false;
 }
@@ -288,9 +363,11 @@ function teclaComunidad(k) {
   else if (k === 'ArrowLeft' || k === 'ArrowRight') { com.todas = !com.todas; com.i = 0; abrirComunidad(); }
   else if (e && (k === 'Enter' || k === 'NumpadEnter' || k === 'KeyS' || k === 'Numpad5')) abrirEdit(e, false);
   else if (e && k === 'KeyP') jugarEdit(e);
+  else if (e && k === 'KeyB') { if (com.bajados) quitarBajado(e); else bajarEdit(e); }
+  else if (k === 'KeyY') alternarBajados();
   else if (e && e.mio && k === 'KeyM') abrirEdit(e, true);
   else if (e && e.mio && (k === 'Delete' || k === 'Backspace')) borrarEdit(e);
-  else if (k === 'Escape') fase = 'elegir';
+  else if (k === 'Escape') salirDeLista();
   return true;
 }
 
@@ -342,6 +419,7 @@ export function dibujarEditor(x, t) {
   if (fase === 'elegir') return dibujarElegir(x, t);
   if (fase === 'nueva') return dibujarNueva(x);
   if (fase === 'comunidad') return dibujarComunidad(x);
+  if (fase === 'importar') return dibujarImportar(x);
   seguirSonido();
   const w = anchoCol(), ancho = w * ed.cols, x0 = 420 - ancho / 2, zoom = ed.zoom;
   const filaY = (r) => AREA.y + AREA.alto / 3 + (r - ed.cursor) * zoom;
@@ -394,7 +472,7 @@ export function dibujarEditor(x, t) {
     ...(esTactil ? [['TOCAR LA GRILLA = FLECHA', 'gris'], ['ARRASTRAR = LARGA', 'gris'], ['BOTONES DE ABAJO', 'gris']]
       : [['ZQSEC / NUMERICO = FLECHA', 'gris'], ['SHIFT+TECLA = LARGA', 'gris'], ['FLECHAS = MOVER  RUEDA', 'gris'], ['RE/AV PAG = COMPAS', 'gris'], ['TAB = AJUSTE  +/- = ZOOM', 'gris'],
         ['ESPACIO = ESCUCHAR', 'gris'], ['M = METRONOMO  K = CLAPS', 'gris'], ['SHIFT+FLECHAS = ELEGIR', 'gris'], ['CTRL C/V/X = COPIAR', 'gris'], ['CTRL Z/Y = DESHACER', 'gris'],
-        ['F = ESPEJO  SUPR = BORRAR', 'gris'], ['V = VERSUS (2 JUGADORES)', 'gris'], ['B = BPM  D = DESFASE', 'gris'], [`P PROBAR T PRACT.${Math.round(velocidadPractica * 100)}%`, 'amarillo'], ['G = GUARDAR EN EL JUEGO', 'amarillo'], ...(ed.propia ? [] : [[ed.comunidad && ed.comunidad.mio ? 'U = ACTUALIZAR TU EDIT' : 'U = PUBLICAR', 'verde']]), ['I = IMPORTAR .NOT', 'amarillo'], ['O = ORIGINAL ESC=SALIR', 'gris']]),
+        ['F = ESPEJO  SUPR = BORRAR', 'gris'], ['V = VERSUS (2 JUGADORES)', 'gris'], ['B = BPM  D = DESFASE', 'gris'], [`P PROBAR T PRACT.${Math.round(velocidadPractica * 100)}%`, 'amarillo'], ['G = GUARDAR EN EL JUEGO', 'amarillo'], ...(ed.propia ? [] : [[ed.comunidad && ed.comunidad.mio ? 'U = ACTUALIZAR TU EDIT' : 'U = PUBLICAR', 'verde']]), ['I = IMPORTAR PASOS', 'amarillo'], ['O = ORIGINAL ESC=SALIR', 'gris']]),
   ];
   lin.forEach(([s, c], i) => texto(x, s, 16, 50 + i * 15.5, 1, c));
   if (esTactil) botonesTactiles(x);
@@ -406,19 +484,54 @@ function dibujarElegir(x, t) {
   caja(60, 30, 520, 420, 0.8);
   texto(x, 'EDITOR DE PASOS', 320, 44, 3, 'amarillo', true);
   const portada = R.caratulas[c.n] || portadasPropias.get(c.n); if (portada) x.drawImage(portada, 200, 100, 240, 180);
-  if (c.propia) texto(x, 'CANCION PROPIA ' + c.n, 320, 84, 1, 'verde', true);
+  if (c.propia) texto(x, `CANCION PROPIA ${c.n}   V = ${c.propia.fondoPropio ? 'CAMBIAR EL' : 'PONERLE'} VIDEO DE FONDO`, 320, 84, 1, 'verde', true);
   texto(x, c.nombre, 320, 292, 2, 'blanco', true);
   texto(x, `< ${modo} >`, 320, 326, 2, 'celeste', true);
   texto(x, esTactil ? 'IZQ/DER = CANCION  ARRIBA = MODO  CENTRO = ABRIR' : 'IZQ/DER = CANCION   ARRIBA/ABAJO = MODO   ENTER = ABRIR', 320, 370, 1, 'gris', true);
-  texto(x, esTactil ? '' : (puedeGuardar() ? 'N = CANCION NUEVA (TU MP3)   ' : '') + 'I = IMPORTAR UN .NOT   ESC = VOLVER', 320, 390, 1, puedeGuardar() ? 'verde' : 'gris', true);
+  texto(x, esTactil ? '' : (puedeGuardar() ? 'N = CANCION NUEVA (TU MP3)   ' : '') + 'I = IMPORTAR (.NOT .KSF .SM .SSC)   ESC = VOLVER', 320, 390, 1, puedeGuardar() ? 'verde' : 'gris', true);
   texto(x, esTactil ? '' : 'U = PASOS DE LA COMUNIDAD (VER Y JUGAR LOS EDITS DE OTROS)', 320, 406, 1, 'amarillo', true);
   texto(x, 'SE GUARDA EN EL JUEGO COMO TU VERSION (EL DISCO NO SE TOCA)', 320, 424, 1, 'celeste', true);
   if (esTactil) { D.caja(220, 440, 200, 30, 0.9); D.texto(x, 'COMUNIDAD', 320, 448, 1.4, 'amarillo', true); }
 }
 
+// ---------- la pantalla de importar: que trae el archivo y que no se pudo pasar ----------
+const NOMBRE_TIPO = { simple: '1 JUGADOR', doble: 'DOUBLE', versus: 'VERSUS' };
+const sinTildes = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+function dibujarImportar(x) {
+  const { texto, caja } = D, ca = imp.cartas[imp.i];
+  caja(24, 24, 592, 432, 0.9);
+  texto(x, 'IMPORTAR PASOS', 320, 34, 2.4, 'amarillo', true);
+  texto(x, sinTildes(imp.nombre).slice(0, 60), 320, 68, 1, 'celeste', true);
+  imp.cartas.slice(0, 7).forEach((c, k) => {
+    const y = 92 + k * 22, sel = k === imp.i;
+    if (sel) { x.fillStyle = 'rgba(95,208,255,.22)'; x.fillRect(36, y - 3, 568, 20); }
+    texto(x, `${NOMBRE_TIPO[c.tipo]} ${c.modo}`.slice(0, 22), 44, y, 1, sel ? 'amarillo' : 'blanco');
+    texto(x, c.nivel ? `NIVEL ${c.nivel}` : '', 250, y, 1, 'gris');
+    texto(x, `${c.flechas} FLECHAS`, 340, y, 1, 'gris');
+    texto(x, `BPM ${Math.round(c.bpms[0])}${c.bpms.length > 1 ? '+' : ''}`, 470, y, 1, 'gris');
+  });
+  if (ca) {
+    let y = 256;
+    texto(x, ca.avisos.length ? 'LO QUE NO SE PUDO PASAR IGUAL:' : 'PASA ENTERA, SIN PERDER NADA', 44, y, 1, ca.avisos.length ? 'amarillo' : 'verde'); y += 20;
+    for (const a of ca.avisos.slice(0, 6)) { texto(x, sinTildes(a).slice(0, 66), 44, y, 1, 'blanco'); y += 18; }
+  }
+  if (imp.rechazadas.length) texto(x, sinTildes(`NO SON DE PUMP Y QUEDAN AFUERA: ${imp.rechazadas.join(', ')}`).slice(0, 66), 44, 396, 1, 'gris');
+  const actual = lista()[elegir.i % lista().length];
+  texto(x, `SE ABRE SOBRE: ${actual.nombre}`.slice(0, 60), 320, 416, 1, 'celeste', true);
+  texto(x, 'ARRIBA/ABAJO = ELEGIR   ENTER = ABRIR EN EL EDITOR   ESC = VOLVER', 320, 436, 1, 'gris', true);
+}
+function teclaImportar(k) {
+  if (['ArrowUp', 'KeyQ', 'Numpad7'].includes(k)) imp.i = Math.max(0, imp.i - 1);
+  else if (['ArrowDown', 'KeyZ', 'Numpad1'].includes(k)) imp.i = Math.min(imp.cartas.length - 1, imp.i + 1);
+  else if (k === 'Enter' || k === 'NumpadEnter' || k === 'KeyS' || k === 'Numpad5') abrirCarta(imp.cartas[imp.i]);
+  else if (k === 'Escape') fase = 'elegir';
+  return true;
+}
+
 // ---------- teclado ----------
 export function teclaEditor(k, e) {
   if (fase === 'nueva') return teclaNueva(k, e);
+  if (fase === 'importar') return teclaImportar(k);
   if (fase === 'comunidad') return teclaComunidad(k);
   if (fase === 'elegir') {
     const L = lista(), c = L[elegir.i % L.length], vs = variantes(c);
@@ -428,6 +541,7 @@ export function teclaEditor(k, e) {
     else if (k === 'ArrowDown' || k === 'KeyE' || k === 'Numpad9') elegir.modo = (elegir.modo + 1) % vs.length;
     else if (k === 'Enter' || k === 'KeyS' || k === 'Numpad5' || k === 'NumpadEnter') { const v = vs[elegir.modo % vs.length]; if (c.propia) abrirPropia(c.propia, v.modo, v.versus); else abrir(c, v.modo, v.versus); }
     else if (k === 'KeyN' && puedeGuardar()) abrirNueva();
+    else if (k === 'KeyV' && c.propia) ponerVideoAPropia(c.propia);
     else if (k === 'KeyI') importar();
     else if (k === 'KeyU') abrirComunidad();
     else if (k === 'Escape') D.salir();
@@ -607,8 +721,48 @@ export function detectarBpm(buf) {
 }
 
 // ---------- la pantalla de cancion nueva ----------
-const nuevaC = { audio: null, mp3: null, buf: null, nombre: '', artista: '', bpm: 0, desfase: 0, portada: null, video: 0, toques: [], calculando: false };
-function abrirNueva() { Object.assign(nuevaC, { audio: null, mp3: null, buf: null, nombre: '', artista: '', bpm: 0, desfase: 0, portada: null, video: 0, toques: [], calculando: false }); fase = 'nueva'; }
+const nuevaC = { audio: null, mp3: null, buf: null, nombre: '', artista: '', bpm: 0, desfase: 0, portada: null, video: 0, videoPropio: null, cartas: [], toques: [], calculando: false };
+function abrirNueva() { Object.assign(nuevaC, { audio: null, mp3: null, buf: null, nombre: '', artista: '', bpm: 0, desfase: 0, portada: null, video: 0, videoPropio: null, cartas: [], toques: [], calculando: false }); fase = 'nueva'; }
+// (05/11) pasos de otros programas para la cancion nueva: se pueden elegir varios .ksf juntos; BPM, desfase y nombre salen de ahi
+function importarEnNueva() {
+  const i = document.createElement('input'); i.type = 'file'; i.multiple = true; i.accept = '.ksf,.KSF,.sm,.SM,.ssc,.SSC';
+  i.onchange = async () => {
+    const cartas = []; let error = '';
+    for (const f of i.files) { try { cartas.push(...importarPasos(f.name, new Uint8Array(await f.arrayBuffer())).cartas); } catch (e) { error = `${f.name}: ${e.message}`; } }
+    if (!cartas.length) { D.avisar('No se pudo importar: ' + error, 6); return; }
+    nuevaC.cartas = cartas;
+    const c = cartas[0]; nuevaC.bpm = c.bpms[0]; nuevaC.desfase = c.valores[0];
+    const limpio = (s, n) => sinTildes(s).replace(/[^A-Z0-9 .,'!?&()+-]/g, '').slice(0, n);
+    if (!nuevaC.nombre && c.titulo) nuevaC.nombre = limpio(c.titulo, 24);
+    if (!nuevaC.artista && c.artista) nuevaC.artista = limpio(c.artista, 30);
+    const avisos = cartas.reduce((s, x) => s + x.avisos.length, 0);
+    D.avisar(`${cartas.length} tablas importadas${avisos ? `, con ${avisos} avisos: mirá cada una con P en el editor` : ''}${error ? `. ${error}` : ''}`, 6);
+  };
+  i.click();
+}
+// (05/11, Charles: "un videoclip de fondo"; de YouTube no se puede: sus reglas no dejan tapar el reproductor) un video propio,
+// que se ve debajo de las flechas y no suena. Queda en guardado\canciones (principal.js videoCancion)
+const TOPE_VIDEO = 200 * 1048576;
+function elegirVideo(hecho) {
+  const i = document.createElement('input'); i.type = 'file'; i.accept = '.mp4,.webm,video/mp4,video/webm';
+  i.onchange = () => {
+    const f = i.files[0]; if (!f) return;
+    if (!/\.(mp4|webm)$/i.test(f.name)) { D.avisar('El video tiene que ser .mp4 o .webm'); return; }
+    if (f.size > TOPE_VIDEO) { D.avisar('El video pasa los 200 MB: achicalo un poco'); return; }
+    hecho(f);
+  };
+  i.click();
+}
+async function guardarVideo(c, f) {
+  const nombre = `v${c.n}.${/\.webm$/i.test(f.name) ? 'webm' : 'mp4'}`;
+  await guardar(nombre, f); c.fondoPropio = nombre;
+}
+async function ponerVideoAPropia(c) {
+  elegirVideo(async (f) => {
+    try { D.avisar('Guardando el video...'); await cargarPropias(); const p = propias.find(x => x.n === c.n); await guardarVideo(p, f); await guardarLista(); D.avisar(`Video de fondo listo para ${p.nombre}. No suena: la musica sigue siendo tu MP3`, 5); }
+    catch (e) { D.avisar('No se pudo guardar el video: ' + e.message); }
+  });
+}
 function elegirAudio() {
   const i = document.createElement('input'); i.type = 'file'; i.accept = '.mp3,audio/mpeg';
   i.onchange = async () => {
@@ -670,10 +824,22 @@ async function guardarNueva() {
     await guardar(`${n}.aud`, cifrarCabina(nuevaC.mp3, K));
     await guardar(`d${n}.aud`, cifrarCabina(previa, K));
     await guardar(`t${n}.pnz`, cifrarCabina(await portadaPng(), K));
-    propias.push({ n, nombre: nuevaC.nombre || `CANCION ${n}`, artista: nuevaC.artista, bpm: nuevaC.bpm, desfase: nuevaC.desfase, video: VIDEOS[nuevaC.video], pasos: {}, creada: new Date().toISOString().slice(0, 10) });
+    const cancion = { n, nombre: nuevaC.nombre || `CANCION ${n}`, artista: nuevaC.artista, bpm: nuevaC.bpm, desfase: nuevaC.desfase, video: VIDEOS[nuevaC.video], pasos: {}, creada: new Date().toISOString().slice(0, 10) };
+    propias.push(cancion);
+    if (nuevaC.videoPropio) await guardarVideo(cancion, nuevaC.videoPropio);
+    // las tablas importadas: una por modo, cada una ya como .NOT
+    const tabla = { n, nombre: cancion.nombre, modos: ['NORMAL', 'HARD', 'CRAZY', 'DOUBLE'] }, hechas = new Set(); let primera = null;
+    for (const ca of nuevaC.cartas) {
+      const modo = ca.doble ? 'DOUBLE' : ca.modo, e = nueva(tabla, modo, { filasPorPulso: ca.filasPorPulso, bpms: ca.bpms, valores: ca.valores, cambiosBpm: ca.cambiosBpm, numeroInterno: n }, ca.versus);
+      if (hechas.has(archivoDe(e))) continue;
+      hechas.add(archivoDe(e)); cargarDe(e, ca);
+      await guardar(archivoDe(e), escribirNot(e));
+      cancion.pasos[modo] = { nivel: Math.max(1, Math.min(12, ca.nivel || 5)) };
+      primera = primera || { modo, versus: ca.versus };
+    }
     await guardarLista();
-    D.avisar(`Cancion ${n} guardada: ahora hacele los pasos y guardalos con G`);
-    abrirPropia(propias[propias.length - 1], 'HARD', false);
+    D.avisar(`Cancion ${n} guardada${hechas.size ? ` con ${hechas.size} tablas importadas` : ': ahora hacele los pasos y guardalos con G'}`, 5);
+    abrirPropia(cancion, primera ? primera.modo : 'HARD', primera ? primera.versus : false);
   } catch (e) { D.avisar('No se pudo guardar: ' + e.message); }
 }
 function tocarNueva() {
@@ -696,8 +862,10 @@ export function dibujarNueva(x) {
     ['N', 'NOMBRE', nuevaC.nombre || '-'], ['R', 'ARTISTA', nuevaC.artista || '-'],
     ['P', 'PORTADA', nuevaC.portada ? `${nuevaC.portada.width} x ${nuevaC.portada.height} (SE RECORTA A 640 x 480)` : 'SIN IMAGEN: SE ARMA CON EL TITULO'],
     ['< >', 'VIDEO DE FONDO', `EL DEL REMIX ${v} (${{ 27: 'YOUNG MAN', 28: 'REPGYO', 29: 'PIERROT', 30: 'BIG + BLIND', 31: 'FA + C WING', 32: 'SELECT', 36: 'NAN + REPGYO', 52: 'IGNITION', 53: 'KISS', 57: 'MOEBIUS' }[v] || ''})`],
+    ['V', 'VIDEO PROPIO (MP4 O WEBM, SIN SONIDO)', nuevaC.videoPropio ? sinTildes(nuevaC.videoPropio.name).slice(0, 40) : 'NINGUNO: VA EL DEL REMIX'],
+    ['I', 'IMPORTAR PASOS (.KSF .SM .SSC)', nuevaC.cartas.length ? `${nuevaC.cartas.length} TABLAS LISTAS` : 'NINGUNO'],
   ];
-  filas.forEach(([k, n, val], i) => { const y = 92 + i * 34; texto(x, k, 60, y, 1.4, 'celeste'); texto(x, n, 130, y, 1.4, 'blanco'); texto(x, String(val).slice(0, 44), 130, y + 16, 1, 'amarillo'); });
+  filas.forEach(([k, n, val], i) => { const y = 72 + i * 30; texto(x, k, 60, y, 1.2, 'celeste'); texto(x, n, 130, y, 1.2, 'blanco'); texto(x, String(val).slice(0, 44), 130, y + 14, 1, 'amarillo'); });
   if (nuevaC.portada || nuevaC.nombre) { /* vista de la portada */ x.save(); x.globalAlpha = 0.9; if (nuevaC.portada) { const im = nuevaC.portada, k = Math.max(128 / im.width, 96 / im.height); x.beginPath(); x.rect(452, 296, 128, 96); x.clip(); x.drawImage(im, 516 - im.width * k / 2, 344 - im.height * k / 2, im.width * k, im.height * k); } x.restore(); }
   texto(x, 'ESPACIO = ESCUCHAR CON METRONOMO (PARA VER SI EL BPM Y EL DESFASE VAN)', 320, 380, 1, 'gris', true);
   texto(x, 'G = GUARDAR Y HACERLE LOS PASOS     ESC = VOLVER', 320, 400, 1, 'verde', true);
@@ -706,6 +874,8 @@ export function dibujarNueva(x) {
 export function teclaNueva(k, e) {
   if (k === 'KeyA') elegirAudio();
   else if (k === 'KeyP') elegirPortada();
+  else if (k === 'KeyI') importarEnNueva();
+  else if (k === 'KeyV') elegirVideo((f) => { nuevaC.videoPropio = f; D.avisar('Video elegido: se ve de fondo y no suena; la musica sigue siendo el MP3', 5); });
   else if (k === 'KeyN') { const v = prompt('NOMBRE DE LA CANCION:', nuevaC.nombre); if (v !== null) nuevaC.nombre = v.toUpperCase().slice(0, 24); }
   else if (k === 'KeyR') { const v = prompt('ARTISTA:', nuevaC.artista); if (v !== null) nuevaC.artista = v.toUpperCase().slice(0, 30); }
   else if (k === 'KeyB') { const v = prompt('BPM:', String(nuevaC.bpm || 120)); if (v !== null && +v > 20 && +v < 600) nuevaC.bpm = +v; }
@@ -732,6 +902,9 @@ async function abrirPropia(c, modo, versus) {
   if (p) cargarDe(ed, p); else { ed.bpms = [c.bpm]; ed.valores = [c.desfase | 0]; ed.porPulso = 4; ed.numero = c.n; ed.largo = ed.porPulso * 64; }
   fase = 'editar';
   D.avisar(p ? `Abierto ${archivo.toUpperCase()}` : `${c.nombre}: pasos nuevos en ${modo}. G guarda en la cancion`);
+  await cargarMusicaPropia(c);
+}
+async function cargarMusicaPropia(c) {
   musica = null;
   try { const r = await fetch(GUARDADO() + `${c.n}.aud`); const mp3 = descifrarAudio(new Uint8Array(await r.arrayBuffer()), D.R.llave); if (mp3) musica = await D.audio().decodeAudioData(mp3.buffer.slice(mp3.byteOffset, mp3.byteOffset + mp3.byteLength)); } catch (e) { D.avisar('No pude cargar la musica'); }
 }

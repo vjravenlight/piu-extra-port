@@ -6,7 +6,8 @@
 // El salon habla con ../online/api.php (app\online). La pagina (principal.js) le presta arrancar/terminar el juego.
 import { abrirPaquete, descifrarPnz, descifrarAudio, leerPasos } from '../motor/cifrados.js';
 import { esTactil, vibrarAhora } from './tactil.js';
-import { iniciarEditor, abrirEditor, dibujarEditor, teclaEditor, volverDePrueba, archivoDe } from './editor.js';
+import { iniciarEditor, abrirEditor, abrirEdits, dibujarEditor, teclaEditor, volverDePrueba, archivoDe } from './editor.js';
+import { iniciarCuenta, abrirCuenta, cuentaAbierta, cuentaActiva, mailDeCuenta, revisarCuenta, nombreElegido } from './cuenta.js';
 import { revisarPaquete } from './paquete.js';
 import * as Archivos from './archivos.js';
 import { cargarEfectos, hayEfectos } from './efectos.js';
@@ -249,7 +250,7 @@ async function sondear() {
     if (pantalla === 'mirando' && e.mirada) mirar.datos = e.mirada;
     actualizarSala(e);
   } catch (err) {
-    if (err.codigo === 401) { sala.yo = null; pantalla = 'menu'; avisar('Se corto la conexion con el salon'); }
+    if (err.codigo === 401) { sala.yo = null; pantalla = 'menu'; avisar(/^te sacaron/.test(err.message) ? err.message : 'Se corto la conexion con el salon'); }
     else if (++sala.errores === 5) avisar('El salon no responde...');
   } finally { consultando = false; }
 }
@@ -258,6 +259,7 @@ function actualizarSala(e) {
   // solo los nuevos: algunas respuestas (desafiar, responder, chat) traen el chat entero y se repetia
   for (const m of e.chat) if (m.n > sala.chatDesde) { sala.chat.push(m); sala.chatDesde = m.n; }
   sala.chat = sala.chat.slice(-40);
+  if (e.chatBorrados && e.chatBorrados.length) sala.chat = sala.chat.filter(m => !e.chatBorrados.includes(m.n));   // (05/11) los que borro un moderador
   const antes = sala.partida;
   sala.partida = e.partida;
   // (21/10) los dos ya cargaron: la hora de arranque de verdad (el salon la pone con la cuenta configurada)
@@ -718,6 +720,7 @@ function elegirOpcion() {
     else if (f === 'pantalla') { op.pantalla = op.pantalla === 'estirar' ? 'original' : 'estirar'; J.pantalla(op.pantalla); }
     else if (f === 'aparato') op.aparato = APARATOS[(APARATOS.indexOf(op.aparato) + 1) % APARATOS.length];
     else if (f === 'pin') { if (!op.nick) { avisar('Primero elegi tu nombre'); return; } empezarClave(); return; }
+    else if (f === 'login') { abrirCuenta(); return; }
     else if (f === 'sesion') { if (!op.nick) { avisar('No hay ningun nombre en este aparato'); return; } if (performance.now() - confirmarSalida < 3000) { confirmarSalida = 0; cerrarSesion(); } else { confirmarSalida = performance.now(); avisar(op.pin ? 'Otra vez = cerrar (acordate de tu clave)' : 'Otra vez = cerrar sesion', 3); } return; }
     else if (f === 'paneles') { op.panelesDos = !op.panelesDos; J.paneles(op.panelesDos); }
     else if (f === 'tamano') { op.tamanoPads = TAMANOS[(TAMANOS.indexOf(op.tamanoPads) + 1) % TAMANOS.length] || 1; J.tactil.tamano(op.tamanoPads); }
@@ -746,6 +749,7 @@ function elegirOpcion() {
   else if (m === 'online') { destinoNick = 'online'; if (op.nick) entrarSala(op.nick); else pedirNick(); }
   else if (m === 'ranking') { pantalla = 'ranking'; pedirRanking(); }
   else if (m === 'editor') { pantalla = 'editor'; abrirEditor(); }               // EDITOR de pasos (editor.js)
+  else if (m === 'edits') { pantalla = 'editor'; abrirEdits(); }                 // en el celu, sin editor: los edits de la comunidad
   else if (m === 'opciones') { pantalla = 'opciones'; cursor = 0; }
   else if (m === 'salir') window.piuBuild.salir();
 }
@@ -753,8 +757,8 @@ function elegirOpcion() {
 // build de Edge y la APK (window.piuBuild) si
 // (21/10: "el editor en android ocultalo, de momento": tampoco en la APK). SALIR abajo en las builds y la APK (Charles
 // 21/10), que tienen como cerrarse (window.piuBuild.salir); en la web no hay
-const MENU = ['solo', 'online', 'ranking', ...(esTactil && !(window.piuBuild && !window.piuBuild.android) ? [] : ['editor']), 'opciones', ...(window.piuBuild ? ['salir'] : [])];
-const NOMBRE_MENU = { solo: 'JUGAR SOLO', online: 'ONLINE', ranking: 'RANKING', editor: 'EDITOR', opciones: 'OPCIONES', salir: 'SALIR' };
+const MENU = ['solo', 'online', 'ranking', ...(esTactil && !(window.piuBuild && !window.piuBuild.android) ? ['edits'] : ['editor']), 'opciones', ...(window.piuBuild ? ['salir'] : [])];
+const NOMBRE_MENU = { solo: 'JUGAR SOLO', online: 'ONLINE', ranking: 'RANKING', editor: 'EDITOR', edits: 'EDITS', opciones: 'OPCIONES', salir: 'SALIR' };
 const NOMBRE_CONTROLES = { izquierda: 'IZQUIERDA (Z Q S E C)', derecha: 'DERECHA (U O K M .)', numerico: 'NUMERICO (1 7 5 9 3)', ambos: 'TODOS' };
 const CORTO_CONTROLES = { izquierda: 'IZQUIERDA', derecha: 'DERECHA', numerico: 'NUMERICO', ambos: 'TODOS' };
 // OPCIONES (20/10): intro, demo y su sonido son del modo solo (trabajador.js, seguirAtraccion); PANELES solo en
@@ -771,7 +775,7 @@ function elegirRomSonidos() {
   };
   i.click();
 }
-const FILAS_OPCIONES = ['nombre', 'pin', 'sesion', 'avatar', 'aparato', 'controles',...(esTactil ? ['paneles', 'tamano', 'vibrar'] : ['teclas', 'pantalla']), 'usb', ...(Archivos.propio ? ['rom'] : []), 'calibrar', 'volumen', 'fondo', 'carril', 'panelmods', 'cuenta', 'rival', 'intro', 'demo', 'sonido', 'desbloqueado', 'sincorte', 'volver'];
+const FILAS_OPCIONES = ['login', 'nombre', 'pin', 'sesion', 'avatar', 'aparato', 'controles',...(esTactil ? ['paneles', 'tamano', 'vibrar'] : ['teclas', 'pantalla']), 'usb', ...(Archivos.propio ? ['rom'] : []), 'calibrar', 'volumen', 'fondo', 'carril', 'panelmods', 'cuenta', 'rival', 'intro', 'demo', 'sonido', 'desbloqueado', 'sincorte', 'volver'];
 const TAMANOS = [0.8, 0.9, 1, 1.1, 1.2, 1.3];
 // (30/10, Charles: "necesito saber si al juego lo estan jugando desde una pc, celular, o que cosa... no es lo mismo jugar
 // teclado que plataforma o celular") JUEGO CON: lo ven los demas en el salon, el desafio y el torneo. AUTOMATICO: si se uso
@@ -796,6 +800,7 @@ const AYUDA_OPCIONES = { rom: 'MONEDA Y VOCES DEL PUNTAJE: ELEGI PUMPITUP.ZIP (S
   tamano: 'MAS GRANDES O MAS CHICOS (SE VE AL TOQUE)', vibrar: 'EL CELULAR VIBRA UN POQUITO EN CADA PISADA',
   nombre: 'CON EL QUE JUGAS EN SOLO, ONLINE Y RANKING (SE PIDE UNA SOLA VEZ)',
   pin: 'OPCIONAL: CON CLAVE NADIE MAS USA TU NOMBRE EN EL RANKING (EN OTRO APARATO, PONELA ACA)',
+  login: 'OPCIONAL: TU NOMBRE, ESTADISTICAS Y PASOS EN CUALQUIER APARATO',
   avatar: 'UNA FLECHA DEL JUEGO QUE TE REPRESENTA: PERFIL, SALON Y ONLINE',
   aparato: 'LO VEN LOS DEMAS EN EL ONLINE (Y CUENTA PARA LOS TORNEOS DE UN SOLO CONTROL)',
   usb: 'ALFOMBRA, JOYSTICK O GAMEPAD: CENTRO = PISAR CADA PANEL PARA APRENDERLO',
@@ -953,13 +958,13 @@ function confirmarTexto() {
       // el servidor revisa el nombre (filtro.php); sin servidor (la build de Edge) se juega igual, sin ranking
       api({ accion: 'nombre', nick: v, pin: op.pin }).then(() => true).catch(er => (er.codigo === 400 || er.codigo === 403 ? (avisar(er.message, 5), false) : true)).then(ok => {
         if (!ok || pantalla !== 'nick') return;
-        entrada.blur(); op.nick = v.slice(0, 16); guardarOpciones(); perfil = null;
+        entrada.blur(); op.nick = v.slice(0, 16); guardarOpciones(); perfil = null; nombreElegido();
         if (destinoNick === 'cambiar') { pantalla = 'opciones'; cursor = 0; avisar(`Tu nombre: ${op.nick}`); } else jugarSolo();
       });
     }
     else { entrada.blur(); entrarSala(v); }
   }
-  else if (escribiendo) { if (v) api({ accion: 'chat', ...credencial(), texto: v }).then(actualizarSala).catch(() => {}); escribiendo = false; entrada.blur(); }
+  else if (escribiendo) { if (v) api({ accion: 'chat', ...credencial(), texto: v }).then(actualizarSala).catch(er => avisar(er.message, 4)); escribiendo = false; entrada.blur(); }
 }
 // CLAVE DEL NOMBRE (21/10; 30/10, Charles: "que pida la clave 2 veces y quede registrado, que no la olvide, que se
 // pueda desloguear desde opciones; eso si quieren registrar ranking"). Opcional. La guarda api.php (datos/nombres.json,
@@ -1226,7 +1231,7 @@ function dibujarMenu(t, vivo) {
   }
   const si = (v) => (v ? 'SI' : 'NO');
   const items = pantalla === 'menu' ? MENU.map((m) => NOMBRE_MENU[m])
-    : pantalla === 'opciones' ? FILAS_OPCIONES.map((f) => ({ nombre: `TU NOMBRE: ${op.nick || '-'}`, pin: `CLAVE DEL NOMBRE: ${op.pin ? 'REGISTRADA' : 'SIN CLAVE'}`, sesion: op.nick ? `CERRAR SESION (${op.nick})`.slice(0, 30) : 'CERRAR SESION', avatar: `AVATAR: ${op.avatar ? 'ELEGIDO' : 'NINGUNO'}`,
+    : pantalla === 'opciones' ? FILAS_OPCIONES.map((f) => ({ login: cuentaActiva() ? `CUENTA: ${mailDeCuenta().toUpperCase()}`.slice(0, 30) : 'CUENTA: ENTRAR O CREAR', nombre: `TU NOMBRE: ${op.nick || '-'}`, pin: `CLAVE DEL NOMBRE: ${op.pin ? 'REGISTRADA' : 'SIN CLAVE'}`, sesion: op.nick ? `CERRAR SESION (${op.nick})`.slice(0, 30) : 'CERRAR SESION', avatar: `AVATAR: ${op.avatar ? 'ELEGIDO' : 'NINGUNO'}`,
       aparato: `JUEGO CON: ${op.aparato === 'auto' || !op.aparato ? `AUTO (${CORTO_APARATO[aparatoAuto()]})` : { teclado: 'TECLADO', plataforma: 'PLATAFORMA', tactil: 'CELU/TABLET' }[op.aparato]}`, controles: `CONTROLES: ${CORTO_CONTROLES[op.controles]}`, paneles: `PANELES: ${op.panelesDos ? 'DOS' : 'UNO'}`,
       tamano: `TAMANO DE PANELES: ${Math.round(op.tamanoPads * 100)}%`, vibrar: `VIBRAR AL PISAR: ${si(op.vibrar)}`,
       rom: `SONIDOS DE LA CABINA: ${hayEfectos() ? 'SI' : 'FALTA LA ROM'}`,
@@ -1945,14 +1950,16 @@ export async function iniciarMenu(juego) {
     if ((pantalla !== 'nick' && !escribiendo) || document.activeElement === entrada) return;
     if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) entrada.focus();
   });
-  addEventListener('keydown', (e) => { if (tecla(e)) e.stopImmediatePropagation(); }, true);
+  addEventListener('keydown', (e) => { if (!cuentaAbierta() && tecla(e)) e.stopImmediatePropagation(); }, true);
   addEventListener('beforeunload', () => { if (sala.yo) navigator.sendBeacon(API, JSON.stringify({ accion: 'salir', ...credencial() })); });
   requestAnimationFrame(dibujar); requestAnimationFrame(dibujarHud);
   await cargarOpciones();
   J.paneles(op.panelesDos); J.tactil.tamano(op.tamanoPads); J.tactil.vibrar(op.vibrar); J.mando.fijarMapa(op.usb); J.desfase(op.desfase); J.teclas(op.teclas); J.volumen(op.volumen); J.pantalla(op.pantalla);
   iniciarEditor({ texto, caja, R, CANCIONES, traer, DISCO, API, avisar, lienzo, pantalla: () => pantalla,
     audio: () => (audioCtx = audioCtx || J.audio()), salir: () => { pantalla = 'menu'; cursor = Math.max(0, MENU.indexOf('editor')); }, probar: probarPasos,
-    clave: claveDueno, nick: () => op.nick || soloNick, fijarNick: (n) => { op.nick = n; guardarOpciones(); }, pin: () => op.pin });
+    clave: claveDueno, nick: () => op.nick || soloNick, fijarNick: (n) => { op.nick = n; guardarOpciones(); }, pin: () => op.pin, conCuenta: cuentaActiva });
+  iniciarCuenta({ api: API.replace(/api\.php$/, 'cuentas.php'), op: () => op, guardarOpciones, avisar, claveDueno });
+  revisarCuenta();
   const t0 = performance.now();
   try { await cargarRecursos(); } catch (e) { console.error(e); avisar('No pude cargar los graficos: ' + e.message, 10); }
   console.log(`menu: graficos del juego listos en ${Math.round(performance.now() - t0)} ms`);

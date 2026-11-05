@@ -187,6 +187,7 @@ class Servidor
         if (System.Text.RegularExpressions.Regex.IsMatch(n, "^d" + num + "\\.aud$")) return 614400;
         if (System.Text.RegularExpressions.Regex.IsMatch(n, "^" + num + "\\.aud$")) return 16777216;   // entera; si pasa la placa (2,6 MB) el juego recibe una recortada
         if (System.Text.RegularExpressions.Regex.IsMatch(n, "^t" + num + "\\.pnz$")) return 2097152;
+        if (System.Text.RegularExpressions.Regex.IsMatch(n, "^v" + num + "\\.(mp4|webm)$")) return 209715200;   // el video propio de fondo (editor, tecla V)
         if (n == "canciones.json") return 65536;
         return 0;
     }
@@ -207,6 +208,8 @@ class Servidor
         if (e == ".js" || e == ".mjs") return "text/javascript; charset=utf-8";
         if (e == ".json") return "application/json; charset=utf-8";
         if (e == ".md") return "text/plain; charset=utf-8";
+        if (e == ".mp4") return "video/mp4";
+        if (e == ".webm") return "video/webm";
         return "application/octet-stream";
     }
 

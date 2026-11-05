@@ -146,7 +146,7 @@ function alSalon(req, res) {
 // ---------- archivos ----------
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.csv': 'text/csv; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
-  '.png': 'image/png', '.mp3': 'audio/mpeg', '.svg': 'image/svg+xml' };
+  '.png': 'image/png', '.mp3': 'audio/mpeg', '.svg': 'image/svg+xml', '.mp4': 'video/mp4', '.webm': 'video/webm' };
 const AISLAR = { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp', 'Cross-Origin-Resource-Policy': 'same-origin' };
 function servirArchivo(req, res, ruta) {
   const st = fs.statSync(ruta);
@@ -172,6 +172,7 @@ function topeCancion(n) {
   if (new RegExp(`^d${num}\\.aud$`).test(n)) return 614400;
   if (new RegExp(`^${num}\\.aud$`).test(n)) return 16777216;   // entera: si pasa la placa (2,6 MB) el juego recibe una recortada
   if (new RegExp(`^t${num}\\.pnz$`).test(n)) return 2097152;
+  if (new RegExp(`^v${num}\\.(mp4|webm)$`).test(n)) return 209715200;   // el video propio de fondo (editor, tecla V)
   if (n === 'canciones.json') return 65536;
   return 0;
 }

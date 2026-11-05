@@ -31,7 +31,7 @@ export function limpiarNot(b) {
   const n = b.length;
   if (n < 222 || n > TOPES.not || String.fromCharCode(...b.subarray(0, 8)) !== 'pump 5.0') return null;
   const v = new DataView(b.buffer, b.byteOffset, n), filas = v.getUint16(0x0A, true);
-  if (filas < 1 || filas > 40000 || n !== 216 + 6 * filas) return null;
+  if (filas < 1 || filas > 2048 || n !== 216 + 6 * filas) return null;     // (05/11) el juego tiene lugar para 2048 filas: mas pisaria su memoria
   const o = new Uint8Array(n), w = new DataView(o.buffer);
   for (let i = 0; i < 8; i++) o[i] = b[i];
   w.setUint16(0x0A, filas, true);
@@ -41,7 +41,7 @@ export function limpiarNot(b) {
     w.setFloat32(0x10 + 4 * i, bpm, true); w.setInt32(0x38 + 4 * i, val, true); w.setInt32(0x60 + 4 * i, cam, true);
   }
   const pp = v.getInt32(0x88, true), num = v.getInt32(0x90, true);
-  if (pp < 1 || pp > 48 || num < 0 || num > 99) return null;
+  if (pp < 1 || pp > 6 || num < 0 || num > 99) return null;
   w.setInt32(0x88, pp, true); w.setInt32(0x90, num, true);
   for (let i = 0; i < 3 * filas; i++) { let m = v.getUint16(216 + 2 * i, true) & 0x3FF; if (m & 0x200) m |= 0xFC00; w.setUint16(216 + 2 * i, m, true); }
   return o;

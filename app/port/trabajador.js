@@ -352,14 +352,18 @@ function estirarFin() {
 // Despues del video va un rectangulo negro de pantalla entera (en las coordenadas de 640 x 480 del juego, como su propio
 // cuadro de 0x2C5A2) con la transparencia elegida: se oscurece solo el fondo. SIN VIDEO no lo dibuja (alivia al
 // aparato) y la pagina pone la caratula (principal.js fondoCancion).
+// (05/11, Charles: "un videoclip de fondo") una cancion propia con VIDEO PROPIO (editor, tecla V): el mismo lugar, pero la
+// pagina dibuja ese video (principal.js videoCancion). No lo juega el trabajador: el juego sigue sin saber que hay video.
 function instalarFondoBga(f) {
   const atenuar = f === 'titulo' ? 1 : Math.max(0, Math.min(0.95, +f || 0));
-  if (!atenuar) return;
-  postMessage({ tipo: 'registro', s: `fondo de la cancion: ${f === 'titulo' ? 'SIN VIDEO' : 'atenuado ' + Math.round(atenuar * 100) + ' %'}` });
-  const tapar = () => {
-    grabador.glDisable(0x0DE1); grabador.glColor4f(0, 0, 0, atenuar);
+  if (atenuar) postMessage({ tipo: 'registro', s: `fondo de la cancion: ${f === 'titulo' ? 'SIN VIDEO' : 'atenuado ' + Math.round(atenuar * 100) + ' %'}` });
+  const negro = (a) => {
+    grabador.glDisable(0x0DE1); grabador.glColor4f(0, 0, 0, a);
     grabador.glBegin(7); grabador.glVertex2i(0, 0); grabador.glVertex2i(640, 0); grabador.glVertex2i(640, 480); grabador.glVertex2i(0, 480); grabador.glEnd();
     grabador.glEnable(0x0DE1);
+  };
+  const tapar = () => {
+    negro(atenuar);
     if (f === 'titulo') cmds.push(['fondoCancion', C.r32(0x2B3A68)]);
     grabador.glColor4f(1, 1, 1, 1);
   };
@@ -367,6 +371,9 @@ function instalarFondoBga(f) {
     C.HLE[dir] = () => {
       const deCancion = vueltas.includes(C.r32(C.R[C.ESP] >>> 0)) && !(C.r32(0x1CFB08) & 0x100000);
       if (!deCancion) { C.FN[dir](); return -4; }
+      const n = C.r32(0x2B3A68), videoPropio = (propias.find(c => c.n === n) || {}).fondoPropio;
+      if (videoPropio) { negro(1); cmds.push(['videoCancion', n, videoPropio]); grabador.glColor4f(1, 1, 1, 1); return 0; }
+      if (!atenuar) { C.FN[dir](); return -4; }
       if (f === 'titulo') { tapar(); return 0; }
       C.FN[dir](); tapar(); return -4;
     };
@@ -677,7 +684,6 @@ function iniciar(e) {
   if (online) instalarOnline();
   else if (e.data.eleccion) instalarEleccion();
   instalarListas(!!e.data.desbloqueado);
-  if (e.data.fondoBga && !e.data.fondo && !e.data.eleccion) instalarFondoBga(e.data.fondoBga);
   if (e.data.carrilCentro && !e.data.fondo && !e.data.eleccion) instalarCarrilCentro();
   else if (e.data.fondo) instalarFondo();
   try {
@@ -686,8 +692,10 @@ function iniciar(e) {
     C.cargar(0x130000, volcados[1]);
     aplicarArreglos(demo);
     // (en el online las propias no: si la cancion es propia viene en el paquete, ya revisado, y es la del que desafio)
-    if (demo || e.data.fondo || online) propias = []; else cargarPropias();
+    // (PROBAR del editor llega como online, pero con sus pasos: ahi las propias si, o se quedaba sin musica ni fondo)
+    if (demo || e.data.fondo || (online && !e.data.pasos)) propias = []; else cargarPropias();
     if (propias.length) instalarDibujoPropias();
+    if ((e.data.fondoBga || propias.some(c => c.fondoPropio)) && !e.data.fondo && !e.data.eleccion) instalarFondoBga(e.data.fondoBga);
     // PAQUETE de una cancion propia en el online (online.js + paquete.js; EDITOR_MASTER.md etapas 3 y 4): sus pasos y su
     // musica, ya rearmados desde cero, y el fondo es el video REMIX del disco que eligio quien la hizo
     const pq = online && e.data.paquete, nPq = pq ? String(online.cancion).padStart(2, '0') : '';

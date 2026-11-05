@@ -214,6 +214,44 @@ function relojAudible() {
   return t;
 }
 
+// ---------- VIDEO PROPIO de una cancion nueva (editor, tecla V; trabajador.js instalarFondoBga) ----------
+// Un <video> mudo que se copia a una textura en cada cuadro nuevo, recortado para llenar los 640 x 480. Es adorno: arranca con
+// el primer cuadro de la cancion y no manda sobre los pasos. Si no se puede abrir (formato raro), va la caratula.
+let videoFondo = null;
+function pararVideoFondo() { if (videoFondo) { videoFondo.el.pause(); videoFondo.el.removeAttribute('src'); videoFondo.el.load(); videoFondo = null; } }
+setInterval(() => { if (videoFondo && performance.now() - videoFondo.visto > 1500) pararVideoFondo(); }, 1000);
+function videoCancion(n, archivo) {
+  if (!videoFondo || videoFondo.n !== n) {
+    pararVideoFondo();
+    const el = document.createElement('video');
+    const v = videoFondo = { n, el, fallo: false, visto: 0, ultimo: -1, lista: false };
+    el.muted = true; el.playsInline = true; el.loop = true;
+    el.onerror = () => { v.fallo = true; registrar('video propio: no se pudo abrir ' + archivo); };
+    el.src = new URL('../guardado/canciones/' + archivo, location.href).href;
+    el.play().catch(() => { v.fallo = true; });
+  }
+  const v = videoFondo; v.visto = performance.now();
+  if (v.fallo) { fondoCancion.call(this, n); return; }
+  const previa = this.texActual;
+  this.glBindTexture(0x0DE1, 910000 + n);
+  if (v.el.readyState >= 2 && v.el.currentTime !== v.ultimo) {
+    v.ultimo = v.el.currentTime;
+    this._cambia();
+    this.w.texImage2D(this.w.TEXTURE_2D, 0, this.w.RGBA, this.w.RGBA, this.w.UNSIGNED_BYTE, v.el);
+    if (!v.lista) for (const [p, x] of [[0x2801, 0x2601], [0x2800, 0x2601], [0x2802, 0x812F], [0x2803, 0x812F]]) this.glTexParameteri(0x0DE1, p, x);
+    v.lista = true;
+  }
+  if (v.lista) {
+    const asp = (v.el.videoWidth || 640) / (v.el.videoHeight || 480), cu = asp > 4 / 3 ? (1 - (4 / 3) / asp) / 2 : 0, cv = asp < 4 / 3 ? (1 - asp / (4 / 3)) / 2 : 0;
+    this.glColor4f(1, 1, 1, 1);
+    this.glBegin(7);
+    this.glTexCoord2f(cu, 1 - cv); this.glVertex2i(0, 0); this.glTexCoord2f(1 - cu, 1 - cv); this.glVertex2i(640, 0);
+    this.glTexCoord2f(1 - cu, cv); this.glVertex2i(640, 480); this.glTexCoord2f(cu, cv); this.glVertex2i(0, 480);
+    this.glEnd();
+  }
+  this.glBindTexture(0x0DE1, previa);
+}
+
 // ---------- FONDO SIN VIDEO (OPCIONES > FONDO: trabajador.js instalarFondoBga) ----------
 // En vez del video, la caratula de la cancion (TITLE\tNN.pnz), de pantalla entera. El juego manda "fondoCancion" en
 // cada cuadro; la primera vez se pide la imagen al menu (online.js portadaFondo) y queda en una textura propia
@@ -366,6 +404,7 @@ function arrancar(cfg = {}) {
     lienzo.width = Math.round(640 * escala); lienzo.height = Math.round(480 * escala);
     gl = new GL1(lienzo, { escala, profundidad: false });
     gl.fondoCancion = fondoCancion;
+    gl.videoCancion = videoCancion;
     requestAnimationFrame(bucle);
   }
   enOnline = !!cfg.online;

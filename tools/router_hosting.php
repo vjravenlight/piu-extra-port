@@ -15,7 +15,7 @@ foreach (array_filter(explode('/', $ruta), 'strlen') as $parte) {
     $actual .= '/' . $parte;
 }
 if (is_dir($actual)) { http_response_code(403); return true; }
-$tipos = ['html' => 'text/html; charset=utf-8', 'js' => 'text/javascript', 'mjs' => 'text/javascript', 'json' => 'application/json', 'txt' => 'text/plain', 'cfg' => 'application/octet-stream'];
+$tipos = ['html' => 'text/html; charset=utf-8', 'css' => 'text/css', 'js' => 'text/javascript', 'mjs' => 'text/javascript', 'json' => 'application/json', 'txt' => 'text/plain', 'cfg' => 'application/octet-stream'];
 $ext = strtolower(pathinfo($actual, PATHINFO_EXTENSION));
 header('Content-Type: ' . ($tipos[$ext] ?? 'application/octet-stream'));
 header('Cross-Origin-Opener-Policy: same-origin');

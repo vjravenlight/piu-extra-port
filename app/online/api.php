@@ -17,7 +17,6 @@ if (preg_match('#^http://(127\.0\.0\.1|localhost)(:\d{1,5})?$#', $origen)) {
 }
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') exit;
 
-const VENCE_JUGADOR = 30;      // s sin consultar = se fue (margen para celulares lentos o en segundo plano)
 const VENCE_DESAFIO = 30;      // s para aceptar un desafio
 const ESPERA_ARRANQUE = 45;    // s de respaldo entre aceptar y arrancar, por si alguno nunca avisa que cargo (accion 'listo')
 const VENCE_PARTIDA = 600;     // s maximos de una partida
@@ -35,67 +34,24 @@ if (!is_dir($dir)) mkdir($dir, 0755, true);
 ini_set('log_errors', '1'); ini_set('error_log', "$dir/errores.log");
 if (!file_exists("$dir/.htaccess")) file_put_contents("$dir/.htaccess", "Require all denied\nDeny from all\n");
 
-function responder(array $r, int $codigo = 200): void { http_response_code($codigo); echo json_encode($r, JSON_UNESCAPED_UNICODE); exit; }
-function error(string $m, int $c = 400): void { responder(['error' => $m], $c); }
-function leer(string $f, array $vacio): array { $t = @file_get_contents($f); $d = $t ? json_decode($t, true) : null; return is_array($d) ? $d : $vacio; }
-// grabar entero o nada: escribe al lado y renombra; en Windows el antivirus puede tener el archivo abierto un
-// instante y el renombre falla, asi que se reintenta y, si no, se escribe directo
-function grabar(string $f, array $d): void {
-    $j = json_encode($d, JSON_UNESCAPED_UNICODE);
-    file_put_contents("$f.tmp", $j);
-    for ($i = 0; $i < 10; $i++) { if (@rename("$f.tmp", $f)) return; usleep(15000); }
-    file_put_contents($f, $j);
-}
-// texto limpio y cortado a $max letras (sin mbstring, que no siempre esta instalado)
-function texto($v, int $max): string {
-    $s = trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', (string)$v) ?? '');
-    return preg_match('/^.{0,' . $max . '}/us', $s, $m) ? $m[0] : '';
-}
-function largo(string $s): int { return (int)preg_match_all('/./us', $s); }
-// (30/10) sin mbstring (el PHP portatil sin php.ini) strtolower no toca la Ñ ni las tildes: "ÑANDU" era otro nombre que
-// "ñandu" y se salteaba la clave. Asi las mayusculas con tilde de los nombres pasan igual a minuscula
-const MINUSCULAS = ['Á' => 'á', 'É' => 'é', 'Í' => 'í', 'Ó' => 'ó', 'Ú' => 'ú', 'Ü' => 'ü', 'Ñ' => 'ñ', 'À' => 'à', 'È' => 'è', 'Ì' => 'ì',
-    'Ò' => 'ò', 'Ù' => 'ù', 'Â' => 'â', 'Ê' => 'ê', 'Î' => 'î', 'Ô' => 'ô', 'Û' => 'û', 'Ä' => 'ä', 'Ë' => 'ë', 'Ï' => 'ï', 'Ö' => 'ö', 'Ç' => 'ç', 'Ã' => 'ã', 'Õ' => 'õ'];
-function minusculas(string $s): string { return function_exists('mb_strtolower') ? mb_strtolower($s) : strtr(strtolower($s), MINUSCULAS); }
+require __DIR__ . '/comun.php';          // responder, error, leer, grabar, texto, limitar...
+require __DIR__ . '/nombres.php';        // la clave del nombre
 require __DIR__ . '/filtro.php';         // malas palabras: tapadas en el chat, prohibidas en los nombres
+require __DIR__ . '/moderacion.php';     // sanciones (las pone el panel, admin.php, o el filtro automatico)
 
 // ---------- seguridad (Charles 21/10: "que el online mejore y refuerces todo, mejor seguridad tambien") ----------
 // Tope de tamano de cada pedido (el mas grande es un trozo de paquete: 512 KB en base64) y limites por conexion: cada
-// cosa tiene su cupo en una ventana de tiempo (datos/limites.json, por la huella de la IP; se limpia solo).
+// cosa tiene su cupo en una ventana de tiempo (comun.php, limitar).
 $crudo = file_get_contents('php://input', false, null, 0, 1048577 * 1) ?: '{}';
 if (strlen($crudo) > 1048576) error('pedido demasiado grande', 413);
 $p = json_decode($crudo, true, 8);
 if (!is_array($p)) error('pedido invalido');
 $accion = (string)($p['accion'] ?? '');
-$huellaIp = substr(hash('sha256', 'piu:' . ($_SERVER['REMOTE_ADDR'] ?? '')), 0, 16);
-function limitar(string $dir, string $que, int $max, int $seg): void {
-    global $huellaIp;
-    $f = "$dir/limites.json"; $c = fopen("$dir/candado_limites", 'c'); flock($c, LOCK_EX);
-    $l = leer($f, []); $ahora = time(); $k = "$que|$huellaIp";
-    if (random_int(0, 49) === 0) foreach ($l as $kk => $v) if ($ahora - $v[0] > 3600) unset($l[$kk]);   // limpiar lo viejo
-    $v = $l[$k] ?? [$ahora, 0];
-    if ($ahora - $v[0] >= $seg) $v = [$ahora, 0];
-    $v[1]++; $l[$k] = $v;
-    grabar($f, $l); flock($c, LOCK_UN);
-    if ($v[1] > $max) error('demasiados pedidos: espera un momento', 429);
-}
 limitar($dir, 'todo', 2500, 600);              // en 10 minutos: el salon pregunta cada 0,7 s y el marcador cada 0,45 s
 $CUPOS = ['entrar' => [20, 300], 'chat' => [40, 60], 'desafiar' => [20, 60], 'solo_etapa' => [60, 600], 'solo_sesion' => [30, 600],
     'nombre' => [40, 600], 'proteger' => [10, 600], 'comunidad_publicar' => [30, 3600], 'comunidad_borrar' => [60, 3600],
     'paquete_trozo' => [200, 600], 'reporte' => [30, 600], 'guardar_pasos' => [60, 600], 'avatar' => [30, 600]];
 if (isset($CUPOS[$accion])) limitar($dir, $accion, $CUPOS[$accion][0], $CUPOS[$accion][1]);
-
-// ---------- CLAVE DEL NOMBRE (opcional): con ella nadie mas juega, sale en el ranking ni entra al online con ese nombre ----------
-// datos/nombres.json: nombre en minuscula -> password_hash de la clave (4 a 8 numeros). Las claves mal puestas tienen
-// cupo (8 cada 10 minutos por conexion), asi no se pueden adivinar probando.
-function nombreLibre(string $dir, string $nick, $pin): bool {
-    $n = leer("$dir/nombres.json", []); $k = minusculas($nick);
-    if (!isset($n[$k])) return true;
-    if (is_string($pin) && preg_match('/^\d{4,8}$/', $pin) && password_verify($pin, $n[$k])) return true;
-    limitar($dir, 'clave_mal', 8, 600);
-    return false;
-}
-const ERROR_CLAVE = 'ese nombre tiene clave: ponela en OPCIONES > CLAVE DEL NOMBRE';
 
 // ranking: no hace falta estar en la sala (va tambien el del modo solo)
 if ($accion === 'ranking') {
@@ -127,12 +83,13 @@ function pasosLimpios(string $b): ?string {
     $n = strlen($b);
     if ($n < 222 || $n > 262144 || substr($b, 0, 8) !== 'pump 5.0') return null;
     $filas = unpack('v', substr($b, 0x0A, 2))[1];
-    if ($filas < 1 || $filas > 40000 || $n !== 216 + 6 * $filas) return null;
+    // (05/11) el juego tiene lugar para 2048 filas (0x29f230): mas que eso pisaria la memoria del juego de quien lo reciba
+    if ($filas < 1 || $filas > 2048 || $n !== 216 + 6 * $filas) return null;
     $bpm = array_values(unpack('g10', substr($b, 0x10, 40)));
     foreach ($bpm as $v) if (!is_finite($v) || $v <= 0 || $v > 1000) return null;
     $val = array_values(unpack('l10', substr($b, 0x38, 40))); $cam = array_values(unpack('l10', substr($b, 0x60, 40)));
     $pp = unpack('l', substr($b, 0x88, 4))[1]; $num = unpack('l', substr($b, 0x90, 4))[1];
-    if ($pp < 1 || $pp > 48 || $num < 0 || $num > 99) return null;
+    if ($pp < 1 || $pp > 6 || $num < 0 || $num > 99) return null;   // (05/11) de 8 filas por pulso para arriba el juez no deja pisar a tiempo
     foreach (array_merge($val, $cam) as $v) if (abs($v) > 10000000) return null;
     $o = str_pad('pump 5.0', 10, "\0") . pack('v', $filas) . str_repeat("\0", 4);
     foreach ($bpm as $v) $o .= pack('g', $v);
@@ -442,6 +399,7 @@ $ahora = microtime(true);
 foreach ($sala['jugadores'] as $id => $j) if ($ahora - $j['visto'] > VENCE_JUGADOR) unset($sala['jugadores'][$id]);
 foreach ($sala['desafios'] as $id => $d) if ($ahora - $d['t'] > VENCE_DESAFIO || !isset($sala['jugadores'][$d['de']], $sala['jugadores'][$d['a']])) unset($sala['desafios'][$id]);
 foreach ($sala['partidas'] as $id => $pa) if ($ahora - $pa['inicio'] > VENCE_PARTIDA) unset($sala['partidas'][$id]);
+foreach ($sala['fuera'] ?? [] as $id => $f) if ($ahora - $f['t'] > 120) unset($sala['fuera'][$id]);
 // (21/10) series (versus completo, cruces del torneo) y el torneo: los que se fueron pierden, lo vencido se borra
 $sala['series'] = $sala['series'] ?? [];
 $sala['torneo'] = $sala['torneo'] ?? null;
@@ -461,10 +419,12 @@ if ($accion === 'entrar') {
     if (largo($nick) < 2) { flock($candado, LOCK_UN); error('el nickname tiene que tener entre 2 y 16 letras'); }
     if (nickProhibido($nick)) { flock($candado, LOCK_UN); error('ese nickname no se puede usar'); }
     if (!nombreLibre($dir, $nick, $p['pin'] ?? null)) { flock($candado, LOCK_UN); error(ERROR_CLAVE, 403); }
+    $bloqueo = sancionBuscar($dir, 'bloqueo', $nick, $huellaIp);
+    if ($bloqueo) { flock($candado, LOCK_UN); error('no podes entrar al salon ' . sancionAviso($bloqueo), 403); }
     if (count($sala['jugadores']) >= 300) { flock($candado, LOCK_UN); error('el salon esta lleno: proba en un rato'); }
     foreach ($sala['jugadores'] as $j) if (minusculas($j['nick']) === minusculas($nick)) { flock($candado, LOCK_UN); error('ese nickname ya esta en la sala'); }
     $id = bin2hex(random_bytes(6)); $clave = bin2hex(random_bytes(12));
-    $sala['jugadores'][$id] = ['nick' => $nick, 'clave' => $clave, 'visto' => $ahora, 'estado' => 'sala', 'partida' => null, 'avatar' => avatarLimpio($p['avatar'] ?? null),
+    $sala['jugadores'][$id] = ['nick' => $nick, 'clave' => $clave, 'visto' => $ahora, 'desde' => $ahora, 'ip' => $huellaIp, 'estado' => 'sala', 'partida' => null, 'avatar' => avatarLimpio($p['avatar'] ?? null),
         'aparato' => in_array($p['aparato'] ?? '', APARATOS, true) ? $p['aparato'] : null];
     $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => "$nick entro a la sala", 't' => $ahora];
     $guardar();
@@ -473,9 +433,10 @@ if ($accion === 'entrar') {
 
 // todo lo demas necesita id y clave
 $id = (string)($p['id'] ?? '');
-if (!isset($sala['jugadores'][$id]) || !hash_equals($sala['jugadores'][$id]['clave'], (string)($p['clave'] ?? ''))) { flock($candado, LOCK_UN); error('no estas en la sala', 401); }
+if (!isset($sala['jugadores'][$id]) || !hash_equals($sala['jugadores'][$id]['clave'], (string)($p['clave'] ?? ''))) { $sacado = $sala['fuera'][$id]['motivo'] ?? ''; flock($candado, LOCK_UN); error($sacado !== '' ? $sacado : 'no estas en la sala', 401); }
 $yo = &$sala['jugadores'][$id];
 $yo['visto'] = $ahora;
+$yo['ip'] = $huellaIp;
 if (in_array($p['aparato'] ?? '', APARATOS, true)) $yo['aparato'] = $p['aparato'];   // si cambia (enchufo un mando, OPCIONES)
 $mirada = null;
 
@@ -488,8 +449,30 @@ switch ($accion) {
     case 'chat':
         if ($ahora - ($yo['ultimoChat'] ?? 0) < 0.8) error('mas despacio con el chat');    // un mensaje por segundo, mas o menos
         $yo['ultimoChat'] = $ahora;
-        $t = filtrarTexto(texto($p['texto'] ?? '', 200));
-        if ($t !== '') $sala['chat'][] = ['n' => $sala['sigChat']++, 'id' => $id, 'nick' => $yo['nick'], 'texto' => $t, 't' => $ahora];
+        // (05/11) el panel puede cerrar el chat y silenciar; el filtro automatico sanciona al que insiste
+        $cfgFiltro = filtroConfig();
+        if (empty($cfgFiltro['chatAbierto'])) error('el chat esta cerrado por ahora');
+        $silencio = sancionBuscar($dir, 'silencio', $yo['nick'], $huellaIp);
+        if ($silencio) error('estas silenciado ' . sancionAviso($silencio));
+        $original = texto($p['texto'] ?? '', 200);
+        $t = filtrarTexto($original);
+        if ($t !== '') {
+            $n = $sala['sigChat']++;
+            $sala['chat'][] = ['n' => $n, 'id' => $id, 'nick' => $yo['nick'], 'texto' => $t, 't' => $ahora];
+            if ($t !== $original) {
+                modFiltrado($dir, $n, $yo['nick'], $huellaIp, $original, $t);
+                $auto = modAuto($dir, $yo['nick'], $cfgFiltro['auto']);
+                if ($auto && $auto['tipo'] === 'bloqueo') {
+                    $motivo = 'te sacaron del salon: filtro automatico';
+                    $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => $yo['nick'] . ' fue sacado del salon', 't' => $ahora];
+                    $sala['chat'] = array_slice($sala['chat'], -100);
+                    modSacar($sala, $id, $motivo, $ahora);
+                    $guardar();
+                    error($motivo, 401);
+                }
+                if ($auto) $sala['chat'][] = ['n' => $sala['sigChat']++, 'sistema' => true, 'texto' => $yo['nick'] . ' fue silenciado ' . sancionAviso($auto) . ' por el filtro', 't' => $ahora];
+            }
+        }
         $sala['chat'] = array_slice($sala['chat'], -100);
         break;
 
@@ -719,7 +702,7 @@ $guardar();
 if ($mirada && isset($mirada['id'])) { $mirada['miran'] = $sala['partidas'][$mirada['id']]['miran'] ?? 0; unset($mirada['mirando']); }
 if ($partida) { $partida['miran'] = $sala['partidas'][$partida['id']]['miran'] ?? 0; unset($partida['mirando']); }
 responder(['yo' => ['id' => $id, 'nick' => $yo['nick'], 'estado' => $yo['estado']], 'jugadores' => $jugadores, 'desafios' => $desafios,
-    'partida' => $partida, 'chat' => $chat, 'ahora' => $ahora, 'mirada' => $mirada, 'serie' => $serie, 'torneo' => $torneo]);
+    'partida' => $partida, 'chat' => $chat, 'chatBorrados' => $sala['chatBorrados'] ?? [], 'ahora' => $ahora, 'mirada' => $mirada, 'serie' => $serie, 'torneo' => $torneo]);
 
 // ---------- ranking: mejor puntaje por cancion y modo (top 10) y ganadas/perdidas por nickname ----------
 function anotarRanking(string $dir, array $pa): void {

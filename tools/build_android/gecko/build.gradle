@@ -18,8 +18,8 @@ android {
         manifestPlaceholders = [nombreApp: project.findProperty('nombreApp') ?: 'Pump It Up Extra']
         minSdk = 29
         targetSdk = 35
-        versionCode = 6
-        versionName = '1.4.1'      // (03/11) listas fijas (app\port\listas.js); 1.4.0: la WebView con el puente (Juego.java)
+        versionCode = 7
+        versionName = '1.5.0'      // (05/11) moderacion, cuenta opcional, EDITS en el celu; 1.4.1: listas fijas (app\port\listas.js); 1.4.0: la WebView con el puente (Juego.java)
         ndk { abiFilters += ['arm64-v8a'] }
     }
     sourceSets {

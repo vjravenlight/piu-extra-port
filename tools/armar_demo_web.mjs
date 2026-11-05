@@ -40,7 +40,15 @@ for (const carpeta of ['', 'juego']) {
   // lo que usa el navegador para preparar un disco propio (app\port\instalador.js; tools\preparar\archivos_navegador.json)
   for (const [n, f] of Object.entries(JSON.parse(fs.readFileSync(path.join(base, 'tools', 'preparar', 'archivos_navegador.json'), 'utf8')))) copiar(path.join(base, 'tools', f), path.join(destino, carpeta, 'preparar', n));
 }
-for (const f of ['api.php', 'filtro.php']) copiar(path.join(base, 'app', 'online', f), path.join(destino, 'online', f));
+for (const f of ['api.php', 'comun.php', 'nombres.php', 'filtro.php', 'filtro_idiomas.json', 'moderacion.php', 'admin.php', 'cuentas.php']) copiar(path.join(base, 'app', 'online', f), path.join(destino, 'online', f));
+for (const f of ['index.html', 'admin.js', 'admin.css']) copiar(path.join(base, 'app', 'admin', f), path.join(destino, 'admin', f));   // el panel de moderacion: /piu/admin/
+// los edits de la comunidad, para bajar desde cualquier lado: /piu/edits/. Los nombres de las canciones salen de online.js
+for (const f of ['index.html', 'edits.js']) copiar(path.join(base, 'app', 'edits', f), path.join(destino, 'edits', f));
+{
+  const fuente = fs.readFileSync(path.join(base, 'app', 'port', 'online.js'), 'utf8'), nombres = {};
+  for (const m of fuente.matchAll(/\{ n: (\d+), nombre: '([^']+)'/g)) nombres[m[1]] = m[2];
+  fs.writeFileSync(path.join(destino, 'edits', 'canciones.js'), `window.PIU_CANCIONES = ${JSON.stringify(nombres)};\n`);
+}
 for (const f of ['codigo_0x20000.bin', 'datos_0x130000.bin']) copiar(path.join(base, 'investigacion', 'volcados', f), path.join(destino, 'volcados', f));
 
 // 2. el disco: lo comun + las canciones, en minuscula
